@@ -68,17 +68,17 @@ The QR contains an opaque demo token, with no student name or contact details. T
 
 An ordinary move can also be done by dragging a booking, or by opening it and choosing **Move lesson**. Original bookings stay struck through. Capacity is checked across overlapping time intervals. A move after expiry requires a reason and a manager-approved extension. Undo is available after an ordinary move.
 
-### 3. Receipt first, bank matching later
+### 3. Automatic receipts and bank reconciliation
 
-1. **Parent → Payments:** submit the sample proof for Chloe's invoice.
-2. **Admin → Billing → Invoices:** issue the receipt immediately.
-3. **Reconciliation:** the new receipt remains unmatched until it is linked to a bank entry.
-4. Match **R-1025 / Ethan** to **BANK-101 / WONG**: receipt 1 October, bank 30 September → **Date back**, September report.
-5. Match **R-1026 / Lucas** to **BANK-102 / LEE**: receipt 30 September, bank 2 October → **Date forward**, October report.
-6. Match **R-1027 / Emma** to **BANK-103 / LAM**: HK$200 difference remains visible.
-7. **Director review:** inspect matched totals and exceptions, record the review and export the report as CSV.
+1. **Parent → Payments → Submit payment proof:** choose a local image/PDF (up to 2 MB) or **Use demo proof**. The **Demo check** selector simulates valid, wrong-recipient, wrong-amount, unreadable, non-payment and duplicate-proof outcomes. It does not run real OCR or AI against uploaded files.
+2. Submit a valid proof: a receipt is issued immediately and is available to the parent. No bank match is created at this step. Failed or uncertain checks remain visible for review and corrected-proof submission.
+3. **Admin → Billing & reconciliation → Reconciliation → Upload statement:** use the fictional sample or a local CSV. Preview rows, then **Import & check**. Clear, unique matches link automatically; Koko reviews ambiguous deposits, amount differences and missing matches. Re-importing the same statement does not duplicate deposits or receipts.
+4. The sample includes **Ethan / R-1025** (receipt 1 October, bank 30 September → date back), **Lucas / R-1026** (receipt 30 September, bank 2 October → date forward), **Emma / R-1027** (HK$200 short), an ambiguous payment and an unidentified deposit. Chloe’s default proof reference matches her sample deposit.
+5. **HQ report:** totals and CSV exports use actual bank-credit dates. Receipt issue dates stay unchanged; unmatched receipts have no assumed reporting month. Existing saved manual matches are preserved.
 
-Receipt issue dates are never overwritten by bank dates. Amount matching and date adjustments are independent. Unmatched receipts have no assumed bank reporting month.
+CSV columns: `Date`, `Amount`, `Reference`, `Payer`, `Transaction ID`, `Direction`. Dates use `YYYY-MM-DD`. Date, Amount and either Reference or Transaction ID are required. Direction is optional (credit/debit); outgoing rows are ignored. Quoted commas/newlines are supported. PDF/image statement extraction is not connected; the screen offers a fictional sample without claiming it read an uploaded document.
+
+Automatic bank matches require an exact amount, strong reference/full-payer identity and a date within seven days of the proof’s payment date. The seven-day window is a demo assumption to confirm with Koko. A surname or amount alone is insufficient; competing candidates stay unlinked. Original bank transaction IDs are used for deduplication when available.
 
 ### 4. Enrolment and staff leave
 
@@ -106,7 +106,7 @@ Receipt issue dates are never overwritten by bank dates. Amount matching and dat
 - The sample introductory rate is HK$250 and needs client confirmation.
 - Reconciliation currently demonstrates one receipt against one bank entry. Combined sibling payments, partial allocations and split transfers need further discovery.
 - Holiday-overlap leave credits are shown in the ledger; full holiday accrual calculations and cross-jurisdiction policy checks are outside this prototype.
-- Payment proofs are clearly identified demo confirmations. No bank proof files are uploaded.
+- Payment-proof OCR/AI checks are explicitly simulated. Selected files stay in this browser; CSV bank statements are parsed locally. No actual verification, settlement or external receipt delivery occurs.
 - The optional Sites project manifest is preserved for later hosting. Local operation is independent of Sites.
 
 ## Project structure
@@ -121,6 +121,11 @@ dist/student-profile.js     Fictional profile fields and validated local edits
 dist/conversations.js        Local chat model and viewer scoping
 dist/conversations-ui.js     Chat list, messages and composer interactions
 dist/conversations.css       WhatsApp-style desktop and mobile chat layout
+dist/billing-automation.js   Proof screening, receipt automation and statement matching
+dist/billing-proof-ui.js     Parent proof upload and review flow
+dist/bank-check-ui.js        Statement preview, exception review and import history
+dist/statement-csv.js        Validated local CSV statement parser
+dist/billing-automation.css  Mobile proof and desktop reconciliation layouts
 dist/checkin.js       Local lesson passes and attendance demo
 dist/vendor/          Offline QR encoder and its MIT licence
 dist/app.js           Screens, interactions, browser-local persistence
