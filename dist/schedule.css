@@ -32,6 +32,9 @@
 
 .schedule-layout,
 .schedule-layout > .panel { min-width: 0; max-width: 100%; }
+.schedule-layout .calendar-toolbar { flex-wrap: wrap; min-width: 0; }
+.calendar-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; min-width: 0; }
+.calendar-tools .segmented { flex-shrink: 0; }
 .schedule-layout .calendar-scroll {
   position: relative;
   isolation: isolate;
@@ -203,6 +206,10 @@
   font-variant-numeric: tabular-nums;
 }
 .timetable-end-fill { grid-column: 2 / -1; min-height: 28px; background: #fff; }
+
+@media (min-width: 1450px) {
+  .schedule-layout .calendar-scroll { max-height: max(440px, calc(100dvh - 260px)); }
+}
 
 @media (max-width: 760px) {
   .teacher-tabs { margin-bottom: 12px; }
