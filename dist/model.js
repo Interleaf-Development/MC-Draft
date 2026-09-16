@@ -1,4 +1,5 @@
 export const TODAY = '2026-09-30';
+export const centre = { name: 'MathConcept (Tsuen Wan)', branch: 'Tsuen Wan', manager: 'Koko Ko', managerId: 'chan' };
 export const WEEK = ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03'];
 export const uid = (prefix = 'id') => prefix + '-' + Math.random().toString(36).slice(2, 10);
 export const clone = value => structuredClone(value);
@@ -221,7 +222,7 @@ export function seed() {
       { id: 'thread-mia', studentId: 'mia', assignedTo: 'Ms Chan', followUp: true, messages: [{ author: 'parent', text: 'Thank you for the assessment. Can we discuss a Wednesday lesson?', time: '10:04' }] }
     ],
     staff: [
-      { id: 'chan', name: 'Ms Jenny Chan', role: 'Teacher', tenure: 3, allowance: 14, taken: 4, holidayCredit: 1, daysOff: 'Tuesday · Sunday', roster: ['Full', 'Off', 'Full', 'Full', 'Full', 'Full', 'Off'] },
+      { id: 'chan', name: centre.manager, role: 'Centre manager', tenure: 3, allowance: 14, taken: 4, holidayCredit: 1, daysOff: 'Tuesday · Sunday', roster: ['Full', 'Off', 'Full', 'Full', 'Full', 'Full', 'Off'] },
       { id: 'wong', name: 'Mr Alex Wong', role: 'Teacher', tenure: 2, allowance: 10, taken: 2, holidayCredit: 0.5, daysOff: 'Monday AM · Thursday PM · Sunday', roster: ['PM', 'Full', 'Full', 'AM', 'Full', 'Full', 'Off'] }
     ],
     staffLeave: [{ id: 'al-001', staffId: 'chan', date: '2026-10-07', unit: 'PM', days: 0.5, reason: 'Personal appointment', status: 'pending' }],
@@ -230,11 +231,13 @@ export function seed() {
   };
 }
 export function seedTeacherSchedules(state) {
+  const manager = state.staff.find(staff => staff.id === centre.managerId);
+  if (manager) Object.assign(manager, { name: centre.manager, role: 'Centre manager' });
   if (state.teacherSchedulesVersion === 1) return state;
   const legacyNames = new Map([['Ms Chan', 'Koko'], ['Ms Jenny Chan', 'Koko'], ['Mr Wong', 'Ming'], ['Mr Alex Wong', 'Ming']]);
   for (const tutor of tutors) {
     const existing = state.staff.find(staff => staff.id === tutor.id);
-    if (existing) existing.name = tutor.name;
+    if (existing) existing.name = tutor.id === centre.managerId ? centre.manager : tutor.name;
     else {
       const roster = [...demoTutorRosters[tutor.id]];
       state.staff.push({ id: tutor.id, name: tutor.name, role: 'Teacher', tenure: 2, allowance: 10, taken: 2, holidayCredit: 0, daysOff: roster.map((unit, day) => unit === 'Off' ? [...weekdays, 'Sunday'][day] : null).filter(Boolean).join(' · '), roster });

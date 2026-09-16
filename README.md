@@ -1,6 +1,6 @@
-# MathConcept workflow demo
+# MathConcept (Tsuen Wan) workflow demo
 
-A front-end-only prototype for reviewing paperless teaching and centre operations with MathConcept. All students, payment references, bank entries and learning records are fictional.
+A front-end-only prototype for reviewing paperless teaching and centre operations with MathConcept (Tsuen Wan), with Koko Ko as centre manager. All students, payment references, bank entries and learning records are fictional.
 
 ## Run locally
 
