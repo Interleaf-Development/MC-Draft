@@ -32,7 +32,16 @@ The demo includes **700 enrolled fictional students** (plus Mia's assessment), s
 - **Teacher → Worksheet library → Assign:** defaults to the current class. Switch to **Whole centre** to find more students. Selections persist across searches/pages; **Review** shows only selected students before assignment.
 - **Billing, bank matching, conversations and director review:** bounded lists with search/filter or pagination as appropriate. Report totals and exports cover the complete report, across all pages. The schedule stays scoped by date and teacher; pending request queues and folder histories are also paginated.
 
-The QR contains an opaque demo token, with no student name or contact details. This remains a browser-local demonstration: a production scanner, server validation and authentication are not connected. The 700-student dataset demonstrates the interface at that volume; the timetable remains a focused set of walkthrough lessons rather than 700 generated schedules.
+The QR contains an opaque demo token, with no student name or contact details. This remains a browser-local demonstration: a production scanner, server validation and authentication are not connected. The 700-student dataset demonstrates the interface at that volume; sample teacher timetables illustrate daily operation without generating a full annual schedule for every student.
+
+## Teacher schedules
+
+- Tabs for **Koko, Ming, Oscar, Peter, Polly, Shileen, Tiffany and Winky**, with day and week views from **09:00 to 19:00**.
+- One time column at the left, compact student cards and a small green tick for attended lessons. Hover or open a card for exact lesson times and remarks. Longer lessons also appear in the following hour with a continuation arrow.
+- Drag within a teacher's schedule, or choose **Move lesson**, switch teacher tabs and select the destination. Half-hour starts keep their minute offset. Original bookings remain struck through, replacements show their source date, and Undo restores the move.
+- Capacity labels are hidden; the six-student overlap check still applies. Adding a lesson supports half-hour start times and 30/60/90-minute durations that end by 19:00.
+- The single-lesson make-up chooser filters by date and teacher, with available half-hour starts across the same opening hours. The split-extension flow remains linked to the student's existing lessons.
+- The eight teacher names are provided by the user; rosters and bookings are illustrative. AM/PM uses a 14:00 boundary for the demo and requires confirmation with the centre.
 
 ## Client walkthroughs
 
@@ -93,6 +102,7 @@ Receipt issue dates are never overwritten by bank dates. Amount matching and dat
 dist/index.html       App entry point
 dist/styles.css       Responsive visual system
 dist/scale.css        Bounded lists, pickers and QR presentation
+dist/schedule.css     Teacher tabs and compact 09:00–19:00 timetable
 dist/checkin.js       Local lesson passes and attendance demo
 dist/vendor/          Offline QR encoder and its MIT licence
 dist/app.js           Screens, interactions, browser-local persistence
@@ -109,4 +119,4 @@ npm run check
 npm test
 ~~~
 
-Tests also cover 700-student search/filter/pagination, idempotent sample-data migration and attendance-pass validation. Workflow tests cover linked moves, six-student capacity during extensions, atomic split booking, billing-block expiry, receipt-before-match, date-forward/date-back reporting, the assessment deduction window and leave balances.
+Tests also cover 700-student search/filter/pagination, idempotent sample-data migration, eight teacher schedules, opening/closing boundaries, AM/PM leave and attendance-pass validation. Workflow tests cover linked moves, six-student capacity during extensions, atomic split booking, billing-block expiry, receipt-before-match, date-forward/date-back reporting, the assessment deduction window and leave balances.

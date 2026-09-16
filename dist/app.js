@@ -1,10 +1,10 @@
-import { TODAY, WEEK, seed, clone, uid, time, dateLabel, money, students, studentById, worksheets, worksheetById, tutors, activeBooking, validateSlot, moveBooking, requestAbsence, approveAbsence, bookMakeup, usedReschedules, issueReceipt, reconciliation, matchReceipt, reportingTotals, assessmentCredit, staffBalance, record, cycleForDate, enrolledStudents, filterStudents, paginate, seedCentreVolume } from './model.js';
+import { TODAY, WEEK, seed, clone, uid, time, dateLabel, money, students, studentById, worksheets, worksheetById, tutors, activeBooking, validateSlot, moveBooking, requestAbsence, approveAbsence, bookMakeup, usedReschedules, issueReceipt, reconciliation, matchReceipt, reportingTotals, assessmentCredit, staffBalance, record, cycleForDate, enrolledStudents, filterStudents, paginate, seedCentreVolume, seedTeacherSchedules, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from './model.js';
 import { makeCheckInPass, qrSvg, redeemCheckIn } from './checkin.js';
 const STORAGE = 'mathconcept-demo-v4';
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
-seedCentreVolume(state);
-const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Invoices', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:'chan' };
+seedCentreVolume(state);seedTeacherSchedules(state);
+const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:'chan', date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Invoices', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:'chan' };
 let previousState = null;
 let returnFocus = null;
 let lastPageKey = '';
@@ -85,7 +85,7 @@ const NAV = {
  parent: [['overview','home','Overview'],['lessons','calendar','Lessons'],['handbook','book','Handbook'],['payments','wallet','Payments'],['messages','message','Messages']],
  student: [['work','edit','My work'],['past','folder','Past work']]
 };
-const identity = () => ui.role === 'admin' ? { name: 'Grace Lee', title: 'Centre manager', initials: 'GL', colour: 'slate' } : ui.role === 'teacher' ? { name: 'Ms Jenny Chan', title: 'Teacher', initials: 'JC', colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
+const identity = () => ui.role === 'admin' ? { name: 'Grace Lee', title: 'Centre manager', initials: 'GL', colour: 'slate' } : ui.role === 'teacher' ? { name: 'Koko', title: 'Teacher', initials: 'KO', colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
 function render() {
   const nav = NAV[ui.role]; const user = identity();
   const pageKey=ui.role+'|'+ui.page+'|'+(ui.assignmentId||'');
@@ -117,39 +117,46 @@ function page() {
   return heading('MathConcept') + empty('Your workspace');
 }
 function shiftedWeek() { return WEEK.map(date => { const d = new Date(date + 'T12:00:00'); d.setDate(d.getDate() + ui.weekOffset * 7); return d.toISOString().slice(0,10); }); }
-function bookingChip(b) {
-  const student = studentById(b.studentId); const source = state.bookings.find(x => x.id === b.sourceId);
-  return '<button class="booking-chip ' + b.status + (b.sourceId ? ' makeup' : '') + '" draggable="' + activeBooking(b) + '" data-action="booking-detail" data-id="' + b.id + '" title="' + esc(student.name + ' · ' + time(b.start) + '–' + time(b.start + b.duration)) + '"><span class="chip-name">' + student.name.split(' ')[0] + ' ' + student.name.split(' ')[1] + (source ? '<span class="chip-from">From ' + dateLabel(source.date) + (b.duration === 30 ? ' · +30 min' : '') + '</span>' : '') + '</span>' + (b.attendance === 'present' ? icon('check', 'sm') : b.duration === 90 ? '<small>1½h</small>' : '') + '</button>';
+const tutorName = id => tutors.find(t=>t.id===id)?.name || 'Unassigned';
+const SCHEDULE_HOURS = Array.from({length:(CENTRE_CLOSE-CENTRE_OPEN)/60},(_,i)=>CENTRE_OPEN+i*60);
+function lessonTimeOptions(duration=60,selected=CENTRE_OPEN){
+ return Array.from({length:Math.floor((CENTRE_CLOSE-duration-CENTRE_OPEN)/30)+1},(_,i)=>CENTRE_OPEN+i*30).map(start=>'<option value="'+start+'"'+(start===selected?' selected':'')+'>'+time(start)+'</option>').join('');
 }
-function calendarCell(date, start, tutor) {
-  const bookings = state.bookings.filter(b => b.date === date && b.start < start + 60 && (activeBooking(b)?b.start+b.duration>start:b.start>=start) && b.tutor === tutor);
-  const active=bookings.filter(activeBooking),points=[start,...active.map(b=>Math.max(start,b.start))];
-  const count = Math.max(0,...points.map(p=>active.filter(b=>b.start<=p&&b.start+b.duration>p).length));
-  const onLeave=state.staffLeave.some(l=>l.staffId===tutor&&l.date===date&&l.status==='approved'&&l.unit!=='AM');
-  return '<div class="calendar-cell' + (ui.moveId ? ' pick-target' : '') + '" data-slot data-date="' + date + '" data-start="' + start + '" data-tutor="' + tutor + '"><div class="slot-time"><span>' + time(start) + '</span><small>' + (tutor === 'chan' ? 'Ms Chan' : 'Mr Wong') + '</small></div>'+(onLeave?'<div class="small red-text">Tutor on leave</div>':'') + bookings.map(b=>bookingChip(b)+(b.start<start?'<div class="continuing-label">Continues until '+time(b.start+b.duration)+'</div>':'')).join('') + '<div class="cell-count">Peak ' + count + ' / 6</div></div>';
+function slotBookings(date,start,tutor){
+ return state.bookings.filter(b=>b.date===date&&b.tutor===tutor&&b.start<start+60&&(activeBooking(b)?b.start+b.duration>start:b.start>=start)).sort((a,b)=>a.start-b.start);
 }
-function weekSlot(date,start){
- const visible=tutors.filter(t=>(!ui.scheduleTutor||ui.scheduleTutor==='all'||t.id===ui.scheduleTutor)&&state.bookings.some(b=>b.date===date&&b.tutor===t.id&&b.start<start+60&&(activeBooking(b)?b.start+b.duration>start:b.start>=start)));
- if(!visible.length)visible.push(tutors.find(t=>t.id===(ui.scheduleTutor&&ui.scheduleTutor!=='all'?ui.scheduleTutor:(start===900||new Date(date+'T12:00:00').getDay()===2?'wong':'chan'))));
- const heights=shiftedWeek().map(d=>{let h=0;for(const t of tutors){const n=state.bookings.filter(b=>b.date===d&&b.tutor===t.id&&b.start<start+60&&(activeBooking(b)?b.start+b.duration>start:b.start>=start)).length;if(n)h+=48+n*39;}return h;});const height=Math.max(start===1080?100:160,...heights);
- return '<div class="week-slot" style="--slot-height:'+height+'px">'+visible.map(t=>calendarCell(date,start,t.id)).join('')+'</div>';
+function bookingChip(b,rowStart=b.start){
+ const student=studentById(b.studentId),source=state.bookings.find(x=>x.id===b.sourceId),continued=b.start<rowStart;
+ const detail=[student.name,tutorName(b.tutor),dateLabel(b.date),time(b.start)+'–'+time(b.start+b.duration),source?'Rescheduled from '+dateLabel(source.date):'',continued?'Continues from previous hour':'',b.attendance==='present'?'Attended':'',b.note].filter(Boolean).join(' · ');
+ return '<button class="booking-chip '+b.status+(b.sourceId?' makeup':'')+(continued?' continuation':'')+'" draggable="'+activeBooking(b)+'" data-action="booking-detail" data-id="'+b.id+'" title="'+esc(detail)+'" aria-label="'+esc(detail)+'">'+(b.attendance==='present'?icon('check','attendance-tick'):'')+(continued?'<span class="continuation-mark" aria-hidden="true">↳</span>':'')+'<span class="chip-name">'+esc(student.name)+'</span>'+(source?'<span class="chip-from">'+dateLabel(source.date)+'</span>':b.duration!==60?'<span class="chip-duration">'+(b.duration===90?'1½h':'½h')+'</span>':'')+(b.start%60&&!continued?'<span class="chip-offset">:'+String(b.start%60).padStart(2,'0')+'</span>':'')+'</button>';
+}
+function calendarCell(date,start,tutor,rowHeight){
+ const bookings=slotBookings(date,start,tutor);
+ const targetStart=start+(state.bookings.find(b=>b.id===ui.moveId)?.start%60||0);
+ const onLeave=state.staffLeave.some(l=>l.staffId===tutor&&l.date===date&&l.status==='approved'&&(l.unit==='Full day'||l.unit==='AM'&&start<HALF_DAY_BOUNDARY||l.unit==='PM'&&start+60>HALF_DAY_BOUNDARY));
+ return '<div class="calendar-cell'+(ui.moveId?' pick-target':'')+(onLeave?' tutor-away':'')+'" style="--row-height:'+rowHeight+'px" data-slot data-date="'+date+'" data-start="'+start+'" data-tutor="'+tutor+'"'+(ui.moveId?' tabindex="0" role="button" aria-label="Move lesson to '+esc(tutorName(tutor)+' · '+dateLabel(date)+' · '+time(targetStart))+'"':'')+'>'+bookings.map(b=>bookingChip(b,start)).join('')+(onLeave?'<span class="tutor-away-note">On leave</span>':'')+'</div>';
+}
+function timetable(dates,tutor){
+ const days=dates.map(date=>action('schedule-date','<span class="day-name">'+dateLabel(date,{weekday:'short',day:undefined,month:undefined})+'</span><span class="day-number">'+Number(date.slice(8))+'</span>','timetable-dayhead'+(date===TODAY?' today':''),'data-date="'+date+'" aria-label="View '+dateLabel(date,{weekday:'long'})+'"')).join('');
+ const rows=SCHEDULE_HOURS.map(start=>{
+  const count=Math.max(0,...dates.map(date=>slotBookings(date,start,tutor).length));
+  const hasLeave=dates.some(date=>state.staffLeave.some(l=>l.staffId===tutor&&l.date===date&&l.status==='approved'&&(l.unit==='Full day'||l.unit==='AM'&&start<HALF_DAY_BOUNDARY||l.unit==='PM'&&start+60>HALF_DAY_BOUNDARY)));
+  const rowHeight=Math.max(40,count*24+8+(hasLeave?18:0));
+  return '<div class="timetable-time" style="--row-height:'+rowHeight+'px" data-hour="'+start+'">'+time(start)+'</div>'+dates.map(date=>calendarCell(date,start,tutor,rowHeight)).join('');
+ }).join('');
+ return '<div class="timetable '+(ui.scheduleView==='day'?'day':'week')+'" style="--day-count:'+dates.length+'" role="group" aria-label="'+tutorName(tutor)+' schedule"><div class="timetable-corner">Time</div>'+days+rows+'<div class="timetable-end">'+time(CENTRE_CLOSE)+'</div><div class="timetable-end-fill"></div></div>';
 }
 function teachingBookings(){return state.bookings.filter(b=>b.date===ui.classDate&&b.start<=ui.classStart&&b.start+b.duration>ui.classStart&&b.tutor===ui.classTutor&&activeBooking(b));}
 function classSelector(){
  const keys=[...new Set(state.bookings.filter(b=>activeBooking(b)&&b.tutor==='chan'&&b.date>=TODAY).map(b=>b.date+'|'+b.start+'|'+b.tutor))].sort((a,b)=>{const [ad,at]=a.split('|'),[bd,bt]=b.split('|');return ad.localeCompare(bd)||Number(at)-Number(bt);});
  return '<select class="btn" data-change="class-session" aria-label="Teaching session">'+keys.map(key=>{const [date,start]=key.split('|');return '<option value="'+key+'"'+(key===ui.classDate+'|'+ui.classStart+'|'+ui.classTutor?' selected':'')+'>'+dateLabel(date)+' · '+time(Number(start))+'</option>';}).join('')+'</select>';
 }
-function schedulePage() {
-  const pending = state.makeups.filter(m => m.minutes > m.used);
-  const requests = state.leaveRequests.filter(r => r.status === 'pending');
-  const dates = shiftedWeek();
-  const moving = state.bookings.find(b => b.id === ui.moveId);
-  let calendar;
-  if (ui.scheduleView === 'week') calendar = '<div class="week-grid">' + dates.map(d => '<div class="day-column"><div class="day-head ' + (d === TODAY ? 'today' : '') + '"><div class="day-name">' + dateLabel(d,{weekday:'short'}).split(',')[0].split(' ')[0] + '</div><div class="day-number">' + Number(d.slice(8)) + '</div></div>' + [900,960,1020,1080].map(t => weekSlot(d,t)).join('') + '</div>').join('') + '</div>';
-  else calendar = '<div class="day-grid">' + tutors.filter(t=>!ui.scheduleTutor||ui.scheduleTutor==='all'||t.id===ui.scheduleTutor).map(t => '<div class="day-column"><div class="day-head"><div class="strong">' + t.name + '</div><div class="small muted">' + dateLabel(ui.date,{weekday:'long'}) + '</div></div>' + [900,960,1020,1080].map(start => calendarCell(ui.date,start,t.id)).join('') + '</div>').join('') + '</div>';
-  return heading('Schedule', action('find-schedule-student',icon('search')+' Find student','btn')+action('new-booking', icon('plus') + ' Add lesson', 'btn primary'), 'Centre operations') +
-    (moving ? '<div class="move-banner"><span>Choose a new time for <strong>' + studentById(moving.studentId).name + '</strong>.</span>' + action('cancel-move','Cancel','btn ghost small') + '</div>' : '') +
-    '<div class="filters"><select class="btn" data-change="schedule-tutor" aria-label="Schedule teacher"><option value="all">All teachers</option>'+tutors.map(t=>'<option value="'+t.id+'"'+(ui.scheduleTutor===t.id?' selected':'')+'>'+t.name+'</option>').join('')+'</select></div><div class="schedule-layout"><section class="panel"><div class="calendar-toolbar"><div class="calendar-controls">' + action('prev-week',icon('left'),'icon-btn border','aria-label="Previous week"') + action('next-week',icon('right'),'icon-btn border','aria-label="Next week"') + '<span class="calendar-title">' + (ui.scheduleView === 'week' ? dateLabel(dates[0]) + ' – ' + dateLabel(dates[5]) + ' 2026' : dateLabel(ui.date,{weekday:'short'}) + ' 2026') + '</span>' + action('today','Today','btn small') + '</div><div class="segmented">' + action('calendar-view','Day',ui.scheduleView === 'day' ? 'active' : '', 'data-view="day"') + action('calendar-view','Week',ui.scheduleView === 'week' ? 'active' : '', 'data-view="week"') + '</div></div><div class="calendar-scroll">' + calendar + '</div><div class="calendar-legend"><span><i class="legend-line"></i>Regular lesson</span><span><i class="legend-line red"></i>Rescheduled</span><span><i class="legend-line gray"></i>Original booking</span></div></section><aside class="schedule-rail stack">' + scheduleQueues() + '<div class="rail-note"><strong>Move a lesson in one step</strong>Drag a student to another time. Their original booking and the new date stay linked.</div></aside></div>';
+function schedulePage(){
+ if(!tutors.some(t=>t.id===ui.scheduleTutor))ui.scheduleTutor=tutors[0].id;
+ const dates=ui.scheduleView==='week'?shiftedWeek():[ui.date],moving=state.bookings.find(b=>b.id===ui.moveId);
+ const teacherTabs='<div class="teacher-tabs" role="tablist" aria-label="Teacher schedules">'+tutors.map(t=>action('teacher-tab',t.name,'teacher-tab'+(ui.scheduleTutor===t.id?' active':''),'id="teacher-tab-'+t.id+'" role="tab" aria-selected="'+(ui.scheduleTutor===t.id)+'" aria-controls="teacher-schedule" tabindex="'+(ui.scheduleTutor===t.id?'0':'-1')+'" data-tutor="'+t.id+'"')).join('')+'</div>';
+ const dateTitle=ui.scheduleView==='week'?dateLabel(dates[0])+' – '+dateLabel(dates.at(-1),{year:'numeric'}):dateLabel(ui.date,{weekday:'long',year:'numeric'});
+ return heading('Schedule',action('find-schedule-student',icon('search')+' Find student','btn')+action('new-booking',icon('plus')+' Add lesson','btn primary'),'Centre operations')+teacherTabs+(moving?'<div class="move-banner"><span>Choose a new time for <strong>'+studentById(moving.studentId).name+'</strong>.</span>'+action('cancel-move','Cancel','btn ghost small')+'</div>':'')+'<div class="schedule-layout"><section class="panel" id="teacher-schedule" role="tabpanel" aria-labelledby="teacher-tab-'+ui.scheduleTutor+'"><div class="calendar-toolbar"><div class="calendar-controls">'+action('prev-week',icon('left'),'icon-btn border','aria-label="Previous '+ui.scheduleView+'"')+action('next-week',icon('right'),'icon-btn border','aria-label="Next '+ui.scheduleView+'"')+'<span class="calendar-title">'+dateTitle+'</span>'+action('today','Today','btn small')+'</div><div class="segmented">'+action('calendar-view','Day',ui.scheduleView==='day'?'active':'','data-view="day"')+action('calendar-view','Week',ui.scheduleView==='week'?'active':'','data-view="week"')+'</div></div><div class="calendar-scroll">'+timetable(dates,ui.scheduleTutor)+'</div><div class="calendar-legend"><span><i class="legend-line"></i>Regular lesson</span><span><i class="legend-line red"></i>Rescheduled</span><span><i class="legend-line gray"></i>Original booking</span><span>'+icon('check','attendance-tick')+' Attended</span></div></section><aside class="schedule-rail stack">'+scheduleQueues()+'<div class="rail-note"><strong>Move a lesson in one step</strong>Drag a student to another time. Their original booking and the new date stay linked.</div></aside></div>';
 }
 function bookingDetail(id) {
   const b = state.bookings.find(x=>x.id===id), s = studentById(b.studentId), source = state.bookings.find(x=>x.id===b.sourceId);
@@ -157,6 +164,8 @@ function bookingDetail(id) {
 }
 function moveTo(id, slot) {
   const booking=state.bookings.find(b=>b.id===id),makeup=state.makeups.find(m=>m.id===booking?.caseId);
+  // Calendar rows represent hours; moving a :30 start keeps its minute offset.
+  if(booking)slot={...slot,start:Math.floor(slot.start/60)*60+booking.start%60};
   if(booking && slot.date>(makeup?.expiry || cycleForDate(booking.date).expiry) && !slot.approvedExpiry){
     ui.pendingMove={id,slot};
     modal('Approve a deadline extension','<p class="small muted mb-16">This move falls after the current make-up deadline. Record the exception before moving the lesson.</p><div class="form-stack">'+field('New deadline','<input type="date" id="extension-date" value="'+slot.date+'" min="'+slot.date+'" aria-label="New deadline">')+field('Reason','<input id="extension-reason" aria-label="Extension reason" placeholder="Reason for carrying this lesson forward">')+'</div>',action('close-modal','Cancel','btn')+action('confirm-move-extension','Approve & move','btn primary'));return;
@@ -310,12 +319,12 @@ const childSwitch=()=>'<select class="btn" data-change="family-student" aria-lab
 function nextLessons(studentId){return state.bookings.filter(b=>b.studentId===studentId&&activeBooking(b)&&b.date>=TODAY).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start);}
 function lessonRow(b,allowLeave=false){
  const src=state.bookings.find(s=>s.id===b.sourceId);const request=state.leaveRequests.find(r=>r.bookingId===b.id&&r.status==='pending');
- return '<div class="lesson-item"><div class="date-tile '+(b.date===TODAY?'red':'')+'"><span class="month">'+dateLabel(b.date,{day:undefined,month:'short'})+'</span><span class="day">'+Number(b.date.slice(8))+'</span></div><div class="grow"><div class="strong">'+dateLabel(b.date,{weekday:'long',day:undefined,month:undefined})+' · '+time(b.start)+'–'+time(b.start+b.duration)+'</div><div class="row-meta">'+(b.tutor==='chan'?'Ms Chan':'Mr Wong')+(src?' · Make-up from '+dateLabel(src.date):' · Mathematics')+'</div></div>'+(request?tag('Leave requested','amber'):allowLeave?action('request-leave','Request leave','btn small','data-id="'+b.id+'"'):'')+'</div>';
+ return '<div class="lesson-item"><div class="date-tile '+(b.date===TODAY?'red':'')+'"><span class="month">'+dateLabel(b.date,{day:undefined,month:'short'})+'</span><span class="day">'+Number(b.date.slice(8))+'</span></div><div class="grow"><div class="strong">'+dateLabel(b.date,{weekday:'long',day:undefined,month:undefined})+' · '+time(b.start)+'–'+time(b.start+b.duration)+'</div><div class="row-meta">'+tutorName(b.tutor)+(src?' · Make-up from '+dateLabel(src.date):' · Mathematics')+'</div></div>'+(request?tag('Leave requested','amber'):allowLeave?action('request-leave','Request leave','btn small','data-id="'+b.id+'"'):'')+'</div>';
 }
 function parentOverview(){
  if(ui.familyStudent==='mia'&&!state.assessment.enrolled)return assessmentOverview();
  const s=studentById(ui.familyStudent),next=nextLessons(s.id)[0],notes=state.lessonNotes.filter(n=>n.studentId===s.id&&n.published).slice().reverse(),invoice=state.invoices.find(i=>i.studentId===s.id&&!i.receiptId),displayInvoice=invoice||state.invoices.filter(i=>i.studentId===s.id).at(-1);
- return heading('Hello, '+s.parent,childSwitch())+'<section class="family-banner"><div class="banner-copy"><p class="eyebrow">Next lesson · '+s.name+'</p><h2>'+(next?dateLabel(next.date,{weekday:'long'}):'Your next chapter')+'</h2><p>'+(next?time(next.start)+'–'+time(next.start+next.duration)+' · '+(next.tutor==='chan'?'Ms Chan':'Mr Wong'):'The centre will confirm your lesson time.')+'</p><div class="mt-16">'+action('show-checkin',icon('qr')+' Attendance QR','btn primary')+'</div></div>'+art(1,'','MathConcept friends')+'</section><div class="family-grid"><section><div class="between mb-16"><h2>Latest from the classroom</h2>'+action('navigate','All entries','inline-link','data-page="handbook"')+'</div>'+(notes.length?noteCard(notes[0]):'<div class="panel">'+empty('Your handbook is ready','Lesson updates will appear here.',15)+'</div>')+'</section><aside class="stack"><section class="panel"><div class="panel-head"><h3>Tuition</h3>'+tag(invoice?'Due '+dateLabel(invoice.due):'Receipt available',invoice?'amber':'green')+'</div><div class="panel-body"><p class="small muted">'+esc(displayInvoice?.period||'No invoice yet')+'</p><h2 class="mt-8">'+money(displayInvoice?.amount||0)+'</h2><p class="small muted mt-8">'+esc(displayInvoice?.description||'The centre will confirm tuition.')+'</p><div class="mt-16">'+action('navigate',invoice?'View invoice':'View receipt','btn w-full','data-page="payments"')+'</div></div></section><section class="panel"><div class="panel-body"><div class="flex">'+icon('message')+'<h3>Stay in touch</h3></div><p class="small muted mt-8">A question about '+s.name.split(' ')[0]+'’s lessons?</p><div class="mt-16">'+action('navigate','Message the centre '+icon('arrow','sm'),'inline-link','data-page="messages"')+'</div></div></section></aside></div>';
+ return heading('Hello, '+s.parent,childSwitch())+'<section class="family-banner"><div class="banner-copy"><p class="eyebrow">Next lesson · '+s.name+'</p><h2>'+(next?dateLabel(next.date,{weekday:'long'}):'Your next chapter')+'</h2><p>'+(next?time(next.start)+'–'+time(next.start+next.duration)+' · '+tutorName(next.tutor):'The centre will confirm your lesson time.')+'</p><div class="mt-16">'+action('show-checkin',icon('qr')+' Attendance QR','btn primary')+'</div></div>'+art(1,'','MathConcept friends')+'</section><div class="family-grid"><section><div class="between mb-16"><h2>Latest from the classroom</h2>'+action('navigate','All entries','inline-link','data-page="handbook"')+'</div>'+(notes.length?noteCard(notes[0]):'<div class="panel">'+empty('Your handbook is ready','Lesson updates will appear here.',15)+'</div>')+'</section><aside class="stack"><section class="panel"><div class="panel-head"><h3>Tuition</h3>'+tag(invoice?'Due '+dateLabel(invoice.due):'Receipt available',invoice?'amber':'green')+'</div><div class="panel-body"><p class="small muted">'+esc(displayInvoice?.period||'No invoice yet')+'</p><h2 class="mt-8">'+money(displayInvoice?.amount||0)+'</h2><p class="small muted mt-8">'+esc(displayInvoice?.description||'The centre will confirm tuition.')+'</p><div class="mt-16">'+action('navigate',invoice?'View invoice':'View receipt','btn w-full','data-page="payments"')+'</div></div></section><section class="panel"><div class="panel-body"><div class="flex">'+icon('message')+'<h3>Stay in touch</h3></div><p class="small muted mt-8">A question about '+s.name.split(' ')[0]+'’s lessons?</p><div class="mt-16">'+action('navigate','Message the centre '+icon('arrow','sm'),'inline-link','data-page="messages"')+'</div></div></section></aside></div>';
 }
 function parentLessons(){
  const id=ui.familyStudent,list=nextLessons(id),makeups=state.makeups.filter(m=>m.studentId===id),remaining=makeups.reduce((n,m)=>n+m.minutes-m.used,0);
@@ -390,7 +399,9 @@ document.addEventListener('click', e => {
   else if (a==='close-modal') closeModal();
   else if (a==='toggle-menu') $('.sidebar').classList.toggle('open');
   else if (a==='calendar-view') {ui.scheduleView=button.dataset.view;render();}
-  else if (a==='prev-week'||a==='next-week') {ui.weekOffset+=a==='prev-week'?-1:1; const d=new Date(ui.date+'T12:00:00');d.setDate(d.getDate()+(a==='prev-week'?-1:1));ui.date=d.toISOString().slice(0,10);render();}
+  else if (a==='teacher-tab') {ui.scheduleTutor=button.dataset.tutor;render();$('#teacher-tab-'+ui.scheduleTutor)?.focus();}
+  else if (a==='schedule-date') {ui.date=button.dataset.date;ui.scheduleView='day';render();}
+  else if (a==='prev-week'||a==='next-week') {const delta=a==='prev-week'?-1:1,d=new Date(ui.date+'T12:00:00');d.setDate(d.getDate()+delta*(ui.scheduleView==='week'?7:1));ui.date=d.toISOString().slice(0,10);ui.weekOffset=Math.floor((new Date(ui.date+'T12:00:00')-new Date(WEEK[0]+'T12:00:00'))/604800000);render();}
   else if (a==='today') {ui.weekOffset=0;ui.date=TODAY;render();}
   else if (a==='booking-detail') {if(ui.moveId){const slot=button.closest('[data-slot]');if(slot)moveTo(ui.moveId,{date:slot.dataset.date,start:Number(slot.dataset.start),tutor:slot.dataset.tutor});}else bookingDetail(id);}
   else if (a==='begin-move') {ui.moveId=id;closeModal();render();}
@@ -400,21 +411,35 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>This is a front-end prototype with fictional students and payments. Changes stay in this browser. No messages, payments or reports are sent to an external service.</p><p class="mt-16 muted">The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>Restore the original fictional students, lessons and payments. Your demo edits and handwriting in this browser will be cleared.</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);ui.collections={};ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor='all';previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:'chan',moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);ui.collections={};ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor='chan';previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:'chan',moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeup(id,mode='single'){
  const m=state.makeups.find(m=>m.id===id),parent=ui.role==='parent',remaining=m.minutes-m.used;
  if(state.leaveRequests.some(r=>r.kind==='makeup'&&r.makeupId===id&&r.status==='pending')){toast('A replacement request is already awaiting confirmation.');return;}
+ if(ui.makeupId!==id||!ui.makeupDate||!ui.makeupTutor){
+  const next=state.bookings.filter(b=>b.studentId===m.studentId&&activeBooking(b)&&b.date>=TODAY&&b.date<=m.expiry).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start)[0];
+  const source=state.bookings.find(b=>b.id===m.sourceId);
+  ui.makeupDate=next?.date||TODAY;
+  ui.makeupTutor=next?.tutor||source?.tutor||studentById(m.studentId).tutor||tutors[0].id;
+ }
  ui.makeupMode=mode;ui.makeupId=id;
  const candidates=[];
  if(mode==='split'){
   state.bookings.filter(b=>b.studentId===m.studentId&&activeBooking(b)&&b.date>=TODAY&&b.date<=m.expiry&&b.duration===60).forEach(b=>{const slot={date:b.date,start:b.start+b.duration,duration:30,tutor:b.tutor};if(!validateSlot(state,{...slot,studentId:m.studentId}))candidates.push(slot);});
  }else{
-  [TODAY,'2026-10-01','2026-10-02','2026-10-03','2026-10-07','2026-10-09','2026-10-14'].filter(d=>d<=m.expiry).forEach(date=>{[900,960,1020].forEach(start=>{for(const tutor of ['chan','wong']){const slot={date,start,duration:remaining>=60?60:30,tutor};if(!validateSlot(state,{...slot,studentId:m.studentId})){candidates.push(slot);break;}}});});
+  const duration=remaining>=90?90:remaining>=60?60:30;
+  if(remaining>=duration&&ui.makeupDate>=TODAY&&ui.makeupDate<=m.expiry){
+   for(let start=CENTRE_OPEN;start+duration<=CENTRE_CLOSE;start+=30){
+    const slot={date:ui.makeupDate,start,duration,tutor:ui.makeupTutor};
+    if(!validateSlot(state,{...slot,studentId:m.studentId}))candidates.push(slot);
+   }
+  }
  }
  ui.makeupCandidates=candidates;
- modal('Arrange a make-up','<div class="between mb-16"><div><h3>'+studentById(m.studentId).name+'</h3><p class="small muted">'+remaining+' min remaining · Use by '+dateLabel(m.expiry)+'</p></div>'+(!parent?action('extend-makeup','Extend deadline','inline-link','data-id="'+id+'"'):'')+'</div><div class="segmented mb-16">'+action('makeup-mode','One lesson',mode==='single'?'active':'','data-mode="single"')+action('makeup-mode','30-minute extensions',mode==='split'?'active':'','data-mode="split"')+'</div><div class="form-stack" style="gap:9px">'+candidates.map((s,i)=>'<label class="check-option"><input type="'+(mode==='split'?'checkbox':'radio')+'" name="makeup-slot" value="'+i+'"><span class="grow"><strong class="small">'+dateLabel(s.date,{weekday:'short'})+' · '+time(s.start)+'–'+time(s.start+s.duration)+'</strong><span class="row-meta" style="display:block">'+(s.tutor==='chan'?'Ms Chan':'Mr Wong')+(mode==='split'?' · Extends the existing lesson':' · '+s.duration+' minutes')+'</span></span></label>').join('')+(candidates.length?'':'<p class="small muted">No suitable times before this deadline. '+(parent?'Message the centre to discuss an extension.':'Extend the deadline to show more options.')+'</p>')+'</div>'+(mode==='split'?'<div class="notice blue mt-16">Both half-hour extensions belong to the same missed lesson and use one reschedule.</div>':''),action('close-modal','Cancel','btn')+action('confirm-makeup',parent?'Request these times':'Confirm booking','btn primary',candidates.length?'':'disabled'),true);
+ const filters=mode==='single'?'<div class="field-row mb-16">'+field('Date','<input type="date" id="makeup-date" data-change="makeup-date" aria-label="Make-up date" value="'+esc(ui.makeupDate)+'" min="'+TODAY+'" max="'+m.expiry+'">')+field('Teacher','<select id="makeup-tutor" data-change="makeup-tutor" aria-label="Make-up teacher">'+tutors.map(t=>'<option value="'+t.id+'"'+(t.id===ui.makeupTutor?' selected':'')+'>'+t.name+'</option>').join('')+'</select>')+'</div>':'';
+ const unavailable=mode==='single'&&m.expiry>=TODAY?'No available times for this teacher on this date. Choose another date or teacher.':'No suitable times before this deadline. '+(parent?'Message the centre to discuss an extension.':'Extend the deadline to show more options.');
+ modal('Arrange a make-up','<div class="between mb-16"><div><h3>'+studentById(m.studentId).name+'</h3><p class="small muted">'+remaining+' min remaining · Use by '+dateLabel(m.expiry)+'</p></div>'+(!parent?action('extend-makeup','Extend deadline','inline-link','data-id="'+id+'"'):'')+'</div><div class="segmented mb-16">'+action('makeup-mode','One lesson',mode==='single'?'active':'','data-mode="single"')+action('makeup-mode','30-minute extensions',mode==='split'?'active':'','data-mode="split"')+'</div>'+filters+'<div class="form-stack" style="gap:9px">'+candidates.map((s,i)=>'<label class="check-option"><input type="'+(mode==='split'?'checkbox':'radio')+'" name="makeup-slot" value="'+i+'"><span class="grow"><strong class="small">'+dateLabel(s.date,{weekday:'short'})+' · '+time(s.start)+'–'+time(s.start+s.duration)+'</strong><span class="row-meta" style="display:block">'+tutorName(s.tutor)+(mode==='split'?' · Extends the existing lesson':' · '+s.duration+' minutes')+'</span></span></label>').join('')+(candidates.length?'':'<p class="small muted">'+unavailable+'</p>')+'</div>'+(mode==='split'?'<div class="notice blue mt-16">Both half-hour extensions belong to the same missed lesson and use one reschedule.</div>':''),action('close-modal','Cancel','btn')+action('confirm-makeup',parent?'Request these times':'Confirm booking','btn primary',candidates.length?'':'disabled'),true);
 }
 function openProof(invoiceId){
  const i=state.invoices.find(i=>i.id===invoiceId);
@@ -466,7 +491,7 @@ function handleAction(a,id,button){
 
  if(a==='new-booking'){
   startPicker('booking');
-  modal('Add a lesson','<div class="form-stack">'+'<input type="hidden" id="new-student"><div id="booking-student-summary" class="small muted">Choose a student</div>'+pickerMarkup()+'<div class="field-row">'+field('Date','<input type="date" id="new-date" value="'+TODAY+'" aria-label="Lesson date">')+field('Time','<select id="new-time" aria-label="Lesson time"><option value="900">15:00</option><option value="960">16:00</option><option value="1020">17:00</option></select>')+'</div><div class="field-row">'+field('Teacher','<select id="new-tutor" aria-label="Teacher"><option value="chan">Ms Chan</option><option value="wong">Mr Wong</option></select>')+field('Duration','<select id="new-duration" aria-label="Duration"><option value="60">60 minutes</option><option value="90">90 minutes</option><option value="30">30 minutes</option></select>')+'</div>'+field('Remark','<input id="new-note" placeholder="e.g. New student, trial lesson">')+'</div>',action('close-modal','Cancel','btn')+action('save-new-booking','Add lesson','btn primary'));
+  modal('Add a lesson','<div class="form-stack">'+'<input type="hidden" id="new-student"><div id="booking-student-summary" class="small muted">Choose a student</div>'+pickerMarkup()+'<div class="field-row">'+field('Date','<input type="date" id="new-date" value="'+TODAY+'" aria-label="Lesson date">')+field('Time','<select id="new-time" aria-label="Lesson time">'+lessonTimeOptions(60,960)+'</select>')+'</div><div class="field-row">'+field('Teacher','<select id="new-tutor" aria-label="Teacher">'+tutors.map(t=>'<option value="'+t.id+'"'+(t.id===ui.scheduleTutor?' selected':'')+'>'+t.name+'</option>').join('')+'</select>')+field('Duration','<select id="new-duration" aria-label="Duration"><option value="60">60 minutes</option><option value="90">90 minutes</option><option value="30">30 minutes</option></select>')+'</div>'+field('Remark','<input id="new-note" placeholder="e.g. New student, trial lesson">')+'</div>',action('close-modal','Cancel','btn')+action('save-new-booking','Add lesson','btn primary'));
  }else if(a==='save-new-booking'){
   const b={id:uid('lesson'),studentId:$('#new-student').value,date:$('#new-date').value,start:Number($('#new-time').value),tutor:$('#new-tutor').value,duration:Number($('#new-duration').value),note:$('#new-note').value,status:'scheduled',attendance:'unmarked'};
   if(change(()=>{if(!enrolledStudents(state).some(s=>s.id===b.studentId))throw new Error('Choose an enrolled student.');const error=validateSlot(state,b);if(error)throw new Error(error);state.bookings.push(b);record(state,'Added a lesson for '+studentById(b.studentId).name);},'Lesson added'))closeModal();
@@ -569,10 +594,11 @@ function handleAction(a,id,button){
 }
 document.addEventListener('change',e=>{
  const target=e.target,type=target.dataset.change;
+ if(type==='makeup-date'||type==='makeup-tutor'){ui[type==='makeup-date'?'makeupDate':'makeupTutor']=target.value;openMakeup(ui.makeupId,'single');return;}
+ if(target.id==='new-duration'){const duration=Number(target.value),current=Number($('#new-time').value);$('#new-time').innerHTML=lessonTimeOptions(duration,Math.min(current,CENTRE_CLOSE-duration));return;}
  if(type==='checkin-lesson'){ui.checkInBooking=target.value;checkInDialog();return;}
  if(type==='page-size'){const c=collection(target.dataset.list);c.pageSize=Number(target.value);c.page=1;renderCollection(target.dataset.list);return;}
  if(type==='list-filter'){const c=collection(target.dataset.list);c[target.dataset.filter]=target.value;c.page=1;if(target.dataset.list==='conversations')ui.thread=null;renderCollection(target.dataset.list);return;}
- if(type==='schedule-tutor'){ui.scheduleTutor=target.value;render();return;}
  if(type==='picker-scope'||type==='picker-level'){ui.picker[type==='picker-scope'?'scope':'level']=target.value;ui.picker.page=1;updatePicker();return;}
  if(target.dataset.pickerStudent){const id=target.dataset.pickerStudent;if(target.checked)ui.picker.selected.add(id);else ui.picker.selected.delete(id);updatePicker();$('[data-picker-student="'+id+'"]')?.focus();return;}
  if(type==='library-filter'){ui.libraryFilter=target.value;render();}
@@ -583,7 +609,7 @@ document.addEventListener('change',e=>{
  else if(target.id==='student-working'&&currentAssignment()&&ui.role==='student'&&canDraw()){currentAssignment().working=target.value;persist();}
  else if(target.id==='work-feedback'&&currentAssignment()&&ui.role==='teacher'){currentAssignment().note=target.value;persist();}
 });
-document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset.listQuery){e.preventDefault();clearTimeout(searchTimer);applyListSearch(e.target.dataset.listQuery,e.target);}else if(e.key==='Enter'&&e.target.id==='chat-input'){e.preventDefault();$('[data-action="send-message"]').click();}else if(e.key==='Enter'&&e.target.id==='library-search')$('[data-action="search-library"]').click();else if(e.key==='Enter'&&e.target.id==='student-search')$('[data-action="search-students"]').click();});
+document.addEventListener('keydown',e=>{if(e.target.matches('[data-action=teacher-tab]')&&['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const index=tutors.findIndex(t=>t.id===ui.scheduleTutor);ui.scheduleTutor=tutors[e.key==='Home'?0:e.key==='End'?tutors.length-1:(index+(e.key==='ArrowRight'?1:-1)+tutors.length)%tutors.length].id;render();$('#teacher-tab-'+ui.scheduleTutor).focus();return;}if(ui.moveId&&e.target.matches('[data-slot]')&&['Enter',' '].includes(e.key)){e.preventDefault();moveTo(ui.moveId,{date:e.target.dataset.date,start:Number(e.target.dataset.start),tutor:e.target.dataset.tutor});return;}if(e.key==='Enter'&&e.target.dataset.listQuery){e.preventDefault();clearTimeout(searchTimer);applyListSearch(e.target.dataset.listQuery,e.target);}else if(e.key==='Enter'&&e.target.id==='chat-input'){e.preventDefault();$('[data-action="send-message"]').click();}else if(e.key==='Enter'&&e.target.id==='library-search')$('[data-action="search-library"]').click();else if(e.key==='Enter'&&e.target.id==='student-search')$('[data-action="search-students"]').click();});
 let searchTimer;
 document.addEventListener('input',e=>{
  if(e.target.id==='picker-query'){ui.picker.query=e.target.value;ui.picker.page=1;updatePicker();return;}

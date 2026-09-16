@@ -5,6 +5,25 @@ export const clone = value => structuredClone(value);
 export function time(minutes) { return String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0'); }
 export function dateLabel(date, options = {}) { return new Date(date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...options }); }
 export const money = value => 'HK$' + Number(value).toLocaleString('en-HK');
+export const CENTRE_OPEN = 540;
+export const CENTRE_CLOSE = 1140;
+// Demo assumption until the centre confirms its AM/PM working-day boundary.
+export const HALF_DAY_BOUNDARY = 840;
+export const tutors = [
+  { id: 'chan', name: 'Koko', initials: 'K' },
+  { id: 'wong', name: 'Ming', initials: 'M' },
+  { id: 'oscar', name: 'Oscar', initials: 'O' },
+  { id: 'peter', name: 'Peter', initials: 'P' },
+  { id: 'polly', name: 'Polly', initials: 'P' },
+  { id: 'shileen', name: 'Shileen', initials: 'S' },
+  { id: 'tiffany', name: 'Tiffany', initials: 'T' },
+  { id: 'winky', name: 'Winky', initials: 'W' }
+];
+const demoTutorRosters = {
+  chan: ['Full', 'Off', 'Full', 'Full', 'Full', 'Full', 'Off'],
+  wong: ['PM', 'Full', 'Full', 'AM', 'Full', 'Full', 'Off'],
+  ...Object.fromEntries(tutors.slice(2).map((tutor, index) => [tutor.id, Array.from({ length: 7 }, (_, day) => day === index || day === 6 ? 'Off' : 'Full')]))
+};
 export const students = [
   { id: 'chloe', name: 'Chloe Chan', level: 'P3', initials: 'CC', colour: 'rose', parent: 'Mrs Chan', regular: 'Wednesday · 16:00', focus: 'Equivalent fractions' },
   { id: 'ethan', name: 'Ethan Wong', level: 'P4', initials: 'EW', colour: 'blue', parent: 'Mr Wong', regular: 'Wednesday · 16:00', focus: 'Long division' },
@@ -25,7 +44,7 @@ students.forEach((student, index) => Object.assign(student, {
   day: student.id === 'mia' ? '' : student.id === 'ryan' ? 'Friday' : 'Wednesday',
   status: student.id === 'mia' ? 'assessment' : 'active'
 }));
-// These directory-only records do not add bookings to the demonstration timetable.
+// Directory records only add sample bookings when seedTeacherSchedules is called.
 const givenNames = ['Adrian', 'Amber', 'Aiden', 'Alicia', 'Alvin', 'Anson', 'Ashley', 'Audrey', 'Bella', 'Benjamin', 'Caleb', 'Carmen', 'Celia', 'Clara', 'Daniel', 'Daphne', 'Derek', 'Elena', 'Felix', 'Fiona', 'Gabriel', 'Grace', 'Henry', 'Iris', 'Isaac', 'Jasmine', 'Jasper', 'Joyce', 'Justin', 'Kayla', 'Leo', 'Lydia', 'Marcus', 'Natalie', 'Nathan', 'Nicole', 'Oscar', 'Phoebe', 'Samuel', 'Zoe'];
 const familyNames = ['Chan', 'Cheung', 'Chiu', 'Choi', 'Chow', 'Chung', 'Fong', 'Ho', 'Hui', 'Ip', 'Kwan', 'Kwok', 'Lam', 'Lau', 'Lee', 'Leung', 'Lo', 'Lok', 'Ma', 'Mak', 'Ng', 'Pang', 'Poon', 'Siu'];
 const directoryNames = new Set(students.map(student => student.name));
@@ -35,13 +54,18 @@ for (let candidate = 0; students.length < 701; candidate++) {
   const name = first + ' ' + surname;
   if (directoryNames.has(name)) continue;
   const index = students.length - 8, number = students.length + 1, day = weekdays[index % weekdays.length];
-  const tutor = day === 'Tuesday' ? 'wong' : day === 'Thursday' ? 'chan' : Math.floor(index / 6) % 2 ? 'wong' : 'chan';
+  let tutorIndex = Math.floor(index / 6) % tutors.length;
+  while (demoTutorRosters[tutors[tutorIndex].id][index % 6] === 'Off') tutorIndex = (tutorIndex + 1) % tutors.length;
+  const tutor = tutors[tutorIndex].id, roster = demoTutorRosters[tutor][index % 6];
+  let regularStart = CENTRE_OPEN + (Math.floor(index / 48) % 10) * 60;
+  if (roster === 'AM') regularStart = Math.min(regularStart, HALF_DAY_BOUNDARY - 60);
+  if (roster === 'PM') regularStart = Math.max(regularStart, HALF_DAY_BOUNDARY);
   students.push({
     id: 'student-' + String(number).padStart(4, '0'), number: 'MC-' + String(number).padStart(4, '0'),
     name, initials: first[0] + surname[0], level: ['K3', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'S1', 'S2'][index % 9],
     colour: directoryColours[index % directoryColours.length], parent: (index % 2 ? 'Mr ' : 'Mrs ') + surname,
     phone: '0000 ' + String(number).padStart(4, '0'), tutor, day, status: index % 17 === 0 ? 'paused' : 'active',
-    regular: day + ' · ' + ['15:00', '16:00', '17:00'][Math.floor(index / 9) % 3],
+    regular: day + ' · ' + time(regularStart),
     focus: directoryFocus[index % directoryFocus.length]
   });
   directoryNames.add(name);
@@ -123,7 +147,7 @@ export function seedCentreVolume(state) {
     if (index < 120 && !threadStudentIds.has(student.id)) {
       const [question, answer] = topics[index % topics.length], followUp = index % 4 === 0;
       state.messages.push({
-        id: 'thread-' + student.id, studentId: student.id, assignedTo: index % 3 === 0 ? 'Reception' : student.tutor === 'chan' ? 'Ms Chan' : 'Mr Wong', followUp,
+        id: 'thread-' + student.id, studentId: student.id, assignedTo: index % 3 === 0 ? 'Reception' : tutors.find(tutor => tutor.id === student.tutor).name, followUp,
         messages: [{ author: 'parent', text: question, time: 'Yesterday' }, ...(!followUp ? [{ author: 'centre', text: answer, time: 'Yesterday' }] : [])]
       });
       threadStudentIds.add(student.id);
@@ -140,7 +164,6 @@ export const worksheets = [
   { id: 'decimals-01', code: 'DC · 042', title: 'Understanding decimals', topic: 'Decimals', level: 'P4', pages: 1, minutes: 20, colour: 'teal' }
 ];
 export const worksheetById = id => worksheets.find(w => w.id === id) || worksheets[0];
-export const tutors = [{ id: 'chan', name: 'Ms Chan', initials: 'JC' }, { id: 'wong', name: 'Mr Wong', initials: 'AW' }];
 export function seed() {
   const bookings = [];
   const add = (studentId, date, start, tutor = 'chan', extra = {}) => bookings.push({ id: uid('lesson'), studentId, date, start, duration: 60, tutor, status: 'scheduled', attendance: 'unmarked', note: '', ...extra });
@@ -206,16 +229,47 @@ export function seed() {
     reportSubmitted: false
   };
 }
+export function seedTeacherSchedules(state) {
+  if (state.teacherSchedulesVersion === 1) return state;
+  const legacyNames = new Map([['Ms Chan', 'Koko'], ['Ms Jenny Chan', 'Koko'], ['Mr Wong', 'Ming'], ['Mr Alex Wong', 'Ming']]);
+  for (const tutor of tutors) {
+    const existing = state.staff.find(staff => staff.id === tutor.id);
+    if (existing) existing.name = tutor.name;
+    else {
+      const roster = [...demoTutorRosters[tutor.id]];
+      state.staff.push({ id: tutor.id, name: tutor.name, role: 'Teacher', tenure: 2, allowance: 10, taken: 2, holidayCredit: 0, daysOff: roster.map((unit, day) => unit === 'Off' ? [...weekdays, 'Sunday'][day] : null).filter(Boolean).join(' · '), roster });
+    }
+  }
+  for (const thread of state.messages) {
+    if (legacyNames.has(thread.assignedTo)) {
+      const student = studentsById.get(thread.studentId);
+      thread.assignedTo = student && student.id.startsWith('student-') ? tutors.find(tutor => tutor.id === student.tutor).name : legacyNames.get(thread.assignedTo);
+    }
+  }
+  const existingIds = new Set(state.bookings.map(booking => booking.id));
+  students.slice(8).forEach((student, index) => {
+    if (['chan', 'wong'].includes(student.tutor) || student.status !== 'active') return;
+    const date = WEEK[weekdays.indexOf(student.day)], [hour, minute] = student.regular.split(' · ')[1].split(':').map(Number);
+    const booking = { id: 'schedule-v1-' + student.id, studentId: student.id, date, start: hour * 60 + minute, duration: 60, tutor: student.tutor, status: 'scheduled', attendance: date < TODAY || date === TODAY && index % 3 === 0 ? 'present' : 'unmarked', note: '' };
+    if (existingIds.has(booking.id) || validateSlot(state, booking)) return;
+    state.bookings.push(booking);
+    existingIds.add(booking.id);
+  });
+  state.teacherSchedulesVersion = 1;
+  return state;
+}
 export function activeBooking(b) { return !['moved', 'absent', 'cancelled'].includes(b.status); }
 export function overlaps(a, b) { return a.date === b.date && a.start < b.start + b.duration && b.start < a.start + a.duration; }
 export function validateSlot(state, booking, ignoreIds = []) {
-  if (!booking.date || !Number.isFinite(booking.start) || ![30, 60, 90].includes(booking.duration)) return 'Choose a valid lesson time and duration.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(booking.date || '') || !Number.isFinite(Date.parse(booking.date + 'T12:00:00')) || !Number.isFinite(booking.start) || ![30, 60, 90].includes(booking.duration)) return 'Choose a valid lesson time and duration.';
   if (new Date(booking.date + 'T12:00:00').getDay() === 0) return 'The centre is closed on Sundays.';
-  if (booking.start < 900 || booking.start + booking.duration > 1110) return 'Choose a time between 15:00 and 18:30.';
+  if (booking.start < CENTRE_OPEN || booking.start + booking.duration > CENTRE_CLOSE) return 'Choose a time between 09:00 and 19:00.';
   const staff = state.staff.find(s => s.id === booking.tutor);
+  if (!staff) return 'Choose an available tutor.';
   const day = (new Date(booking.date + 'T12:00:00').getDay() + 6) % 7;
-  if (staff?.roster[day] === 'Off' || staff?.roster[day] === 'AM') return 'This tutor is not available during this session.';
-  if (state.staffLeave.some(l => l.staffId === booking.tutor && l.date === booking.date && l.status === 'approved' && ['Full day', 'PM'].includes(l.unit))) return 'This tutor has approved leave at this time.';
+  const end = booking.start + booking.duration, roster = staff.roster[day];
+  if (!['Full', 'AM', 'PM'].includes(roster) || roster === 'AM' && end > HALF_DAY_BOUNDARY || roster === 'PM' && booking.start < HALF_DAY_BOUNDARY) return 'This tutor is not available during this session.';
+  if (state.staffLeave.some(l => l.staffId === booking.tutor && l.date === booking.date && l.status === 'approved' && (l.unit === 'Full day' || l.unit === 'AM' && booking.start < HALF_DAY_BOUNDARY || l.unit === 'PM' && end > HALF_DAY_BOUNDARY))) return 'This tutor has approved leave at this time.';
   const others = state.bookings.filter(b => activeBooking(b) && !ignoreIds.includes(b.id));
   if (others.some(b => b.studentId === booking.studentId && overlaps(b, booking))) return 'This student already has a lesson at that time.';
   const sameTutor = others.filter(b => b.tutor === booking.tutor && overlaps(b, booking));

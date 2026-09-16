@@ -1,0 +1,226 @@
+/* One teacher at a time, with a shared time axis for all visible days. */
+.teacher-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  margin-bottom: 16px;
+  padding: 3px 3px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  overscroll-behavior-x: contain;
+}
+.teacher-tab {
+  flex: 1 0 auto;
+  min-height: 42px;
+  padding: 9px 13px;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #788293;
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.teacher-tab:hover { background: #f9fafb; color: var(--ink); }
+.teacher-tab.active {
+  border-bottom-color: var(--red);
+  color: var(--red);
+  font-weight: 650;
+}
+.teacher-tab:focus-visible { outline-offset: -3px; }
+
+.schedule-layout,
+.schedule-layout > .panel { min-width: 0; max-width: 100%; }
+.schedule-layout .calendar-scroll {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  max-height: max(440px, calc(100vh - 310px));
+  max-height: max(440px, calc(100dvh - 310px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.timetable {
+  display: grid;
+  grid-template-columns: 64px repeat(var(--day-count, 6), minmax(0, 1fr));
+  align-items: stretch;
+  width: 100%;
+  min-width: 760px;
+  background: #fff;
+}
+.timetable:is(.day, .day-view, [data-view="day"], [style*="--day-count:1"], [style*="--day-count: 1"]) {
+  min-width: 0;
+  grid-template-columns: 64px minmax(0, 1fr);
+}
+.timetable-corner,
+.timetable-dayhead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-width: 0;
+  min-height: 65px;
+  padding: 9px 6px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #fcfcfd;
+  box-shadow: 0 1px 0 var(--line);
+  text-align: center;
+}
+.timetable-corner {
+  left: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #788293;
+  font-size: 11px;
+  font-weight: 600;
+}
+.timetable-dayhead .day-name {
+  display: block;
+  color: #8792a2;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+.timetable-dayhead .day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  margin-top: 4px;
+  border-radius: 50%;
+  color: #667184;
+  font-family: 'Manrope', sans-serif;
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1;
+}
+.timetable-dayhead.today { background: #fffafa; }
+.timetable-dayhead.today .day-number { color: #fff; background: var(--red); }
+.timetable-time,
+.timetable .calendar-cell {
+  height: var(--row-height, 40px);
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.timetable-time {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  padding: 6px 9px;
+  background: #fcfcfd;
+  color: #788293;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.timetable .calendar-cell {
+  min-width: 0;
+  padding: 4px 5px;
+  background: #fff;
+}
+.timetable .calendar-cell:last-child { border-bottom: 1px solid var(--line); }
+.timetable .calendar-cell.drag-over {
+  background: #fff0ed;
+  box-shadow: inset 0 0 0 2px #da6b6b;
+}
+.timetable .calendar-cell.pick-target { background: #fffcf5; }
+.timetable .booking-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 23px;
+  min-height: 23px;
+  max-height: 23px;
+  margin: 0 0 1px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 19px;
+}
+.timetable .booking-chip:last-child { margin-bottom: 0; }
+.timetable .booking-chip:hover { transform: none; }
+.timetable .booking-chip .chip-name { min-width: 0; line-height: 19px; }
+.timetable .booking-chip .chip-from {
+  display: inline;
+  margin-left: 3px;
+  font-size: 10px;
+  font-weight: 450;
+  line-height: inherit;
+  white-space: nowrap;
+}
+.timetable .booking-chip > .chip-from {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.timetable .booking-chip small { flex-shrink: 0; font-size: 10px; }
+.timetable .attendance-tick,
+.timetable .attendance-tick .icon,
+.timetable .booking-chip > .icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--green);
+}
+.timetable .attendance-tick { display: inline-flex; align-items: center; }
+.timetable .continuing-label {
+  display: block;
+  margin: 0 0 2px;
+  padding: 0 3px;
+  color: #918879;
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.timetable-end {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-height: 28px;
+  padding: 4px 9px;
+  border-right: 1px solid var(--line);
+  background: #fcfcfd;
+  color: #788293;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.timetable-end-fill { grid-column: 2 / -1; min-height: 28px; background: #fff; }
+
+@media (max-width: 760px) {
+  .teacher-tabs { margin-bottom: 12px; }
+  .teacher-tab { min-height: 44px; padding: 10px 12px; }
+  .schedule-layout .calendar-scroll {
+    max-height: max(440px, calc(100dvh - 300px));
+  }
+  .schedule-layout .calendar-controls { flex-wrap: wrap; }
+  .timetable-corner, .timetable-dayhead { min-height: 61px; padding-top: 7px; padding-bottom: 7px; }
+}
+
+@media print {
+  .schedule-layout .calendar-scroll { max-height: none; overflow: visible; }
+  .timetable-corner, .timetable-dayhead, .timetable-time, .timetable-end { position: static; }
+}
+
+.attendance-tick{width:14px;height:14px;color:var(--green);flex-shrink:0;vertical-align:middle}
+.timetable .continuation-mark{font-size:11px;line-height:1;flex-shrink:0;color:#918879}
+.timetable :is(.chip-duration,.chip-offset){font-size:10px;flex-shrink:0;color:#8a94a3}
+.timetable .tutor-away{background:#fffaf1}
+.tutor-away-note{font-size:10px;color:#a48027;line-height:16px;display:block}
