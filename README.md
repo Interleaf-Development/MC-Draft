@@ -12,6 +12,14 @@ npm start
 
 Open **http://127.0.0.1:4173**. Use the role switch at the top to change between Admin, Teacher, Parent and Student. Changes are saved in this browser's local storage; **Reset** restores the demonstration data.
 
+## Vercel staging and phone installation
+
+The dedicated **mc-draft** project in **Oscar Lai's projects** hosts this client demo. Import `Interleaf-Development/MC-Draft` with the **Other** framework preset and repository root `./`. `vercel.json` publishes only `dist/`, skips dependency installation, and runs the syntax checks and tests before deployment. No environment variables or backend services are needed. Pushing to `main` updates the shared demo URL.
+
+Open the deployed URL with `/?role=parent` for the phone walkthrough or `/?role=student` for the tablet walkthrough. The root URL opens Admin. On iPhone/iPad, open the Parent link in Safari and choose **Share → Add to Home Screen**. On Android, use Chrome's **Install app** or **Add to Home screen** option. The installed app opens the Parent view without browser chrome.
+
+The app shell and local artwork are cached after the first successful online visit, so the demo can reopen offline. Reopen while online to receive newer files; an already open screen is not forcibly reloaded. Demonstration records remain local to each browser/device and are not synchronised with another phone or desktop. Uploaded proofs and chat attachments are not sent to Vercel.
+
 ## Device priorities
 
 - **Parent: mobile first.** A single-column app layout, persistent bottom tabs, 44px minimum action targets, 16px form inputs, safe-area spacing and bottom-sheet dialogs. The Demo menu contains the presentation controls. The same narrow layout is kept on desktop for client review.
@@ -20,7 +28,7 @@ Open **http://127.0.0.1:4173**. Use the role switch at the top to change between
 
 These are browser prototypes of the intended app experiences, not native builds. Actual Apple Pencil behaviour, palm rejection, on-screen keyboard behaviour, offline sync and device performance require validation on real hardware before native implementation. The demo tracks one active drawing pointer to prevent a second touch from replacing or ending an existing stroke.
 
-The demo date is **30 September 2026**. Some sample bank transactions extend into October to demonstrate month-end reconciliation.
+The demo date is **30 September 2026**. Historical July/August transactions demonstrate month-end reconciliation; future invoice due dates remain visible.
 
 ## Centre-scale lists and attendance
 
@@ -117,6 +125,10 @@ Automatic bank matches require an exact amount, strong reference/full-payer iden
 
 ~~~text
 dist/index.html       App entry point
+dist/manifest.webmanifest  Installable Parent app metadata
+dist/pwa.js           Service worker registration
+dist/sw.js            Static app cache and offline fallback
+dist/icons/           App and Apple home-screen icons
 dist/styles.css       Responsive visual system
 dist/scale.css        Bounded lists, pickers and QR presentation
 dist/schedule.css     Teacher tabs and compact 09:00–19:00 timetable
@@ -136,6 +148,7 @@ dist/app.js           Screens, interactions, browser-local persistence
 dist/model.js         Demo data and workflow rules
 dist/brand/           Supplied SVG artwork used by the app
 scripts/serve.mjs     Dependency-free local preview server
+vercel.json           Static Vercel deployment configuration
 tests/model.test.mjs  Workflow invariant tests
 ~~~
 

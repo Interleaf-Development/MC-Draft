@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "MathConcept (Tsuen Wan)",
+  "short_name": "MathConcept",
+  "description": "MathConcept centre, teacher, parent and student workflow demo.",
+  "lang": "en-HK",
+  "start_url": "/?role=parent",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#cf373e",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
