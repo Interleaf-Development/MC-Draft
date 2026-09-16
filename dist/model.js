@@ -295,6 +295,44 @@ export function seedSundaySchedules(state) {
   state.sundayScheduleVersion = 1;
   return state;
 }
+export function seedBusyAfternoons(state) {
+  if (state.busyAfternoonsVersion === 1) return state;
+  const candidates = students.slice(8).filter(student => student.status === 'active');
+  const weeklyLoad = new Map(), bookedDays = new Set();
+  for (const booking of state.bookings.filter(booking => activeBooking(booking) && WEEK.includes(booking.date))) {
+    weeklyLoad.set(booking.studentId, (weeklyLoad.get(booking.studentId) || 0) + 1);
+    bookedDays.add(booking.studentId + '|' + booking.date);
+  }
+  const existingIds = new Set(state.bookings.map(booking => booking.id));
+  WEEK.forEach((date, dayIndex) => tutors.forEach((tutor, tutorIndex) => [960, 1020, 1080].forEach((start, hourIndex) => {
+    const slot = { date, tutor: tutor.id, start, duration: 60 };
+    if (validateSlot(state, { ...slot, studentId: 'fixture-availability-probe' })) return;
+    // Leave a seat for Chloe's move and split-extension walkthroughs.
+    const walkthroughSlot = tutor.id === 'chan' && start === 1020 && [TODAY, '2026-10-02'].includes(date);
+    const target = walkthroughSlot || (dayIndex + tutorIndex + hourIndex) % 2 === 0 ? 5 : 6;
+    const overlapping = state.bookings.filter(booking => activeBooking(booking) && booking.tutor === tutor.id && overlaps(booking, slot));
+    const points = [start, ...overlapping.map(booking => Math.max(start, booking.start))];
+    let occupancy = Math.max(0, ...points.map(point => overlapping.filter(booking => booking.start <= point && booking.start + booking.duration > point).length));
+    const rotation = (dayIndex * tutors.length * 3 + tutorIndex * 3 + hourIndex) * 37;
+    const pool = candidates.map((student, index) => ({ student, rank: (index + rotation) % candidates.length }))
+      .filter(({ student }) => (weeklyLoad.get(student.id) || 0) < 2 && !bookedDays.has(student.id + '|' + date))
+      .sort((a, b) => (weeklyLoad.get(a.student.id) || 0) - (weeklyLoad.get(b.student.id) || 0)
+        || Number(a.student.tutor !== tutor.id) - Number(b.student.tutor !== tutor.id)
+        || Number(a.student.day !== weekdays[dayIndex]) - Number(b.student.day !== weekdays[dayIndex]) || a.rank - b.rank);
+    for (const { student } of pool) {
+      if (occupancy >= target) break;
+      const booking = { id: 'afternoon-v1-' + date + '-' + tutor.id + '-' + start + '-' + student.id, ...slot, studentId: student.id, status: 'scheduled', attendance: date < TODAY ? 'present' : 'unmarked', note: '' };
+      if (existingIds.has(booking.id) || validateSlot(state, booking)) continue;
+      state.bookings.push(booking);
+      existingIds.add(booking.id);
+      weeklyLoad.set(student.id, (weeklyLoad.get(student.id) || 0) + 1);
+      bookedDays.add(student.id + '|' + date);
+      occupancy++;
+    }
+  })));
+  state.busyAfternoonsVersion = 1;
+  return state;
+}
 export function activeBooking(b) { return !['moved', 'absent', 'cancelled'].includes(b.status); }
 export function overlaps(a, b) { return a.date === b.date && a.start < b.start + b.duration && b.start < a.start + a.duration; }
 export function validateSlot(state, booking, ignoreIds = []) {

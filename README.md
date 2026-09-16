@@ -37,6 +37,7 @@ The QR contains an opaque demo token, with no student name or contact details. T
 ## Teacher schedules
 
 - Tabs for **Koko, Ming, Oscar, Peter, Polly, Shileen, Tiffany and Winky**, with day and week views for **Monday–Sunday, 09:00–19:00**. The centre opens seven days a week; each teacher’s roster still controls their availability.
+- Available classes from **16:00 to 19:00** contain five or six students in the sample week, with a few seats retained for the rescheduling walkthrough. Existing bookings and subsequent demo edits are preserved on reload.
 - One time column at the left, compact student cards and a small green tick for attended lessons. Hover or open a card for exact lesson times and remarks. Longer lessons also appear in the following hour with a continuation arrow.
 - Drag within a teacher's schedule, or choose **Move lesson**, switch teacher tabs and select the destination. Half-hour starts keep their minute offset. Original bookings remain struck through, replacements show their source date, and Undo restores the move.
 - Capacity labels are hidden; the six-student overlap check still applies. Adding a lesson supports half-hour start times and 30/60/90-minute durations that end by 19:00.
