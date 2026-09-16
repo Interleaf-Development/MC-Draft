@@ -12,6 +12,14 @@ npm start
 
 Open **http://127.0.0.1:4173**. Use the role switch at the top to change between Admin, Teacher, Parent and Student. Changes are saved in this browser's local storage; **Reset** restores the demonstration data.
 
+## Device priorities
+
+- **Parent: mobile first.** A single-column app layout, persistent bottom tabs, 44px minimum action targets, 16px form inputs, safe-area spacing and bottom-sheet dialogs. The Demo menu contains the presentation controls. The same narrow layout is kept on desktop for client review.
+- **Student: large tablet first.** Designed around iPad Pro-size portrait and landscape viewports (1024 × 1366 and 1366 × 1024). A full-width worksheet replaces the desktop sidebar; 48px writing tools and Hand in stay visible while the page scrolls. Notes and typed working open in a side panel. Use Pen to write or Move page to scroll across the sheet.
+- **Admin / Teacher: desktop first.** Denser operational views retain their sidebar and tables.
+
+These are browser prototypes of the intended app experiences, not native builds. Actual Apple Pencil behaviour, palm rejection, on-screen keyboard behaviour, offline sync and device performance require validation on real hardware before native implementation. The demo tracks one active drawing pointer to prevent a second touch from replacing or ending an existing stroke.
+
 The demo date is **30 September 2026**. Some sample bank transactions extend into October to demonstrate month-end reconciliation.
 
 ## Client walkthroughs

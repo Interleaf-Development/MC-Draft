@@ -20,3 +20,64 @@
 .main{margin:0 auto;align-self:start}.week-slot{height:var(--slot-height,190px);overflow:auto}.booking-chip{font-size:13px}.slot-time{font-size:12px}.slot-time small{font-size:11px}
 .paper{container-type:inline-size;aspect-ratio:1/1.45}.paper-label{font-size:1.7cqw}.paper-title{font-size:3.9cqw;margin:1.4cqw 0 .7cqw}.paper-caption,.paper-rule{font-size:1.8cqw}.question{font-size:2.2cqw}.question-title{gap:1.4cqw}.q-number{width:3.4cqw;height:3.4cqw;font-size:1.8cqw}.fraction-row{font-size:3.2cqw;gap:2.8cqw;margin-left:4.8cqw}.fraction{min-width:3.4cqw}.fraction span:first-child{padding:0 .8cqw .4cqw}.fraction span:last-child{padding-top:.4cqw}.answer-box{width:7cqw;height:6cqw}.fraction-bars{margin-left:4.8cqw;gap:2.8cqw;margin-top:2cqw}.fraction-bar{height:5cqw}.working-lines{margin:2.8cqw 0 0 4.8cqw;height:11cqw;background:repeating-linear-gradient(to bottom,transparent,transparent 4.1cqw,#edf0f4 4.3cqw)}.paper-foot{font-size:1.5cqw;padding-top:1.7cqw}.paper-wrap{overflow:auto}.worksheet-layout.expanded .paper{width:720px;min-width:720px;max-width:none}.worksheet-layout.expanded .paper-wrap{max-height:80vh}.paper-content{overflow:visible}
 body{font-size:16px}.booking-chip{font-size:14px}.note-card .note-comment{font-size:16px}.bubble{font-size:15px}
+
+/* Family apps have different device priorities from the staff workspace. */
+.role-parent .app-shell{display:block;padding-top:calc(64px + env(safe-area-inset-top));max-width:600px;margin:0 auto;min-height:100dvh;background:#f8f8f6}
+.role-parent .sidebar,.role-parent .role-switch,.role-parent .mobile-menu,.role-parent .topbar .date,.role-parent .topbar [data-action="reset-demo"]{display:none}
+.role-parent .topbar{position:fixed;top:0;left:50%;right:auto;transform:translateX(-50%);width:100%;max-width:600px;height:calc(64px + env(safe-area-inset-top));padding:env(safe-area-inset-top) 20px 0;display:flex;gap:12px}
+.role-parent .mobile-brand{display:flex}.role-parent .mobile-brand .wordmark{font-size:23px;padding:0}
+.role-parent .topbar-actions{display:flex}.role-parent .demo-label{min-height:44px;min-width:44px;font-size:12px;border:0}
+.role-parent .main{max-width:none;padding:24px 20px calc(100px + env(safe-area-inset-bottom))}
+.role-parent .family-grid,.role-parent .two-columns{grid-template-columns:minmax(0,1fr);gap:20px}
+.role-parent .family-banner{padding:24px 20px;min-height:170px;gap:14px}.role-parent .family-banner h2{font-size:24px}.role-parent .family-banner img{width:155px;max-width:35%;height:110px}.role-parent .family-banner p{font-size:13px}
+.role-parent .page-heading h1{font-size:27px}.role-parent .page-heading{gap:10px}
+.role-parent .mobile-bottom-nav{position:fixed;bottom:0;left:50%;right:auto;transform:translateX(-50%);width:100%;max-width:600px;display:flex;background:#fff;border-top:1px solid var(--line);z-index:30;padding:7px 5px max(8px,env(safe-area-inset-bottom))}
+.role-parent .mobile-bottom-nav button{display:flex;flex:1;min-height:48px;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;color:#8792a2;padding:4px 2px}
+.role-parent .mobile-bottom-nav button.active{color:var(--red)}.role-parent .mobile-bottom-nav .icon{width:22px;height:22px}
+.role-parent :is(.btn,.icon-btn,.inline-link),.role-parent .field :is(input,select){min-height:44px}.role-parent .icon-btn{min-width:44px}
+.role-parent :is(input,select,textarea){font-size:16px}.role-parent .lesson-item .btn{font-size:13px;min-height:44px}.role-parent .worksheet-row{flex-wrap:wrap}.role-parent .worksheet-row .grow{flex-basis:160px}
+.role-parent .modal-backdrop{align-items:flex-end;padding:0}.role-parent .modal{width:600px;max-height:calc(100dvh - env(safe-area-inset-top) - 12px);border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden}
+.role-parent .modal-head,.role-parent .modal-footer{flex-shrink:0}.role-parent .modal-body{overflow:auto}.role-parent .modal-footer{padding-bottom:max(18px,env(safe-area-inset-bottom))}
+.role-parent .inbox{display:flex;flex-direction:column;min-height:0}.role-parent .thread-list{display:none}.role-parent .conversation{flex:1;min-height:0;overflow:hidden}.role-parent .chat-header{flex-shrink:0;padding:15px 18px}.role-parent .chat-messages{min-height:0;overflow:auto;padding:18px}.role-parent .chat-compose{flex-shrink:0;padding:12px}.role-parent .chat-compose input{font-size:16px;min-height:44px}
+.role-parent.messages-open .main{height:calc(100dvh - 64px - env(safe-area-inset-top) - 72px - env(safe-area-inset-bottom));padding-bottom:12px;display:flex;flex-direction:column}.role-parent.messages-open .page-heading{flex-shrink:0;margin-bottom:16px}.role-parent.messages-open .inbox{flex:1}
+.role-parent #notifications{bottom:calc(84px + env(safe-area-inset-bottom))}
+
+/* Touch tools retain small visual swatches inside generous hit areas. */
+.colour-tool{width:44px;height:44px;border:0;box-shadow:none;background:transparent!important;margin:0;display:inline-flex;align-items:center;justify-content:center}
+.colour-tool::before{content:"";width:22px;height:22px;border:3px solid #fff;border-radius:50%;background:var(--ink-colour);box-shadow:0 0 0 1px #dce0e6}
+.colour-tool.active{box-shadow:none}.colour-tool.active::before{box-shadow:0 0 0 2px var(--red)}
+.tool-btn{min-width:44px;min-height:44px}.pan-tool{width:auto;padding:0 12px;gap:8px;font-size:13px;font-weight:600}
+.paper.pan-mode,.paper.pan-mode .ink-canvas{touch-action:pan-x pan-y;cursor:grab}
+.notes-heading{padding:4px 0 16px}.worksheet-feedback{margin-bottom:14px}.role-student .work-side .helper-art{display:none}
+.role-student :is(.btn,.icon-btn,.inline-link){min-height:48px}.role-student .icon-btn{min-width:48px}.role-student :is(input,select,textarea){font-size:16px}
+.role-student .tool-btn,.role-student .colour-tool{min-width:48px;min-height:48px}.role-student .drawing-tools{align-items:center;gap:8px}
+@media(min-width:761px){
+ .role-student .app-shell{grid-template-columns:minmax(0,1fr);grid-template-rows:72px 76px 1fr;min-height:100dvh}
+ .role-student .topbar{grid-column:1;grid-row:1;padding:0 28px}.role-student .topbar .date{display:none}.role-student .mobile-brand{display:flex}.role-student .mobile-brand .wordmark{font-size:23px;padding:0}.role-student .mobile-menu{display:none}
+ .role-student .sidebar{position:static;grid-column:1;grid-row:2;width:100%;height:76px;padding:12px 28px;flex-direction:row;align-items:center;border:0;border-bottom:1px solid var(--line);background:#fffdf9;gap:20px}
+ .role-student .sidebar>.wordmark,.role-student .centre-label,.role-student .nav-section{display:none}.role-student .nav-list{flex-direction:row;gap:12px}.role-student .nav-item{width:auto;min-height:48px;padding:12px 20px}.role-student .sidebar-bottom{margin:0 0 0 auto;padding:0;border:0}
+ .role-student .main{grid-column:1;grid-row:3;max-width:1440px;padding:28px}.role-student .family-work-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.role-student .work-card{min-height:270px;padding:24px}.role-student .work-card h3{font-size:21px}
+ .role-student.worksheet-open .app-shell{grid-template-rows:72px 1fr;min-height:0;height:100dvh;overflow:hidden}.role-student.worksheet-open .sidebar{display:none}
+ .role-student.worksheet-open .main{grid-row:2;height:calc(100dvh - 72px);min-height:0;padding:18px 24px 24px;display:flex;flex-direction:column;overflow:hidden}
+ .role-student.worksheet-open .page-heading{flex-shrink:0;margin-bottom:16px}.role-student.worksheet-open .page-heading h1{font-size:25px}.role-student .worksheet-feedback{flex-shrink:0}
+ .role-student .worksheet-layout{display:block;flex:1;min-height:0}.role-student .worksheet-layout>section{height:100%;display:flex;flex-direction:column}.role-student .drawing-tools{flex-shrink:0;padding:10px 16px}.role-student .paper-wrap{flex:1;min-height:0;overflow:auto;padding:24px;overscroll-behavior:contain;border-radius:0;border:0}
+ .role-student .paper{width:100%;max-width:880px}.role-student .work-side{display:none;position:fixed;right:24px;top:162px;bottom:24px;width:340px;overflow:auto;padding:18px;background:#f9fafc;border:1px solid #dde2e9;border-radius:14px;z-index:40;box-shadow:0 16px 60px #25304130}
+ .role-student.work-notes-open .work-side{display:block}.role-student .work-side .panel{margin-bottom:15px}.role-student .mobile-bottom-nav{display:none}
+}
+@media(max-width:760px){
+ .role-student.worksheet-open .work-side{display:none}.role-student.worksheet-open.work-notes-open .work-side{display:block}
+ .role-parent .main{padding-left:16px;padding-right:16px}.role-parent .family-banner h2{font-size:22px}
+}
+.role-parent .page-heading:has([data-change="family-student"]){flex-direction:column;align-items:stretch;gap:12px}
+.role-parent .page-heading:has([data-change="family-student"])>.flex{justify-content:flex-start}
+.role-parent [data-change="family-student"]{width:100%;text-align:left}
+.role-parent .family-banner{position:relative;min-height:202px}
+.role-parent .family-banner>div{width:100%}.role-parent .family-banner img{position:absolute;width:106px;max-width:30%;height:78px;bottom:20px;right:16px}
+.role-parent .family-banner .banner-copy>.eyebrow{max-width:100%}
+.role-parent .family-banner h2{font-size:22px;margin:8px 0 12px}.role-parent .family-banner p:not(.eyebrow){max-width:calc(100% - 72px)}
+.role-parent .panel-body>.flex{flex-wrap:wrap}
+@media print{
+ body .app-shell,body .topbar,body .sidebar,body .mobile-bottom-nav,body #notifications,body .modal-head,body .modal-footer{display:none!important}
+ body .modal-backdrop{position:static!important;background:white!important;display:block!important;padding:0!important;backdrop-filter:none!important}
+ body .modal,body .modal-body{display:block!important;position:static!important;width:100%!important;max-height:none!important;height:auto!important;overflow:visible!important;box-shadow:none!important;border-radius:0!important}
+}
