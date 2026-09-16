@@ -13,7 +13,7 @@ function singleReceipt() {
   submitPaymentProof(state, 'INV-1024', proof());
   return state;
 }
-const deposit = overrides => ({ id: 'BANK-TEST', date: '2026-09-30', amount: 2000, reference: 'FPS 910277', payer: 'Chloe Chan', direction: 'credit', ...overrides });
+const deposit = overrides => ({ id: 'BANK-TEST', date: '2026-09-30', amount: 2000, reference: 'FPS 910277', payer: 'Elaine Chan', direction: 'credit', ...overrides });
 
 test('normalization adds only missing demo metadata and never issues a legacy receipt', () => {
   const state = seed(), count = state.receipts.length;
@@ -83,7 +83,7 @@ test('matching needs explicit strong identity/reference and the date window, nev
     deposit({ reference: 'TRANSFER', payer: 'Mrs Chan' }),
     deposit({ date: '2026-10-20' })
   ]) assert.equal(analyzeStatement(state, [bank]).receipts[0].status, 'missing');
-  const nameMatch = analyzeStatement(state, [deposit({ reference: 'UNRELATED TRANSFER', payer: 'Chloe Chan' })]).receipts[0];
+  const nameMatch = analyzeStatement(state, [deposit({ reference: 'UNRELATED TRANSFER', payer: 'Elaine Chan' })]).receipts[0];
   assert.equal(nameMatch.autoEligible, true);
   const referenceMatch = analyzeStatement(state, [deposit({ reference: 'TRANSFER 910277 HK', payer: '' })]).receipts[0];
   assert.equal(referenceMatch.autoEligible, true);

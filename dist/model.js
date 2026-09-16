@@ -125,6 +125,146 @@ export function paginate(items, page = 1, pageSize = 25) {
   return { items: items.slice(offset, offset + pageSize), total, page, pageSize, pageCount, start: total ? offset + 1 : 0, end: Math.min(offset + pageSize, total) };
 }
 
+export const BILLING_FIXTURE_VERSION = 2;
+const parentGivenNames = ['Agnes', 'Albert', 'Anita', 'Bernard', 'Bonnie', 'Charles', 'Christine', 'David', 'Doris', 'Douglas', 'Edith', 'Edward', 'Eileen', 'Francis', 'Gloria', 'Gordon', 'Helen', 'Herman', 'Irene', 'Ivan', 'Janet', 'Jeffrey', 'Joanna', 'Kenneth', 'Lillian', 'Martin', 'May', 'Nelson', 'Pauline', 'Philip', 'Regina', 'Richard', 'Rosanna', 'Simon', 'Stella', 'Stephen', 'Susan', 'Thomas', 'Vivian', 'Wallace'];
+const corePayers = { chloe: 'Elaine Chan', ethan: 'Victor Wong', lucas: 'Teresa Lee', emma: 'Winnie Lam', oliver: 'Patrick Ho', sophie: 'Selina Ng', mia: 'Cynthia Cheung', ryan: 'Raymond Lau' };
+export function billingPayerName(state, studentId) {
+  const student = studentsById.get(studentId), profile = state?.studentProfiles?.[studentId];
+  if (!student) return '';
+  if (profile?.parentGivenName?.trim() && profile?.parentSurname?.trim()) return profile.parentGivenName.trim() + ' ' + profile.parentSurname.trim();
+  return corePayers[studentId] || parentGivenNames[(Number(student.number.slice(3)) - 9) % parentGivenNames.length] + ' ' + student.name.split(' ').slice(1).join(' ');
+}
+const legacyAwaitingGeneratedInvoices = new Set(students.slice(8).filter(student => student.status === 'active').slice(-104).map(student => student.id));
+const awaitingGeneratedInvoices = new Set(students.slice(8).filter((student, index) => student.status === 'active' && ![4, 9].includes(index))
+  .sort((a, b) => (Math.imul(Number(a.number.slice(3)), 2654435761) >>> 0) - (Math.imul(Number(b.number.slice(3)), 2654435761) >>> 0))
+  .slice(0, 104).map(student => student.id));
+function fixtureReview(invoice, submittedDate, paymentDate, status = 'passed') {
+  const uncertain = status === 'needs-review';
+  return { id: 'fixture-proof-' + invoice.id, mode: 'demo', fixture: true, scenario: uncertain ? 'unreadable' : 'pass', status,
+    checks: [{ key: 'isPaymentProof', label: 'Payment proof', status: uncertain ? 'uncertain' : 'pass', detail: uncertain ? 'Payment details cannot be read.' : 'Fictional transfer confirmation.' }, { key: 'recipient', label: 'Recipient is MathConcept', status: uncertain ? 'uncertain' : 'pass', detail: centre.name }, { key: 'amount', label: 'Amount matches invoice', status: uncertain ? 'uncertain' : 'pass', detail: 'HK$' + invoice.amount }, { key: 'duplicate', label: 'Proof has not been used', status: 'pass', detail: 'No duplicate fixture proof.' }],
+    extracted: { recipient: uncertain ? null : centre.name, amount: uncertain ? null : invoice.amount, payer: uncertain ? null : invoice.proofPayer, reference: uncertain ? null : invoice.proofReference, paymentDate },
+    reasons: uncertain ? ['Payment details cannot be read.'] : [], submittedDate };
+}
+function billingBundle(student, suffix, { historic = false, unpaid = false, review = false, pending = false, submittedDate, paymentDate, bankDate, reference, bankId } = {}) {
+  submittedDate ||= historic ? '2026-08-10' : '2026-09-' + String(22 + Number(student.number.slice(3)) % 8).padStart(2, '0');
+  paymentDate ||= submittedDate; bankDate ||= paymentDate; reference ||= 'DEMO ' + student.number;
+  const invoice = { id: 'INV-' + suffix, studentId: student.id, amount: 2000, period: historic ? 'Aug–Sep 2026' : 'Oct–Nov 2026', issued: historic ? '2026-07-20' : '2026-09-20', due: historic ? '2026-08-20' : '2026-10-20', description: 'Regular programme · 8 lessons', receiptId: unpaid || review ? null : 'R-' + suffix, proof: !unpaid, proofPayer: billingPayerName(null, student.id) };
+  if (!unpaid) Object.assign(invoice, { proofDate: submittedDate, claimedPaymentDate: paymentDate, proofReference: reference, proofReview: fixtureReview({ ...invoice, proofReference: reference }, submittedDate, paymentDate, review ? 'needs-review' : 'passed') });
+  const receipt = invoice.receiptId ? { id: invoice.receiptId, invoiceId: invoice.id, studentId: student.id, amount: 2000, proofDate: submittedDate, issuedDate: submittedDate, bankId: pending ? null : bankId || 'BANK-' + suffix, note: '', issuedBy: 'Automatic proof check' } : null;
+  const bank = receipt && !pending ? { id: receipt.bankId, date: bankDate, amount: 2000, reference, payer: invoice.proofPayer, suggestedStudent: student.id, direction: 'credit' } : null;
+  return { invoice, receipt, bank };
+}
+function generatedBillingBundle(student, index, previous = false) {
+  return billingBundle(student, String(5001 + index), { historic: student.status === 'paused', unpaid: (previous ? legacyAwaitingGeneratedInvoices : awaitingGeneratedInvoices).has(student.id), review: index === 9, pending: index === 4 });
+}
+function coreBillingBundles() {
+  return [
+    billingBundle(studentById('chloe'), '1024', { unpaid: true }),
+    billingBundle(studentById('ethan'), '1025', { historic: true, pending: true, submittedDate: '2026-08-01', paymentDate: '2026-07-31', reference: '908142' }),
+    billingBundle(studentById('lucas'), '1026', { historic: true, pending: true, submittedDate: '2026-07-31', paymentDate: '2026-07-31', reference: '724810' }),
+    billingBundle(studentById('emma'), '1027', { pending: true, submittedDate: '2026-09-29', reference: '909003' }),
+    billingBundle(studentById('oliver'), '1028', { submittedDate: '2026-09-28', reference: 'FPS 903416 · HO', bankId: 'BANK-104' }),
+    billingBundle(studentById('sophie'), '1030'),
+    billingBundle(studentById('ryan'), '1031'),
+    billingBundle(studentById('ethan'), '1032', { unpaid: true }),
+    billingBundle(studentById('lucas'), '1033', { unpaid: true })
+  ];
+}
+function appendBillingBundle(state, bundle) {
+  state.invoices.push(bundle.invoice);
+  if (bundle.receipt) state.receipts.push(bundle.receipt);
+  if (bundle.bank) state.bankTransactions.push(bundle.bank);
+}
+
+// Exact previous fixture shapes let the upgrade distinguish sample data from edits.
+function legacyGeneratedBillingBundle(student, index) {
+  const suffix = String(5001 + index), historic = student.status === 'paused', group = index % 10;
+  const hasProof = historic || group >= 2, hasReceipt = historic || group >= 4, bankMatched = historic || group >= 6, mismatch = !historic && group === 9 && index % 3 === 0;
+  const issuedDate = historic ? '2026-08-21' : group === 6 ? '2026-10-01' : '2026-09-29';
+  const invoice = { id: 'INV-' + suffix, studentId: student.id, amount: 2000, period: historic ? 'Aug–Sep 2026' : 'Oct–Nov 2026', issued: historic ? '2026-07-20' : '2026-09-20', due: historic ? '2026-08-20' : '2026-10-20', description: 'Regular programme · 8 lessons', receiptId: hasReceipt ? 'R-' + suffix : null, proof: hasProof, ...(hasProof ? { proofDate: historic ? '2026-08-21' : '2026-09-29', proofReference: 'DEMO ' + student.number } : {}) };
+  return { invoice,
+    receipt: hasReceipt ? { id: invoice.receiptId, invoiceId: invoice.id, studentId: student.id, amount: 2000, proofDate: invoice.proofDate, issuedDate, bankId: bankMatched ? 'BANK-' + suffix : null, note: mismatch ? 'Review the HK$200 difference with the parent.' : '' } : null,
+    bank: hasReceipt ? { id: 'BANK-' + suffix, date: historic ? '2026-08-21' : group === 6 ? '2026-09-30' : group === 7 ? '2026-10-01' : '2026-09-29', amount: mismatch ? 1800 : 2000, reference: 'DEMO TRANSFER · ' + student.number, suggestedStudent: student.id } : null };
+}
+function legacyCoreBillingBundles() {
+  return ['chloe', 'ethan', 'lucas', 'emma', 'oliver'].map((id, index) => {
+    const suffix = String(1024 + index), proof = index > 0, date = index === 3 ? '2026-09-29' : index === 4 ? '2026-09-28' : '2026-09-30';
+    return {
+      invoice: { id: 'INV-' + suffix, studentId: id, amount: 2000, period: 'Oct–Nov 2026', issued: '2026-09-20', due: '2026-10-20', description: 'Regular programme · 8 lessons', receiptId: proof ? 'R-' + suffix : null, proof },
+      receipt: proof ? { id: 'R-' + suffix, invoiceId: 'INV-' + suffix, studentId: id, amount: 2000, proofDate: date, issuedDate: index === 1 ? '2026-10-01' : date, bankId: index === 4 ? 'BANK-104' : null, note: '' } : null,
+      bank: { id: 'BANK-' + (index === 0 ? '105' : 100 + index), date: index === 2 ? '2026-10-02' : date, amount: index === 3 ? 1800 : 2000, reference: ['FPS 910277 · CHAN', 'FPS 908142 · WONG', 'TRANSFER 724810 · LEE', 'FPS 909003 · LAM', 'FPS 903416 · HO'][index], suggestedStudent: id }
+    };
+  });
+}
+function sameFixture(a, b) {
+  return a === b || Boolean(a && b && typeof a === 'object' && typeof b === 'object' && Object.keys(a).length === Object.keys(b).length && Object.keys(b).every(key => sameFixture(a[key], b[key])));
+}
+function normalizeBillingMessages(state) {
+  for (const thread of state.messages || []) {
+    const invoice = state.invoices.filter(item => item.studentId === thread.studentId).sort((a, b) => b.issued.localeCompare(a.issued))[0];
+    for (const message of thread.messages || []) {
+      if (message.author === 'centre' && ['Thank you. Reception will issue the receipt and our accounts team will reconcile the bank entry.', 'Your receipt is available in Payments. We’ll match it to the bank statement.'].includes(message.text)) {
+        message.text = invoice?.receiptId ? 'Your receipt is available in Payments. We’ll match it to the bank statement.' : invoice?.proof ? 'We need a clearer payment proof. Please upload it in Payments.' : 'Your invoice is in Payments. Payment is due on ' + dateLabel(invoice?.due || '2026-10-20') + '.';
+      }
+      if (message.author === 'parent' && message.text === 'I have sent the tuition payment proof. Please let me know if you need anything else.' && !invoice?.proof) message.text = 'When is the next tuition payment due?';
+      if (thread.id === 'thread-ethan' && message.author === 'parent' && message.text === 'I have sent the payment proof for October and November. Thank you!') message.text = 'Thank you. I can see the receipt for August and September in Payments.';
+    }
+  }
+  return state;
+}
+export function seedBillingLedger(state) {
+  if (state.billingFixtureVersion >= BILLING_FIXTURE_VERSION) return normalizeBillingMessages(state);
+  let changed = false;
+  const pairs = (state.billingFixtureVersion === 1 ? coreBillingBundles().slice(0, 7) : legacyCoreBillingBundles()).map((old, index) => [old, coreBillingBundles()[index]])
+    .concat(students.slice(8).map((student, index) => [state.billingFixtureVersion === 1 ? generatedBillingBundle(student, index, true) : legacyGeneratedBillingBundle(student, index), generatedBillingBundle(student, index)]));
+  for (const [old, fresh] of pairs) {
+    const invoice = state.invoices.find(item => item.id === old.invoice.id);
+    const receipt = state.receipts.find(item => item.invoiceId === old.invoice.id) || null;
+    const bank = old.bank ? state.bankTransactions.find(item => item.id === old.bank.id) || null : null;
+    if (!invoice) continue;
+    const comparableInvoice = { ...invoice }, comparableReceipt = receipt ? { ...receipt } : null, comparableBank = bank ? { ...bank } : null;
+    // Earlier normalization only added core references; an import could add payer and the expected bank link.
+    const coreReference = { 'INV-1025': '908142', 'INV-1026': '724810', 'INV-1027': '909003', 'INV-1028': '903416' }[old.invoice.id];
+    if (!old.invoice.proofReview && coreReference && comparableInvoice.proofReference === coreReference) delete comparableInvoice.proofReference;
+    if (comparableBank?.payer === studentById(old.invoice.studentId).name) delete comparableBank.payer;
+    if (comparableReceipt?.bankId === old.bank?.id && old.receipt?.bankId === null) comparableReceipt.bankId = null;
+    if (!sameFixture(comparableInvoice, old.invoice) || !sameFixture(comparableReceipt, old.receipt) || !sameFixture(comparableBank, old.bank)) continue;
+    if (bank && state.receipts.some(item => item.id !== receipt?.id && item.bankId === bank.id)) continue;
+    if (fresh.receipt && state.receipts.some(item => item.id === fresh.receipt.id && item !== receipt)) continue;
+    if (fresh.bank && state.bankTransactions.some(item => item.id === fresh.bank.id && item !== bank)) continue;
+    const retainedLink = receipt?.bankId;
+    changed = true;
+    Object.keys(invoice).forEach(key => delete invoice[key]); Object.assign(invoice, fresh.invoice);
+    if (receipt) state.receipts.splice(state.receipts.indexOf(receipt), 1);
+    if (bank) state.bankTransactions.splice(state.bankTransactions.indexOf(bank), 1);
+    if (fresh.receipt) {
+      // Existing links survive, including matches made by the earlier sample import.
+      if (retainedLink) fresh.receipt.bankId = retainedLink;
+      state.receipts.push(fresh.receipt);
+    }
+    if (fresh.bank) state.bankTransactions.push(fresh.bank);
+    else if (bank && fresh.receipt) {
+      const date = invoice.studentId === 'ethan' ? '2026-07-31' : invoice.studentId === 'lucas' ? '2026-08-02' : fresh.invoice.claimedPaymentDate;
+      state.bankTransactions.push({ ...bank, date, payer: fresh.invoice.proofPayer });
+    } else if (bank && invoice.studentId === 'chloe') state.bankTransactions.push({ ...bank, payer: invoice.proofPayer });
+    // The old sample's two deliberate duplicate deposits are fixture-owned too.
+    if (receipt?.id === 'R-5005') for (const duplicate of state.bankTransactions) {
+      if (['DEMO-AMBIGUOUS-R-5005-A', 'DEMO-AMBIGUOUS-R-5005-B'].includes(duplicate.transactionId)
+        && duplicate.date === old.receipt.proofDate && duplicate.amount === old.receipt.amount
+        && duplicate.reference === old.invoice.proofReference && duplicate.payer === studentById(invoice.studentId).name) {
+        duplicate.date = fresh.invoice.claimedPaymentDate; duplicate.payer = fresh.invoice.proofPayer;
+      }
+    }
+  }
+  for (const bundle of coreBillingBundles().slice(5)) {
+    if (!state.invoices.some(item => item.id === bundle.invoice.id || item.studentId === bundle.invoice.studentId && item.period === bundle.invoice.period)
+      && !state.receipts.some(item => item.id === bundle.receipt?.id) && !state.bankTransactions.some(item => item.id === bundle.bank?.id)) { appendBillingBundle(state, bundle); changed = true; }
+  }
+  if (changed) { state.reportSubmitted = false; state.reviewedMonths = {}; }
+  state.billingFixtureVersion = BILLING_FIXTURE_VERSION;
+  return normalizeBillingMessages(state);
+}
+
 // Idempotent browser migration: preserve original scenarios and any user edits.
 export function seedCentreVolume(state) {
   const invoiceIds = new Set(state.invoices.map(invoice => invoice.id));
@@ -133,27 +273,14 @@ export function seedCentreVolume(state) {
     ['Could you confirm the time for our next lesson?', 'Your regular lesson time is unchanged. We look forward to seeing you.'],
     ['We may need to change a lesson because of a school activity.', 'Please send the date when you have it, and we can check replacement times.'],
     ['Thank you for the lesson update. We will finish the homework this week.', 'Thank you. Please keep the working so the tutor can review it next lesson.'],
-    ['I have sent the tuition payment proof. Please let me know if you need anything else.', 'Thank you. Reception will issue the receipt and our accounts team will reconcile the bank entry.'],
+    ['I have sent the tuition payment proof. Please let me know if you need anything else.', 'Your receipt is available in Payments. We’ll match it to the bank statement.'],
     ['Could the tutor share which topic we should practise at home?', 'We will add the recommended practice to the next lesson record.']
   ];
   students.slice(8).forEach((student, index) => {
     const suffix = String(5001 + index), invoiceId = 'INV-' + suffix;
     if (!invoiceIds.has(invoiceId)) {
-      const historic = student.status === 'paused', group = index % 10;
-      const hasProof = historic || group >= 2, hasReceipt = historic || group >= 4;
-      const bankMatched = historic || group >= 6, mismatch = !historic && group === 9 && index % 3 === 0;
-      const issuedDate = historic ? '2026-08-21' : group === 6 ? '2026-10-01' : '2026-09-29';
-      const bankDate = historic ? '2026-08-21' : group === 6 ? '2026-09-30' : group === 7 ? '2026-10-01' : '2026-09-29';
-      const invoice = {
-        id: invoiceId, studentId: student.id, amount: 2000,
-        period: historic ? 'Aug–Sep 2026' : 'Oct–Nov 2026', issued: historic ? '2026-07-20' : '2026-09-20', due: historic ? '2026-08-20' : '2026-10-20',
-        description: 'Regular programme · 8 lessons', receiptId: hasReceipt ? 'R-' + suffix : null, proof: hasProof,
-        ...(hasProof ? { proofDate: historic ? '2026-08-21' : '2026-09-29', proofReference: 'DEMO ' + student.number } : {})
-      };
-      state.invoices.push(invoice);
+      appendBillingBundle(state, generatedBillingBundle(student, index));
       invoiceIds.add(invoiceId);
-      if (hasReceipt) state.receipts.push({ id: invoice.receiptId, invoiceId, studentId: student.id, amount: 2000, proofDate: invoice.proofDate, issuedDate, bankId: bankMatched ? 'BANK-' + suffix : null, note: mismatch ? 'Review the HK$200 difference with the parent.' : '' });
-      if (hasReceipt) state.bankTransactions.push({ id: 'BANK-' + suffix, date: bankDate, amount: mismatch ? 1800 : 2000, reference: 'DEMO TRANSFER · ' + student.number, suggestedStudent: student.id });
     }
     if (index < 120 && !threadStudentIds.has(student.id)) {
       const [question, answer] = topics[index % topics.length], followUp = index % 4 === 0;
@@ -164,7 +291,7 @@ export function seedCentreVolume(state) {
       threadStudentIds.add(student.id);
     }
   });
-  return state;
+  return normalizeBillingMessages(state);
 }
 export const worksheets = [
   { id: 'fractions-01', code: 'FR · 031', title: 'Equivalent fractions', topic: 'Fractions', level: 'P3', pages: 1, minutes: 15, colour: 'rose' },
@@ -214,30 +341,14 @@ export function seed() {
     makeups: [{ id: 'makeup-chloe', studentId: 'chloe', sourceId: missedId, minutes: 60, used: 0, expiry: '2026-10-14', originalExpiry: '2026-09-30', reason: 'Approved extension for school activity.', period: 'Aug–Sep 2026' }],
     leaveRequests: [],
     lessonNotes: [{ id: 'note-chloe-sep16', studentId: 'chloe', date: '2026-09-16', topics: 'Number patterns and multiplication', performance: 'Working confidently', comment: 'Chloe explained her number patterns clearly today. We will build on this with equivalent fractions next lesson.', homework: 'Complete Number patterns, question 4.', published: true }],
-    invoices: [
-      { id: 'INV-1024', studentId: 'chloe', amount: 2000, period: 'Oct–Nov 2026', issued: '2026-09-20', due: '2026-10-20', description: 'Regular programme · 8 lessons', receiptId: null, proof: false },
-      { id: 'INV-1025', studentId: 'ethan', amount: 2000, period: 'Oct–Nov 2026', issued: '2026-09-20', due: '2026-10-20', description: 'Regular programme · 8 lessons', receiptId: 'R-1025', proof: true },
-      { id: 'INV-1026', studentId: 'lucas', amount: 2000, period: 'Oct–Nov 2026', issued: '2026-09-20', due: '2026-10-20', description: 'Regular programme · 8 lessons', receiptId: 'R-1026', proof: true },
-      { id: 'INV-1027', studentId: 'emma', amount: 2000, period: 'Oct–Nov 2026', issued: '2026-09-20', due: '2026-10-20', description: 'Regular programme · 8 lessons', receiptId: 'R-1027', proof: true },
-      { id: 'INV-1028', studentId: 'oliver', amount: 2000, period: 'Oct–Nov 2026', issued: '2026-09-20', due: '2026-10-20', description: 'Regular programme · 8 lessons', receiptId: 'R-1028', proof: true }
-    ],
-    receipts: [
-      { id: 'R-1025', invoiceId: 'INV-1025', studentId: 'ethan', amount: 2000, proofDate: '2026-09-30', issuedDate: '2026-10-01', bankId: null, note: '' },
-      { id: 'R-1026', invoiceId: 'INV-1026', studentId: 'lucas', amount: 2000, proofDate: '2026-09-30', issuedDate: '2026-09-30', bankId: null, note: '' },
-      { id: 'R-1027', invoiceId: 'INV-1027', studentId: 'emma', amount: 2000, proofDate: '2026-09-29', issuedDate: '2026-09-29', bankId: null, note: '' },
-      { id: 'R-1028', invoiceId: 'INV-1028', studentId: 'oliver', amount: 2000, proofDate: '2026-09-28', issuedDate: '2026-09-28', bankId: 'BANK-104', note: '' }
-    ],
-    bankTransactions: [
-      { id: 'BANK-101', date: '2026-09-30', amount: 2000, reference: 'FPS 908142 · WONG', suggestedStudent: 'ethan' },
-      { id: 'BANK-102', date: '2026-10-02', amount: 2000, reference: 'TRANSFER 724810 · LEE', suggestedStudent: 'lucas' },
-      { id: 'BANK-103', date: '2026-09-29', amount: 1800, reference: 'FPS 909003 · LAM', suggestedStudent: 'emma' },
-      { id: 'BANK-104', date: '2026-09-28', amount: 2000, reference: 'FPS 903416 · HO', suggestedStudent: 'oliver' },
-      { id: 'BANK-105', date: '2026-09-30', amount: 2000, reference: 'FPS 910277 · CHAN', suggestedStudent: 'chloe' }
-    ],
+    billingFixtureVersion: BILLING_FIXTURE_VERSION,
+    invoices: coreBillingBundles().map(bundle => bundle.invoice),
+    receipts: coreBillingBundles().flatMap(bundle => bundle.receipt ? [bundle.receipt] : []),
+    bankTransactions: coreBillingBundles().flatMap(bundle => bundle.bank ? [bundle.bank] : []),
     assessment: { studentId: 'mia', bookedDate: '2026-09-26', assessmentDate: '2026-09-26', paid: true, status: 'report-ready', enrolled: false, creditDays: 7, report: 'Strong number sense. Further support with word problems and explaining mathematical reasoning would be useful.' },
     messages: [
       { id: 'thread-chloe', studentId: 'chloe', assignedTo: 'Ms Chan', followUp: true, messages: [{ author: 'parent', text: 'Could Chloe make up her missed lesson as two half-hour extensions?', time: '09:12' }, { author: 'centre', text: 'Yes, we can arrange that. I will check the available times for you.', time: '09:18' }] },
-      { id: 'thread-ethan', studentId: 'ethan', assignedTo: 'Reception', followUp: false, messages: [{ author: 'parent', text: 'I have sent the payment proof for October and November. Thank you!', time: 'Yesterday' }] },
+      { id: 'thread-ethan', studentId: 'ethan', assignedTo: 'Reception', followUp: false, messages: [{ author: 'parent', text: 'Thank you. I can see the receipt for August and September in Payments.', time: 'Yesterday' }] },
       { id: 'thread-mia', studentId: 'mia', assignedTo: 'Ms Chan', followUp: true, messages: [{ author: 'parent', text: 'Thank you for the assessment. Can we discuss a Wednesday lesson?', time: '10:04' }] }
     ],
     staff: [

@@ -1,4 +1,4 @@
-import { TODAY, centre, students, uid, issueReceipt, matchReceipt, record } from './model.js';
+import { TODAY, centre, students, uid, issueReceipt, matchReceipt, record, seedBillingLedger, billingPayerName } from './model.js';
 
 export const MATCH_DATE_WINDOW_DAYS = 7;
 export const PROOF_SCENARIOS = [
@@ -18,6 +18,7 @@ const credit = row => !['debit', 'outgoing'].includes(row.direction) && Number(r
 const coreReferences = { 'INV-1025': '908142', 'INV-1026': '724810', 'INV-1027': '909003', 'INV-1028': '903416' };
 
 export function normalizeBillingAutomation(state) {
+  seedBillingLedger(state);
   state.bankStatementImports ??= [];
   for (const invoice of state.invoices) {
     if (coreReferences[invoice.id] && invoice.proof && !invoice.proofReview && invoice.proofReference === undefined) invoice.proofReference = coreReferences[invoice.id];
@@ -60,11 +61,11 @@ export function previewPaymentProof(state, invoiceId, { scenario = 'pass', refer
   const invoice = state.invoices.find(item => item.id === invoiceId);
   if (!invoice) throw new Error('Invoice not found.');
   if (!PROOF_SCENARIOS.some(item => item.id === scenario)) throw new Error('Choose a demonstration scenario.');
-  if (!validDate(paymentDate)) throw new Error('Enter a valid payment date.');
+  if (!validDate(paymentDate) || paymentDate > TODAY || paymentDate < invoice.issued) throw new Error('Enter a payment date between the invoice date and today.');
   reference ??= invoice.id === 'INV-1024' ? '910277' : 'DEMO ' + invoice.id;
   if (typeof reference !== 'string' || !reference.trim() || reference.length > 160) throw new Error('Enter a payment reference.');
   const attached = fileMetadata(file), fileFingerprint = attached?.dataUrl ? hash(attached.dataUrl) : undefined;
-  const extracted = { recipient: scenario === 'wrong-recipient' ? 'Demo Other Learning Centre' : centre.name, amount: scenario === 'wrong-amount' ? Math.max(1, invoice.amount - 200) : invoice.amount, payer: invoice.proofPayer || studentIndex.get(invoice.studentId)?.name || '', reference: reference.trim(), paymentDate };
+  const extracted = { recipient: scenario === 'wrong-recipient' ? 'Demo Other Learning Centre' : centre.name, amount: scenario === 'wrong-amount' ? Math.max(1, invoice.amount - 200) : invoice.amount, payer: invoice.proofPayer || billingPayerName(state, invoice.studentId), reference: reference.trim(), paymentDate };
   if (scenario === 'unreadable') Object.assign(extracted, { recipient: null, amount: null, payer: null, reference: null });
   if (scenario === 'not-proof') extracted.recipient = 'Demo retail receipt';
   const duplicated = scenario === 'duplicate' || state.invoices.some(other => {
@@ -113,7 +114,7 @@ function evidence(state, receipt, bank) {
   if (sameReference(reference, bank.reference)) return true;
   const payer = fullPayer(bank.payer);
   if (!payer) return false;
-  return [review?.status === 'passed' ? review.extracted.payer : '', invoice?.proofPayer, studentIndex.get(receipt.studentId)?.name].some(name => fullPayer(name) === payer);
+  return [review?.status === 'passed' ? review.extracted.payer : '', invoice?.proofPayer, billingPayerName(state, receipt.studentId)].some(name => fullPayer(name) === payer);
 }
 
 export function analyzeStatement(state, transactions = state.bankTransactions) {
@@ -147,7 +148,7 @@ export function analyzeStatement(state, transactions = state.bankTransactions) {
 
 const rowKey = row => row.transactionId ? 'transaction:' + row.transactionId.trim() : 'entry:' + row.date + '|' + cents(row.amount) + '|' + String(row.reference || '').trim().toUpperCase().replace(/\s+/g, ' ');
 function statementRow(row) {
-  if (!row || !validDate(row.date) || !Number.isFinite(Number(row.amount)) || Number(row.amount) === 0 || !Number.isSafeInteger(cents(row.amount)) || Math.abs(Number(row.amount) - cents(row.amount) / 100) > 1e-7) throw new Error('Every statement row needs a valid date and a non-zero amount with at most two decimal places.');
+  if (!row || !validDate(row.date) || row.date > TODAY || !Number.isFinite(Number(row.amount)) || Number(row.amount) === 0 || !Number.isSafeInteger(cents(row.amount)) || Math.abs(Number(row.amount) - cents(row.amount) / 100) > 1e-7) throw new Error('Every statement row needs a date on or before today and a non-zero amount with at most two decimal places.');
   const direction = row.direction || (Number(row.amount) > 0 ? 'credit' : 'debit');
   if (!['credit', 'debit', 'outgoing'].includes(direction) || direction === 'credit' && Number(row.amount) < 0) throw new Error('Choose a valid transaction direction.');
   for (const key of ['reference', 'payer', 'transactionId', 'id']) if (row[key] !== undefined && typeof row[key] !== 'string') throw new Error('Statement references and payer names must be text.');
@@ -187,16 +188,20 @@ export function importBankStatement(state, { name, rows }) {
 
 export function demoStatementRows(state) {
   const examples = [
-    ['BANK-101', '2026-09-30', 2000, 'FPS 908142 · WONG', 'Ethan Wong'],
-    ['BANK-102', '2026-10-02', 2000, 'TRANSFER 724810 · LEE', 'Lucas Lee'],
-    ['BANK-103', '2026-09-29', 1800, 'FPS 909003 · LAM', 'Emma Lam'],
-    ['BANK-104', '2026-09-28', 2000, 'FPS 903416 · HO', 'Oliver Ho'],
-    ['BANK-105', '2026-09-30', 2000, 'FPS 910277 · CHAN', 'Chloe Chan']
-  ].map(([id, date, amount, reference, payer]) => ({ id, date, amount, reference, payer, direction: 'credit' }));
+    ['BANK-101', '2026-07-31', 2000, 'FPS 908142 · WONG', 'Victor Wong'],
+    ['BANK-102', '2026-08-02', 2000, 'TRANSFER 724810 · LEE', 'Teresa Lee'],
+    ['BANK-103', '2026-09-29', 1800, 'FPS 909003 · LAM', 'Winnie Lam'],
+    ['BANK-104', '2026-09-28', 2000, 'FPS 903416 · HO', 'Patrick Ho'],
+    ['BANK-105', '2026-09-30', 2000, 'FPS 910277 · CHAN', 'Elaine Chan']
+  ].map(([id, date, amount, reference, payer]) => {
+    const existing = state.bankTransactions.find(bank => bank.id === id);
+    // A saved user edit may intentionally keep an older fixture's details.
+    return existing ? { ...existing, direction: existing.direction || 'credit' } : { id, date, amount, reference, payer, direction: 'credit' };
+  }).filter(row => row.date <= TODAY);
   const ambiguous = state.receipts.find(receipt => receipt.id === 'R-5005')
     || state.receipts.find(receipt => receipt.studentId.startsWith('student-'));
   if (ambiguous) {
-    const invoice = state.invoices.find(item => item.id === ambiguous.invoiceId), payer = studentIndex.get(ambiguous.studentId)?.name || '';
+    const invoice = state.invoices.find(item => item.id === ambiguous.invoiceId), payer = invoice?.proofPayer || billingPayerName(state, ambiguous.studentId);
     for (const suffix of ['A', 'B']) examples.push({ transactionId: 'DEMO-AMBIGUOUS-' + ambiguous.id + '-' + suffix, date: ambiguous.proofDate || ambiguous.issuedDate, amount: ambiguous.amount, reference: invoice?.proofReference || 'DEMO ' + ambiguous.id, payer, direction: 'credit' });
   }
   examples.push({ transactionId: 'DEMO-UNALLOCATED-001', date: TODAY, amount: 375, reference: 'UNALLOCATED DEMO CREDIT 777001', payer: 'Unallocated Demo Payer', direction: 'credit' });

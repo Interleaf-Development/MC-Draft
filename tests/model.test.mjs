@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { seed, clone, activeBooking, validateSlot, moveBooking, requestAbsence, approveAbsence, bookMakeup, issueReceipt, matchReceipt, reconciliation, reportingTotals, assessmentCredit, staffBalance, cycleForDate } from '../dist/model.js';
+import { demoStatementRows } from '../dist/billing-automation.js';
 test('an ordinary move preserves its source and stops it occupying a seat',()=>{
  const s=seed(),source=s.bookings.find(b=>b.studentId==='chloe'&&b.date==='2026-09-30');
  const moved=moveBooking(s,source.id,{date:'2026-09-30',start:1020,tutor:'chan'});
@@ -55,18 +56,18 @@ test('receipt issues before bank match and repeated issuance is idempotent',()=>
  const r=issueReceipt(s,invoice.id);assert.equal(r.bankId,null);assert.equal(reconciliation(s,r).status,'Unmatched');assert.equal(s.reportSubmitted,false);
  assert.equal(issueReceipt(s,invoice.id).id,r.id);assert.equal(s.receipts.filter(x=>x.id===r.id).length,1);
 });
-test('date-back preserves receipt date and assigns September bank month',()=>{
- const s=seed();matchReceipt(s,'R-1025','BANK-101');const r=s.receipts.find(r=>r.id==='R-1025'),m=reconciliation(s,r);
- assert.equal(r.issuedDate,'2026-10-01');assert.equal(m.adjustment,'Date back');assert.equal(m.month,'2026-09');
- assert.ok(reportingTotals(s,'2026-09').matched.some(e=>e.receipt.id==='R-1025'));
+test('date-back preserves the August receipt date and assigns July bank month',()=>{
+ const s=seed();s.bankTransactions.push(demoStatementRows(s).find(b=>b.id==='BANK-101'));matchReceipt(s,'R-1025','BANK-101');const r=s.receipts.find(r=>r.id==='R-1025'),m=reconciliation(s,r);
+ assert.equal(r.issuedDate,'2026-08-01');assert.equal(m.adjustment,'Date back');assert.equal(m.month,'2026-07');
+ assert.ok(reportingTotals(s,'2026-07').matched.some(e=>e.receipt.id==='R-1025'));
 });
-test('date-forward moves bank reporting into October without changing receipt date',()=>{
- const s=seed();matchReceipt(s,'R-1026','BANK-102');const r=s.receipts.find(r=>r.id==='R-1026'),m=reconciliation(s,r);
- assert.equal(r.issuedDate,'2026-09-30');assert.equal(m.adjustment,'Date forward');assert.equal(m.month,'2026-10');
- assert.equal(reportingTotals(s,'2026-10').total,2000);
+test('date-forward moves bank reporting into August without changing the July receipt date',()=>{
+ const s=seed();s.bankTransactions.push(demoStatementRows(s).find(b=>b.id==='BANK-102'));matchReceipt(s,'R-1026','BANK-102');const r=s.receipts.find(r=>r.id==='R-1026'),m=reconciliation(s,r);
+ assert.equal(r.issuedDate,'2026-07-31');assert.equal(m.adjustment,'Date forward');assert.equal(m.month,'2026-08');
+ assert.equal(reportingTotals(s,'2026-08').total,2000);
 });
 test('amount differences stay unresolved, and bank entries cannot be double matched',()=>{
- const s=seed();matchReceipt(s,'R-1027','BANK-103');const m=reconciliation(s,s.receipts.find(r=>r.id==='R-1027'));
+ const s=seed();s.bankTransactions.push(demoStatementRows(s).find(b=>b.id==='BANK-103'));matchReceipt(s,'R-1027','BANK-103');const m=reconciliation(s,s.receipts.find(r=>r.id==='R-1027'));
  assert.equal(m.status,'Difference');assert.equal(m.difference,200);assert.ok(reportingTotals(s,'2026-09').unresolved.some(e=>e.receipt.id==='R-1027'));
  assert.throws(()=>matchReceipt(s,'R-1025','BANK-103'),/already linked/);
 });
