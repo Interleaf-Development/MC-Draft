@@ -81,3 +81,7 @@ body{font-size:16px}.booking-chip{font-size:14px}.note-card .note-comment{font-s
  body .modal-backdrop{position:static!important;background:white!important;display:block!important;padding:0!important;backdrop-filter:none!important}
  body .modal,body .modal-body{display:block!important;position:static!important;width:100%!important;max-height:none!important;height:auto!important;overflow:visible!important;box-shadow:none!important;border-radius:0!important}
 }
+
+/* Page context stays accessible; visible headers contain controls only. */
+.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;clip-path:inset(50%)!important;white-space:nowrap!important;border:0!important}
+.page-heading.page-actions{justify-content:flex-end;margin-bottom:16px}
