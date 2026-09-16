@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WEEK, tutors, seed, clone, seedTeacherSchedules, seedBusyAfternoons, activeBooking, validateSlot, moveBooking, bookMakeup, studentById } from '../dist/model.js';
+import { WEEK, tutors, seed, clone, seedTeacherSchedules, seedBusyAfternoons, activeBooking, validateSlot, moveBooking, bookMakeup, studentById, students, TODAY } from '../dist/model.js';
 
 const base = () => seedTeacherSchedules(seed());
 const isAdded = booking => booking.id.startsWith('afternoon-v1-');
@@ -18,6 +18,7 @@ test('available afternoon sessions have five or six students without conflicts o
     counts.add(count);
   }
   assert.deepEqual([...counts].sort(), [5, 6]);
+  for (const booking of state.bookings) assert.equal(booking.tutor, studentById(booking.studentId).tutor, booking.id + ' must use the assigned teacher');
   const additions = state.bookings.filter(isAdded);
   assert.ok(additions.length > 0);
   for (const booking of additions) {
@@ -57,4 +58,39 @@ test('afternoon migration retains saved changes, approved leave and partial-hour
   const before = clone(state);
   seedBusyAfternoons(state);
   assert.deepEqual(state, before);
+});
+
+
+test('teacher-consistent migration replaces untouched cross-teacher examples without changing linked or edited lessons', () => {
+  const state = base();
+  state.busyAfternoonsVersion = 1;
+  const wrongTutorStudent = students.find(student => student.id.startsWith('student-') && student.tutor === 'chan' && student.status === 'active');
+  const oldAfternoon = {
+    id: 'afternoon-v1-' + TODAY + '-wong-1080-' + wrongTutorStudent.id,
+    studentId: wrongTutorStudent.id, date: TODAY, start: 1080, duration: 60,
+    tutor: 'wong', status: 'scheduled', attendance: 'unmarked', note: ''
+  };
+  const oldCore = { id: 'lesson-old-sophie', studentId: 'sophie', date: '2026-09-28', start: 900, duration: 60, tutor: 'wong', status: 'scheduled', attendance: 'unmarked', note: '' };
+  const manual = { ...oldAfternoon, id: 'manual-lesson', start: 1020, note: '' };
+  const movedSource = { ...oldCore, id: 'lesson-moved-source', status: 'moved', caseId: 'saved-case' };
+  const replacement = { ...oldAfternoon, id: 'saved-replacement', date: '2026-10-02', start: 840, sourceId: movedSource.id, caseId: 'saved-case' };
+  const notedCore = { ...oldCore, id: 'lesson-note-preserved', note: 'Manager arranged cover' };
+  const attendedCore = { ...oldCore, id: 'lesson-attendance-preserved', attendance: 'present' };
+  const requestedCore = { ...oldCore, id: 'lesson-request-preserved' };
+  const passCore = { ...oldCore, id: 'lesson-qr-preserved' };
+  state.leaveRequests.push({ id: 'existing-leave', bookingId: requestedCore.id, status: 'pending' });
+  state.checkInPasses = [{ token: 'saved-pass', bookingId: passCore.id, date: passCore.date }];
+  const preserved = [manual, movedSource, replacement, notedCore, attendedCore, requestedCore, passCore];
+  state.bookings.push(oldAfternoon, oldCore, ...preserved);
+  seedBusyAfternoons(state);
+  assert.equal(state.busyAfternoonsVersion, 2);
+  assert.ok(!state.bookings.some(booking => [oldAfternoon.id, oldCore.id].includes(booking.id)));
+  for (const booking of preserved) assert.deepEqual(state.bookings.find(item => item.id === booking.id), booking);
+  for (const booking of state.bookings.filter(booking => isAdded(booking) && !preserved.includes(booking))) {
+    assert.equal(booking.tutor, studentById(booking.studentId).tutor);
+    assert.equal(validateSlot(state, booking, [booking.id]), null);
+  }
+  const after = clone(state);
+  seedBusyAfternoons(state);
+  assert.deepEqual(state, after);
 });

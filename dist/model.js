@@ -175,9 +175,10 @@ export const worksheets = [
   { id: 'decimals-01', code: 'DC · 042', title: 'Understanding decimals', topic: 'Decimals', level: 'P4', pages: 1, minutes: 20, colour: 'teal' }
 ];
 export const worksheetById = id => worksheets.find(w => w.id === id) || worksheets[0];
-export function seed() {
-  const bookings = [];
-  const add = (studentId, date, start, tutor = 'chan', extra = {}) => bookings.push({ id: uid('lesson'), studentId, date, start, duration: 60, tutor, status: 'scheduled', attendance: 'unmarked', note: '', ...extra });
+// Keep these original session examples recognizable when upgrading saved demos.
+function coreWeekExamples() {
+  const examples = [];
+  const add = (studentId, date, start, tutor = 'chan') => examples.push({ studentId, date, start, tutor });
   WEEK.slice(0, 6).forEach((date, day) => {
     if (day === 2) {
       students.slice(0, 6).forEach(s => add(s.id, date, 960));
@@ -190,6 +191,14 @@ export function seed() {
       [day % 2 ? 'emma' : 'ethan'].forEach(s => add(s, date, 1020, day === 1 ? 'wong' : 'chan'));
     }
   });
+  return examples;
+}
+export function seed() {
+  const bookings = [];
+  const add = (studentId, date, start, tutor = 'chan', extra = {}) => bookings.push({ id: uid('lesson'), studentId, date, start, duration: 60, tutor, status: 'scheduled', attendance: 'unmarked', note: '', ...extra });
+  for (const example of coreWeekExamples()) {
+    if (studentById(example.studentId).tutor === example.tutor) add(example.studentId, example.date, example.start, example.tutor);
+  }
   const missedId = 'missed-sep23';
   add('chloe', '2026-09-23', 960, 'chan', { id: missedId, status: 'absent', attendance: 'absent', note: 'School activity', caseId: 'makeup-chloe' });
   add('chloe', '2026-10-07', 960);
@@ -295,8 +304,31 @@ export function seedSundaySchedules(state) {
   state.sundayScheduleVersion = 1;
   return state;
 }
+function removeCrossTeacherFixtures(state) {
+  const key = booking => [booking.studentId, booking.date, booking.start, booking.tutor].join('|');
+  const oldCore = new Set(coreWeekExamples().filter(booking => studentById(booking.studentId).tutor !== booking.tutor).map(key));
+  const linkedIds = new Set([
+    ...state.bookings.flatMap(booking => [booking.sourceId].filter(Boolean)),
+    ...state.makeups.map(makeup => makeup.sourceId),
+    ...state.leaveRequests.map(request => request.bookingId),
+    ...(state.checkInPasses || []).map(pass => pass.bookingId)
+  ]);
+  // Only replace untouched generated examples. Saved moves, notes, attendance,
+  // make-ups and manual bookings retain their student and history.
+  state.bookings = state.bookings.filter(booking => {
+    const student = studentsById.get(booking.studentId);
+    if (!student || student.tutor === booking.tutor || linkedIds.has(booking.id)
+      || booking.status !== 'scheduled' || booking.duration !== 60 || booking.note
+      || booking.caseId || booking.sourceId) return true;
+    const oldAfternoonId = 'afternoon-v1-' + booking.date + '-' + booking.tutor + '-' + booking.start + '-' + booking.studentId;
+    const untouchedAfternoon = booking.id === oldAfternoonId && booking.attendance === (booking.date < TODAY ? 'present' : 'unmarked');
+    const untouchedCore = booking.id.startsWith('lesson-') && oldCore.has(key(booking)) && booking.attendance === 'unmarked';
+    return !untouchedAfternoon && !untouchedCore;
+  });
+}
 export function seedBusyAfternoons(state) {
-  if (state.busyAfternoonsVersion === 1) return state;
+  if (state.busyAfternoonsVersion === 2) return state;
+  removeCrossTeacherFixtures(state);
   const candidates = students.slice(8).filter(student => student.status === 'active');
   const weeklyLoad = new Map(), bookedDays = new Set();
   for (const booking of state.bookings.filter(booking => activeBooking(booking) && WEEK.includes(booking.date))) {
@@ -315,9 +347,8 @@ export function seedBusyAfternoons(state) {
     let occupancy = Math.max(0, ...points.map(point => overlapping.filter(booking => booking.start <= point && booking.start + booking.duration > point).length));
     const rotation = (dayIndex * tutors.length * 3 + tutorIndex * 3 + hourIndex) * 37;
     const pool = candidates.map((student, index) => ({ student, rank: (index + rotation) % candidates.length }))
-      .filter(({ student }) => (weeklyLoad.get(student.id) || 0) < 2 && !bookedDays.has(student.id + '|' + date))
+      .filter(({ student }) => student.tutor === tutor.id && (weeklyLoad.get(student.id) || 0) < 2 && !bookedDays.has(student.id + '|' + date))
       .sort((a, b) => (weeklyLoad.get(a.student.id) || 0) - (weeklyLoad.get(b.student.id) || 0)
-        || Number(a.student.tutor !== tutor.id) - Number(b.student.tutor !== tutor.id)
         || Number(a.student.day !== weekdays[dayIndex]) - Number(b.student.day !== weekdays[dayIndex]) || a.rank - b.rank);
     for (const { student } of pool) {
       if (occupancy >= target) break;
@@ -330,11 +361,14 @@ export function seedBusyAfternoons(state) {
       occupancy++;
     }
   })));
-  state.busyAfternoonsVersion = 1;
+  state.busyAfternoonsVersion = 2;
   return state;
 }
 export function activeBooking(b) { return !['moved', 'absent', 'cancelled'].includes(b.status); }
 export function overlaps(a, b) { return a.date === b.date && a.start < b.start + b.duration && b.start < a.start + a.duration; }
+export function studentTimeConflict(state, booking, ignoreIds = []) {
+  return state.bookings.find(b => activeBooking(b) && !ignoreIds.includes(b.id) && b.studentId === booking.studentId && overlaps(b, booking));
+}
 export function validateSlot(state, booking, ignoreIds = []) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(booking.date || '') || !Number.isFinite(Date.parse(booking.date + 'T12:00:00')) || !Number.isFinite(booking.start) || ![30, 60, 90].includes(booking.duration)) return 'Choose a valid lesson time and duration.';
   if (booking.start < CENTRE_OPEN || booking.start + booking.duration > CENTRE_CLOSE) return 'Choose a time between 09:00 and 19:00.';
@@ -343,8 +377,13 @@ export function validateSlot(state, booking, ignoreIds = []) {
   const end = booking.start + booking.duration;
   if (!rosterAllows(staff.roster, booking)) return 'This tutor is not available during this session.';
   if (state.staffLeave.some(l => l.staffId === booking.tutor && l.date === booking.date && l.status === 'approved' && (l.unit === 'Full day' || l.unit === 'AM' && booking.start < HALF_DAY_BOUNDARY || l.unit === 'PM' && end > HALF_DAY_BOUNDARY))) return 'This tutor has approved leave at this time.';
+  const conflict = studentTimeConflict(state, booking, ignoreIds);
+  if (conflict) {
+    const studentName = studentsById.get(booking.studentId)?.name || 'This student';
+    const tutorName = tutors.find(tutor => tutor.id === conflict.tutor)?.name || state.staff.find(tutor => tutor.id === conflict.tutor)?.name || 'another tutor';
+    return studentName + ' already has a lesson with ' + tutorName + ' on ' + dateLabel(conflict.date, { year: 'numeric' }) + ', ' + time(conflict.start) + '–' + time(conflict.start + conflict.duration) + '.';
+  }
   const others = state.bookings.filter(b => activeBooking(b) && !ignoreIds.includes(b.id));
-  if (others.some(b => b.studentId === booking.studentId && overlaps(b, booking))) return 'This student already has a lesson at that time.';
   const sameTutor = others.filter(b => b.tutor === booking.tutor && overlaps(b, booking));
   const points = [...new Set([booking.start, ...sameTutor.map(b => Math.max(booking.start, b.start))])];
   if (points.some(point => sameTutor.filter(b => b.start <= point && b.start + b.duration > point).length >= 6)) return 'This time would exceed six students. Please choose another slot.';
