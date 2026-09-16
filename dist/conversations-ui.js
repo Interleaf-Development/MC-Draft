@@ -1,10 +1,9 @@
 import { TODAY, centre, students, studentById, worksheets, uid } from './model.js';
-import { conversationThreads, markConversationRead, sendConversationMessage, toggleConversationPreference, toggleConversationReaction, canViewConversation, viewerKey } from './conversations.js';
+import { conversationThreads, markConversationRead, sendConversationMessage, toggleConversationReaction, canViewConversation, viewerKey } from './conversations.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const paths = {
   search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
-  more:'<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>',
   new:'<path d="M20 11v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8m3-1h6m-3-3v6M7 10h5M7 15h9"/>',
   back:'<path d="m11 5-7 7 7 7M4 12h16"/>',
   down:'<path d="m6 9 6 6 6-6"/>',
@@ -12,9 +11,6 @@ const paths = {
   close:'<path d="m6 6 12 12M6 18 12-12"/>',
   smile:'<circle cx="12" cy="12" r="9"/><path d="M8 14c2 4 6 4 8 0M8 9h.01M16 9h.01"/>',
   send:'<path d="m3 3 19 9-19 9 4-9-4-9ZM7 12h15"/>',
-  mic:'<rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/>',
-  phone:'<path d="m6 3 4 5-3 3c2 3 3 4 6 6l3-3 5 4-1 3C10 23 1 14 3 4Z"/>',
-  video:'<rect x="2" y="5" width="14" height="14" rx="3"/><path d="m16 9 6-3v12l-6-3"/>',
   archive:'<path d="M4 8v12h16V8M3 3h18v5H3ZM9 12h6"/>',
   check:'<path d="m4 12 4 4L19 5"/>',
   checks:'<path d="m2 12 4 4L17 5m-6 9 2 2L24 5"/>',
@@ -32,7 +28,7 @@ const messageText = message => message?.text || message?.attachment?.name || '';
 const own = (thread,message,viewer) => thread.type==='group' ? message.senderKey===viewerKey(viewer) : message.author===(viewer.role==='parent'?'parent':'centre');
 const EMOJIS = ['😀','😊','❤️','👍','🙏','🎉','👏','✅','📚','✏️','🙌','🙂'];
 
-export function createConversationUI({getState,getViewer,persist,render:renderApp,modal,closeModal,toast,openStudent,childSwitch}) {
+export function createConversationUI({getState,getViewer,persist,render:renderApp,modal,closeModal,toast,childSwitch}) {
   const views = new Map();
   let renderedKey='', renderedThread='', scrollTop=0, listTop=0, jumpBottom=true, focusAfter=null, pickerQuery='', pickerLimit=20;
   const current = () => {
@@ -74,11 +70,9 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
     const matches=thread.messages.filter(m=>!v.chatQuery||messageText(m).toLowerCase().includes(v.chatQuery.toLowerCase()));
     const visible=matches.slice(-v.messageLimit); let prev;
     const bubbles=visible.map(m=>{let html='';if(!prev||prev.date!==m.date)html='<div class="wa-day-label">'+esc(m.date===TODAY?'Today':m.date==='2026-09-29'?'Yesterday':m.date)+'</div>';html+=messageRow(thread,m,prev);prev=m;return html;}).join('');
-    const allThreads=[...conversationThreads(getState(),{...getViewer()}),...conversationThreads(getState(),{...getViewer(),filter:'archived'})], info=allThreads.find(t=>t.id===thread.id);
-    const menu=v.menu==='chat'?'<div class="wa-menu wa-header-menu">'+button('search-chat','Search conversation')+(s&&!parent?button('profile','Contact info','','data-id="'+s.id+'"'):'')+button('preference',info?.favourite?'Remove from favourites':'Add to favourites','','data-pref="favourite"')+button('preference','Mark as unread','','data-pref="unread"')+button('preference',info?.archived?'Unarchive chat':'Archive chat','','data-pref="archive"')+(!parent?button('follow-up',thread.followUp?'Clear follow-up':'Follow up'):'')+'</div>':'';
     const reply=thread.messages.find(m=>m.id===v.replies[thread.id]), attachment=v.attachments[thread.id];
     const hasMessage=Boolean(v.drafts[thread.id]?.trim()||attachment);
-    return '<section class="wa-chat-pane" aria-label="Conversation with '+esc(title(thread))+'"><header class="wa-chat-header">'+iconButton('back','back','Back to chats','wa-back')+avatar(thread)+'<div class="wa-chat-identity"><h2>'+esc(title(thread))+'</h2><p>'+esc(subtitle)+'</p></div><div class="wa-header-actions">'+iconButton('video','video','Video call')+iconButton('call','phone','Voice call')+iconButton('search-chat','search','Search conversation')+iconButton('chat-menu','more','Chat menu','', 'aria-expanded="'+(v.menu==='chat')+'"')+'</div>'+menu+'</header>'+(v.searchOpen?'<div class="wa-chat-search">'+icon('search')+'<input id="wa-chat-search" placeholder="Search in conversation" aria-label="Search in conversation" value="'+esc(v.chatQuery)+'"><span>'+matches.length+'</span>'+iconButton('close-search','close','Close search')+'</div>':'')+'<div class="wa-conversation-scroll" role="log" aria-label="Messages">'+(matches.length>v.messageLimit?button('older','Load earlier messages','wa-load-earlier'):'')+(bubbles||'<div class="wa-day-label">'+(v.chatQuery?'No matching messages':'Start a conversation')+'</div>')+'</div><div class="wa-compose-wrap">'+(reply?'<div class="wa-reply-preview"><div><strong>'+esc(reply.senderName)+'</strong><span>'+esc(messageText(reply))+'</span></div>'+iconButton('cancel-reply','close','Cancel reply')+'</div>':'')+(attachment?'<div class="wa-attachment-preview">'+(attachment.kind==='image'?'<img src="'+esc(attachment.dataUrl)+'" alt="Attachment preview">':icon('file'))+'<span>'+esc(attachment.name)+'</span>'+iconButton('remove-attachment','close','Remove attachment')+'</div>':'')+'<div class="wa-composer">'+iconButton('attach-menu','plus','Attach','', 'aria-expanded="'+(v.menu==='attach')+'"')+iconButton('emoji-menu','smile','Emoji','', 'aria-expanded="'+(v.menu==='emoji')+'"')+'<textarea id="chat-input" rows="1" maxlength="4000" aria-label="Message" placeholder="Type a message">'+esc(v.drafts[thread.id]||'')+'</textarea>'+iconButton(hasMessage?'send':'voice',hasMessage?'send':'mic',hasMessage?'Send message':'Voice message','wa-send'+(hasMessage?' active':''))+'</div>'+(v.menu==='emoji'?'<div class="wa-emoji-picker" aria-label="Emoji">'+EMOJIS.map(emoji=>button('emoji',emoji,'','data-emoji="'+emoji+'" aria-label="Insert '+emoji+'"')).join('')+'</div>':'')+(v.menu==='attach'?'<div class="wa-menu wa-attachment-picker">'+button('choose-image',icon('image')+' Photos')+button('choose-document',icon('file')+' Document')+button('worksheet-picker',icon('book')+' Worksheet')+'</div>':'')+'<input type="file" id="wa-file" hidden accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain"></div></section>';
+    return '<section class="wa-chat-pane" aria-label="Conversation with '+esc(title(thread))+'"><header class="wa-chat-header">'+iconButton('back','back','Back to chats','wa-back')+avatar(thread)+'<div class="wa-chat-identity"><h2>'+esc(title(thread))+'</h2><p>'+esc(subtitle)+'</p></div><div class="wa-header-actions">'+iconButton('search-chat','search','Search conversation')+'</div></header>'+(v.searchOpen?'<div class="wa-chat-search">'+icon('search')+'<input id="wa-chat-search" placeholder="Search in conversation" aria-label="Search in conversation" value="'+esc(v.chatQuery)+'"><span>'+matches.length+'</span>'+iconButton('close-search','close','Close search')+'</div>':'')+'<div class="wa-conversation-scroll" role="log" aria-label="Messages">'+(matches.length>v.messageLimit?button('older','Load earlier messages','wa-load-earlier'):'')+(bubbles||'<div class="wa-day-label">'+(v.chatQuery?'No matching messages':'Start a conversation')+'</div>')+'</div><div class="wa-compose-wrap">'+(reply?'<div class="wa-reply-preview"><div><strong>'+esc(reply.senderName)+'</strong><span>'+esc(messageText(reply))+'</span></div>'+iconButton('cancel-reply','close','Cancel reply')+'</div>':'')+(attachment?'<div class="wa-attachment-preview">'+(attachment.kind==='image'?'<img src="'+esc(attachment.dataUrl)+'" alt="Attachment preview">':icon('file'))+'<span>'+esc(attachment.name)+'</span>'+iconButton('remove-attachment','close','Remove attachment')+'</div>':'')+'<div class="wa-composer">'+iconButton('attach-menu','plus','Attach','', 'aria-expanded="'+(v.menu==='attach')+'"')+iconButton('emoji-menu','smile','Emoji','', 'aria-expanded="'+(v.menu==='emoji')+'"')+'<textarea id="chat-input" rows="1" maxlength="4000" aria-label="Message" placeholder="Type a message">'+esc(v.drafts[thread.id]||'')+'</textarea>'+iconButton('send','send','Send message','wa-send'+(hasMessage?' active':''),hasMessage?'':'disabled')+'</div>'+(v.menu==='emoji'?'<div class="wa-emoji-picker" aria-label="Emoji">'+EMOJIS.map(emoji=>button('emoji',emoji,'','data-emoji="'+emoji+'" aria-label="Insert '+emoji+'"')).join('')+'</div>':'')+(v.menu==='attach'?'<div class="wa-menu wa-attachment-picker">'+button('choose-image',icon('image')+' Photos')+button('choose-document',icon('file')+' Document')+button('worksheet-picker',icon('book')+' Worksheet')+'</div>':'')+'<input type="file" id="wa-file" hidden accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain"></div></section>';
   }
   function render() {
     const v=current(), key=viewerKey(getViewer()), old=document.querySelector('.wa-conversation-scroll'), oldList=document.querySelector('.wa-thread-scroll');
@@ -91,7 +85,7 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
     renderedKey=key;renderedThread=thread?.id;
     const archived=conversationThreads(getState(),{...getViewer(),filter:'archived'}).length;
     const parent=getViewer().role==='parent';
-    return '<h1 class="visually-hidden">Conversations</h1><section class="wa-inbox'+(v.open?' wa-show-chat':'')+'" aria-label="Chats"><aside class="wa-chat-list"><header class="wa-list-header"><h2>'+(v.filter==='archived'?'Archived':'Chats')+'</h2><div class="wa-header-actions">'+iconButton('new','new','New chat')+iconButton('list-menu','more','Chats menu','', 'aria-expanded="'+(v.menu==='list')+'"')+'</div>'+(v.menu==='list'?'<div class="wa-menu wa-header-menu">'+button('mark-all-read','Mark all as read')+button('filter','Archived chats','','data-filter="archived"')+'</div>':'')+'</header>'+(parent?'<div class="wa-child-switch">'+childSwitch()+'</div>':'')+'<div class="wa-search">'+icon('search')+'<input id="wa-list-search" aria-label="Search chats" placeholder="Search or start a new chat" value="'+esc(v.query)+'">'+(v.query?iconButton('clear-search','close','Clear search'):'')+'</div><div class="wa-filters">'+[['all','All'],['unread','Unread'],['favourites','Favourites'],['groups','Groups'],...(!parent?[['followup','Follow-up']]:[])].map(([key,label])=>button('filter',label,v.filter===key?'active':'','data-filter="'+key+'" aria-pressed="'+(v.filter===key)+'"')).join('')+'</div>'+(v.filter!=='archived'?button('filter',icon('archive')+'<span>Archived</span>'+(archived?'<span class="wa-archive-count">'+archived+'</span>':''),'wa-archived','data-filter="archived"'):button('filter',icon('back')+'<span>All chats</span>','wa-archived','data-filter="all"'))+'<div class="wa-thread-scroll">'+threads.slice(0,v.limit).map(listRow).join('')+(!threads.length?'<div class="wa-list-empty">'+(v.query?'No chats found':v.filter==='unread'?'No unread chats':v.filter==='favourites'?'No favourites yet':v.filter==='groups'?'No group chats':'No conversations')+'</div>':'')+(threads.length>v.limit?'<div class="wa-list-footer">'+button('more-chats','Load more chats')+'</div>':'')+'</div></aside>'+conversation(thread)+'</section>';
+    return '<h1 class="visually-hidden">Conversations</h1><section class="wa-inbox'+(v.open?' wa-show-chat':'')+'" aria-label="Chats"><aside class="wa-chat-list"><header class="wa-list-header"><h2>'+(v.filter==='archived'?'Archived':'Chats')+'</h2><div class="wa-header-actions">'+iconButton('new','new','New chat')+'</div></header>'+(parent?'<div class="wa-child-switch">'+childSwitch()+'</div>':'')+'<div class="wa-search">'+icon('search')+'<input id="wa-list-search" aria-label="Search chats" placeholder="Search or start a new chat" value="'+esc(v.query)+'">'+(v.query?iconButton('clear-search','close','Clear search'):'')+'</div>'+(v.filter!=='archived'?(archived?button('filter',icon('archive')+'<span>Archived</span>'+(archived?'<span class="wa-archive-count">'+archived+'</span>':''),'wa-archived','data-filter="archived"'):''):button('filter',icon('back')+'<span>All chats</span>','wa-archived','data-filter="all"'))+'<div class="wa-thread-scroll">'+threads.slice(0,v.limit).map(listRow).join('')+(!threads.length?'<div class="wa-list-empty">'+(v.query?'No chats found':'No conversations')+'</div>':'')+(threads.length>v.limit?'<div class="wa-list-footer">'+button('more-chats','Load more chats')+'</div>':'')+'</div></aside>'+conversation(thread)+'</section>';
   }
   function afterRender() {
     const v=current();document.body.classList.toggle('wa-chat-open',v.open);
@@ -137,8 +131,6 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
       if(a==='filter'){v.filter=el.dataset.filter;v.limit=30;v.menu=null;listTop=0;redraw();return;}
       if(a==='more-chats'){v.limit+=30;redraw();return;}
       if(a==='clear-search'){v.query='';redraw('wa-list-search');return;}
-      if(a==='list-menu'){v.menu=v.menu==='list'?null:'list';redraw();return;}
-      if(a==='mark-all-read'){[...conversationThreads(getState(),getViewer()),...conversationThreads(getState(),{...getViewer(),filter:'archived'})].forEach(t=>markConversationRead(getState(),t.id,getViewer()));v.menu=null;persist();redraw();return;}
       if(a==='new'){newChat();return;}
       if(a==='contact'){startStudentChat(id);return;}
       if(a==='more-contacts'){pickerLimit+=20;updateContacts();return;}
@@ -147,16 +139,12 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
       if(a==='search-chat'){v.searchOpen=!v.searchOpen;v.chatQuery='';v.menu=null;redraw(v.searchOpen?'wa-chat-search':null);return;}
       if(a==='close-search'){v.searchOpen=false;v.chatQuery='';redraw();return;}
       if(a==='older'){v.messageLimit+=50;redraw();return;}
-      if(a==='chat-menu'||a==='emoji-menu'||a==='attach-menu'){const menu=a.split('-')[0];v.menu=v.menu===menu?null:menu;redraw();return;}
+      if(a==='emoji-menu'||a==='attach-menu'){const menu=a.split('-')[0];v.menu=v.menu===menu?null:menu;redraw();return;}
       if(a==='message-menu'){v.menuBelow=el.getBoundingClientRect().top-document.querySelector('.wa-conversation-scroll').getBoundingClientRect().top<160;v.menu=v.menu==='message:'+id?null:'message:'+id;redraw();return;}
       if(a==='reply'){v.replies[t.id]=id;v.menu=null;redraw('chat-input');return;}
       if(a==='cancel-reply'){delete v.replies[t.id];redraw('chat-input');return;}
       if(a==='react'){toggleConversationReaction(getState(),t.id,id,getViewer(),el.dataset.emoji);v.menu=null;persist();redraw();return;}
       if(a==='emoji'){v.drafts[t.id]=(v.drafts[t.id]||'')+el.dataset.emoji;redraw('chat-input');return;}
-      if(a==='preference'){toggleConversationPreference(getState(),t.id,getViewer(),el.dataset.pref);v.menu=null;if(el.dataset.pref==='archive')v.open=false;persist();redraw();return;}
-      if(a==='follow-up'){t.followUp=!t.followUp;v.menu=null;persist();redraw();return;}
-      if(a==='profile'){v.menu=null;openStudent(id);return;}
-      if(a==='call'||a==='video'||a==='voice'){v.menu=null;redraw();toast((a==='voice'?'Voice recording':a==='video'?'Video calls':'Voice calls')+' will be connected in the full app.');return;}
       if(a==='choose-image'||a==='choose-document'){const input=document.getElementById('wa-file');input.accept=a==='choose-image'?'image/png,image/jpeg,image/webp,image/gif':'application/pdf,text/plain';input.click();return;}
       if(a==='remove-attachment'){delete v.attachments[t.id];redraw();return;}
       if(a==='worksheet-picker'){v.menu=null;modal('Share a worksheet','<div class="wa-contact-results">'+worksheets.map(w=>button('share-worksheet',icon('book')+'<span><strong>'+esc(w.title)+'</strong><small>'+esc(w.level)+' · '+esc(w.topic)+'</small></span>','wa-contact','data-id="'+w.id+'"')).join('')+'</div>');return;}
@@ -166,7 +154,7 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
   }
   function onInput(e) {
     const id=e.target.id,v=current();
-    if(id==='chat-input'){if(!selected())return true;v.drafts[v.selected]=e.target.value;const has=Boolean(e.target.value.trim()||v.attachments[v.selected]),send=document.querySelector('.wa-send');send.dataset.action=has?'wa-send':'wa-voice';send.setAttribute('aria-label',has?'Send message':'Voice message');send.title=has?'Send message':'Voice message';send.classList.toggle('active',has);send.innerHTML=icon(has?'send':'mic');resizeComposer();return true;}
+    if(id==='chat-input'){if(!selected())return true;v.drafts[v.selected]=e.target.value;const has=Boolean(e.target.value.trim()||v.attachments[v.selected]),send=document.querySelector('.wa-send');send.disabled=!has;send.classList.toggle('active',has);resizeComposer();return true;}
     if(id==='wa-list-search'||id==='wa-chat-search'){v[id==='wa-list-search'?'query':'chatQuery']=e.target.value;if(id==='wa-list-search')v.limit=30;redraw(id,e.target.selectionStart);return true;}
     if(id==='wa-contact-search'){pickerQuery=e.target.value;pickerLimit=20;updateContacts();return true;}
     return false;

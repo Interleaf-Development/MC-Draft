@@ -88,11 +88,11 @@ Receipt issue dates are never overwritten by bank dates. Amount matching and dat
 
 ### 5. Conversations
 
-- **Admin / Teacher → Conversations:** WhatsApp-style shared inbox, All / Unread / Favourites / Groups filters, archived chats and search. New chat searches the full student directory; the visible list is bounded.
+- **Admin / Teacher → Conversations:** WhatsApp-style shared inbox with chat search and conversation search. New chat searches the full student directory; the visible list is bounded.
 - Open a parent chat or the staff-only Tsuen Wan team group. Send text, reply, react, add emoji or share a worksheet. Photos, PDFs and text documents under 2 MB can be attached locally.
 - **Parent → Messages:** mobile chat list and full-screen conversation with Back navigation. Only the selected child’s centre conversation is shown; staff groups stay in staff views. Student tablets have no chat.
-- Drafts stay with each chat while navigating. Read indicators, archive/favourite preferences, follow-ups and sent messages persist locally. Enter sends; Shift+Enter adds a line.
-- Voice/video call and microphone controls show a prototype notice. They do not access the camera or microphone, or place calls. Attachments remain in this browser; no external upload occurs.
+- Drafts stay with each chat while navigating. Read indicators and sent messages persist locally. Enter sends; Shift+Enter adds a line.
+- Calls, voice recording, three-dot menus and filter chips are omitted. Previously archived chats remain accessible when present. Attachments remain in this browser; no external upload occurs.
 
 ## Deliberate prototype boundaries
 

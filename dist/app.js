@@ -89,7 +89,7 @@ const NAV = {
  student: [['work','edit','My work'],['past','folder','Past work']]
 };
 const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre manager', initials: 'KK', colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: 'KK', colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
-const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),persist:()=>{previousState=null;persist();},render:()=>render(),modal,closeModal,toast,openStudent:id=>handleAction('student-profile',id),childSwitch:()=>childSwitch()});
+const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),persist:()=>{previousState=null;persist();},render:()=>render(),modal,closeModal,toast,childSwitch:()=>childSwitch()});
 function render() {
   const nav = NAV[ui.role]; const user = identity();
   const pageKey=ui.role+'|'+ui.page+'|'+(ui.assignmentId||'');
