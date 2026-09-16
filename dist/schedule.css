@@ -49,10 +49,10 @@
 }
 .timetable {
   display: grid;
-  grid-template-columns: 64px repeat(var(--day-count, 6), minmax(0, 1fr));
+  grid-template-columns: 64px repeat(var(--day-count, 7), minmax(0, 1fr));
   align-items: stretch;
   width: 100%;
-  min-width: 760px;
+  min-width: calc(64px + var(--day-count, 7) * 116px);
   background: #fff;
 }
 .timetable:is(.day, .day-view, [data-view="day"], [style*="--day-count:1"], [style*="--day-count: 1"]) {

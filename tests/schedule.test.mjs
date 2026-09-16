@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TODAY, WEEK, tutors, students, seed, clone, seedCentreVolume, seedTeacherSchedules, validateSlot, studentById, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from '../dist/model.js';
+import { TODAY, WEEK, tutors, students, seed, clone, seedCentreVolume, seedTeacherSchedules, seedSundaySchedules, filterStudents, validateSlot, studentById, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from '../dist/model.js';
 
 const slot = overrides => ({ studentId: 'test-student', date: TODAY, start: 540, duration: 60, tutor: 'chan', ...overrides });
 const emptySchedule = () => ({ ...seed(), bookings: [], staffLeave: [] });
@@ -22,7 +22,104 @@ test('lessons can start at 09:00 and finish at 19:00 but cannot exceed centre ho
   assert.match(validateSlot(state, slot({ start: 1110, duration: 60 })), /09:00 and 19:00/);
   assert.match(validateSlot(state, slot({ start: 1140, duration: 30 })), /09:00 and 19:00/);
   assert.match(validateSlot(state, slot({ tutor: 'unknown' })), /available tutor/);
-  assert.match(validateSlot(state, slot({ date: '2026-10-04' })), /Sundays/);
+  assert.equal(validateSlot(state, slot({ date: '2026-10-04' })), null);
+});
+
+test('Sunday lessons follow each tutor’s own roster, leave and capacity', () => {
+  const state = seedTeacherSchedules(emptySchedule()), date = WEEK[6];
+  state.bookings = [];
+  assert.equal(date, '2026-10-04');
+  assert.equal(WEEK.length, 7);
+  assert.equal(validateSlot(state, slot({ date })), null);
+  assert.equal(validateSlot(state, slot({ date, start: 810, duration: 30 })), null);
+  assert.match(validateSlot(state, slot({ date, start: 810, duration: 60 })), /not available/);
+  assert.match(validateSlot(state, slot({ date, start: 840 })), /not available/);
+  assert.match(validateSlot(state, slot({ date, tutor: 'wong' })), /not available/);
+  assert.equal(validateSlot(state, slot({ date, tutor: 'wong', start: 840 })), null);
+  assert.equal(validateSlot(state, slot({ date, tutor: 'wong', start: 1080 })), null);
+  assert.match(validateSlot(state, slot({ date, tutor: 'oscar' })), /not available/);
+  state.staffLeave.push({ staffId: 'chan', date, unit: 'AM', status: 'approved' });
+  assert.match(validateSlot(state, slot({ date })), /approved leave/);
+  state.staffLeave = [];
+  state.bookings = Array.from({ length: 6 }, (_, index) => ({ ...slot({ date, studentId: 'other-' + index }), id: 'occupied-' + index, status: 'scheduled' }));
+  assert.match(validateSlot(state, slot({ date })), /six students/);
+});
+
+test('Sunday examples cover opening to closing while retaining five-day staff equivalents', () => {
+  const state = seedTeacherSchedules(seed()), samples = state.bookings.filter(booking => booking.id.startsWith('sunday-v1-'));
+  assert.equal(samples.length, 6);
+  assert.equal(state.sundayScheduleVersion, 1);
+  assert.deepEqual(samples.map(booking => booking.start), [540, 660, 780, 840, 960, 1080]);
+  for (const staff of state.staff) assert.equal(staff.roster.reduce((days, unit) => days + (unit === 'Full' ? 1 : ['AM', 'PM'].includes(unit) ? 0.5 : 0), 0), 5, staff.name);
+  for (const booking of samples) {
+    const student = studentById(booking.studentId);
+    assert.equal(student.day, 'Sunday');
+    assert.equal(student.tutor, booking.tutor);
+    assert.equal(validateSlot(state, booking, [booking.id]), null);
+  }
+  const directory = filterStudents(state, { sort: 'day' });
+  assert.equal(filterStudents(state, { day: 'Sunday' }).length, 6);
+  assert.ok(directory.slice(-6).every(student => student.day === 'Sunday'));
+  const empty = { ...state, bookings: [], staffLeave: [] };
+  for (const student of students.slice(8)) {
+    const day = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].indexOf(student.day);
+    const [hour, minute] = student.regular.split(' · ')[1].split(':').map(Number);
+    assert.equal(validateSlot(empty, { studentId: student.id, date: WEEK[day], start: hour * 60 + minute, duration: 60, tutor: student.tutor }), null, student.number + ' regular lesson must fit the default roster');
+  }
+});
+
+const legacyRosters = {
+  chan: ['Full', 'Off', 'Full', 'Full', 'Full', 'Full', 'Off'],
+  wong: ['PM', 'Full', 'Full', 'AM', 'Full', 'Full', 'Off']
+};
+function legacySavedState() {
+  const state = seedTeacherSchedules(seed());
+  state.bookings = state.bookings.filter(booking => !booking.id.startsWith('sunday-v1-'));
+  delete state.sundayScheduleVersion;
+  for (const [id, roster] of Object.entries(legacyRosters)) state.staff.find(staff => staff.id === id).roster = [...roster];
+  return state;
+}
+
+test('Sunday migration updates saved default rosters without reseeding the established week', () => {
+  const state = legacySavedState(), originalBookings = clone(state.bookings);
+  assert.equal(state.teacherSchedulesVersion, 1);
+  seedTeacherSchedules(state);
+  assert.deepEqual(state.bookings.slice(0, originalBookings.length), originalBookings);
+  assert.deepEqual(state.staff.find(staff => staff.id === 'chan').roster, ['Full', 'Off', 'Full', 'PM', 'Full', 'Full', 'AM']);
+  assert.deepEqual(state.staff.find(staff => staff.id === 'wong').roster, ['PM', 'PM', 'Full', 'AM', 'Full', 'Full', 'PM']);
+  assert.equal(state.bookings.length, originalBookings.length + 6);
+  const removed = state.bookings.find(booking => booking.id.startsWith('sunday-v1-'));
+  state.bookings = state.bookings.filter(booking => booking.id !== removed.id);
+  const moved = state.bookings.find(booking => booking.id.startsWith('sunday-v1-'));
+  moved.status = 'moved';
+  moved.note = 'Moved by centre manager';
+  const before = clone(state);
+  seedTeacherSchedules(state);
+  seedSundaySchedules(state);
+  assert.deepEqual(state, before);
+});
+
+test('Sunday migration retains custom rosters and saved lessons conflicting with the proposed half-day change', () => {
+  const custom = legacySavedState(), staff = custom.staff.find(staff => staff.id === 'chan');
+  staff.roster = ['Off', 'Off', 'Full', 'Full', 'Full', 'Full', 'Full'];
+  const customRoster = [...staff.roster];
+  seedTeacherSchedules(custom);
+  assert.deepEqual(staff.roster, customRoster);
+  assert.equal(custom.bookings.filter(booking => booking.id.startsWith('sunday-v1-')).length, 6);
+
+  const conflicted = legacySavedState();
+  const saved = [
+    { ...slot({ date: '2026-10-01' }), id: 'saved-thursday-am', status: 'scheduled' },
+    { ...slot({ date: '2026-09-29', tutor: 'wong' }), id: 'saved-tuesday-am', status: 'scheduled' }
+  ];
+  conflicted.bookings.push(...saved);
+  seedTeacherSchedules(conflicted);
+  for (const [id, roster] of Object.entries(legacyRosters)) assert.deepEqual(conflicted.staff.find(staff => staff.id === id).roster, roster);
+  for (const booking of saved) {
+    assert.ok(conflicted.bookings.includes(booking));
+    assert.equal(validateSlot(conflicted, booking, [booking.id]), null);
+  }
+  assert.equal(conflicted.bookings.some(booking => booking.id.startsWith('sunday-v1-')), false);
 });
 
 test('AM and PM roster availability uses the 14:00 boundary and checks the whole lesson', () => {

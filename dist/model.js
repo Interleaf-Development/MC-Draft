@@ -1,6 +1,6 @@
 export const TODAY = '2026-09-30';
 export const centre = { name: 'MathConcept (Tsuen Wan)', branch: 'Tsuen Wan', manager: 'Koko Ko', managerId: 'chan' };
-export const WEEK = ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03'];
+export const WEEK = ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'];
 export const uid = (prefix = 'id') => prefix + '-' + Math.random().toString(36).slice(2, 10);
 export const clone = value => structuredClone(value);
 export function time(minutes) { return String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0'); }
@@ -20,9 +20,13 @@ export const tutors = [
   { id: 'tiffany', name: 'Tiffany', initials: 'T' },
   { id: 'winky', name: 'Winky', initials: 'W' }
 ];
-const demoTutorRosters = {
+const legacyTutorRosters = {
   chan: ['Full', 'Off', 'Full', 'Full', 'Full', 'Full', 'Off'],
-  wong: ['PM', 'Full', 'Full', 'AM', 'Full', 'Full', 'Off'],
+  wong: ['PM', 'Full', 'Full', 'AM', 'Full', 'Full', 'Off']
+};
+const demoTutorRosters = {
+  chan: ['Full', 'Off', 'Full', 'PM', 'Full', 'Full', 'AM'],
+  wong: ['PM', 'PM', 'Full', 'AM', 'Full', 'Full', 'PM'],
   ...Object.fromEntries(tutors.slice(2).map((tutor, index) => [tutor.id, Array.from({ length: 7 }, (_, day) => day === index || day === 6 ? 'Off' : 'Full')]))
 };
 export const students = [
@@ -35,7 +39,7 @@ export const students = [
   { id: 'mia', name: 'Mia Cheung', level: 'P2', initials: 'MC', colour: 'pink', parent: 'Mrs Cheung', regular: 'Not yet enrolled', focus: 'Entrance assessment' },
   { id: 'ryan', name: 'Ryan Lau', level: 'P5', initials: 'RL', colour: 'slate', parent: 'Mr Lau', regular: 'Friday · 15:00', focus: 'Fractions and ratios' }
 ];
-const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const directoryColours = ['rose', 'blue', 'green', 'amber', 'violet', 'teal', 'pink', 'slate'];
 const directoryFocus = ['Number sense', 'Addition and subtraction', 'Multiplication', 'Long division', 'Equivalent fractions', 'Decimals', 'Word problems', 'Fractions and ratios', 'Algebra'];
 students.forEach((student, index) => Object.assign(student, {
@@ -54,7 +58,8 @@ for (let candidate = 0; students.length < 701; candidate++) {
   const surname = familyNames[Math.floor(candidate / givenNames.length)];
   const name = first + ' ' + surname;
   if (directoryNames.has(name)) continue;
-  const index = students.length - 8, number = students.length + 1, day = weekdays[index % weekdays.length];
+  // Keep the established Mon–Sat directory allocation stable across migrations.
+  const index = students.length - 8, number = students.length + 1, day = weekdays[index % 6];
   let tutorIndex = Math.floor(index / 6) % tutors.length;
   while (demoTutorRosters[tutors[tutorIndex].id][index % 6] === 'Off') tutorIndex = (tutorIndex + 1) % tutors.length;
   const tutor = tutors[tutorIndex].id, roster = demoTutorRosters[tutor][index % 6];
@@ -71,6 +76,11 @@ for (let candidate = 0; students.length < 701; candidate++) {
   });
   directoryNames.add(name);
 }
+const sundayExamples = ['chan', 'wong'].flatMap(tutor => students.slice(8).filter(student => student.tutor === tutor && student.status === 'active').slice(0, 3).map((student, index) => {
+  const start = (tutor === 'chan' ? CENTRE_OPEN : HALF_DAY_BOUNDARY) + index * 120;
+  Object.assign(student, { day: 'Sunday', regular: 'Sunday · ' + time(start) });
+  return { studentId: student.id, tutor, start };
+}));
 const studentsById = new Map(students.map(student => [student.id, student]));
 export const studentById = id => studentsById.get(id) || students[0];
 
@@ -168,7 +178,7 @@ export const worksheetById = id => worksheets.find(w => w.id === id) || workshee
 export function seed() {
   const bookings = [];
   const add = (studentId, date, start, tutor = 'chan', extra = {}) => bookings.push({ id: uid('lesson'), studentId, date, start, duration: 60, tutor, status: 'scheduled', attendance: 'unmarked', note: '', ...extra });
-  WEEK.forEach((date, day) => {
+  WEEK.slice(0, 6).forEach((date, day) => {
     if (day === 2) {
       students.slice(0, 6).forEach(s => add(s.id, date, 960));
       ['ryan', 'ethan'].forEach(s => add(s, date, 900, 'wong'));
@@ -222,8 +232,8 @@ export function seed() {
       { id: 'thread-mia', studentId: 'mia', assignedTo: 'Ms Chan', followUp: true, messages: [{ author: 'parent', text: 'Thank you for the assessment. Can we discuss a Wednesday lesson?', time: '10:04' }] }
     ],
     staff: [
-      { id: 'chan', name: centre.manager, role: 'Centre manager', tenure: 3, allowance: 14, taken: 4, holidayCredit: 1, daysOff: 'Tuesday · Sunday', roster: ['Full', 'Off', 'Full', 'Full', 'Full', 'Full', 'Off'] },
-      { id: 'wong', name: 'Mr Alex Wong', role: 'Teacher', tenure: 2, allowance: 10, taken: 2, holidayCredit: 0.5, daysOff: 'Monday AM · Thursday PM · Sunday', roster: ['PM', 'Full', 'Full', 'AM', 'Full', 'Full', 'Off'] }
+      { id: 'chan', name: centre.manager, role: 'Centre manager', tenure: 3, allowance: 14, taken: 4, holidayCredit: 1, daysOff: 'Tuesday · Thursday AM · Sunday PM', roster: [...demoTutorRosters.chan] },
+      { id: 'wong', name: 'Mr Alex Wong', role: 'Teacher', tenure: 2, allowance: 10, taken: 2, holidayCredit: 0.5, daysOff: 'Monday AM · Tuesday AM · Thursday PM · Sunday AM', roster: [...demoTutorRosters.wong] }
     ],
     staffLeave: [{ id: 'al-001', staffId: 'chan', date: '2026-10-07', unit: 'PM', days: 0.5, reason: 'Personal appointment', status: 'pending' }],
     audit: [{ id: 'audit-seed', text: 'R-1028 matched to BANK-104', actor: 'Accounts administrator', at: '28 Sep, 16:40' }],
@@ -233,14 +243,14 @@ export function seed() {
 export function seedTeacherSchedules(state) {
   const manager = state.staff.find(staff => staff.id === centre.managerId);
   if (manager) Object.assign(manager, { name: centre.manager, role: 'Centre manager' });
-  if (state.teacherSchedulesVersion === 1) return state;
+  if (state.teacherSchedulesVersion === 1) return seedSundaySchedules(state);
   const legacyNames = new Map([['Ms Chan', 'Koko'], ['Ms Jenny Chan', 'Koko'], ['Mr Wong', 'Ming'], ['Mr Alex Wong', 'Ming']]);
   for (const tutor of tutors) {
     const existing = state.staff.find(staff => staff.id === tutor.id);
     if (existing) existing.name = tutor.id === centre.managerId ? centre.manager : tutor.name;
     else {
       const roster = [...demoTutorRosters[tutor.id]];
-      state.staff.push({ id: tutor.id, name: tutor.name, role: 'Teacher', tenure: 2, allowance: 10, taken: 2, holidayCredit: 0, daysOff: roster.map((unit, day) => unit === 'Off' ? [...weekdays, 'Sunday'][day] : null).filter(Boolean).join(' · '), roster });
+      state.staff.push({ id: tutor.id, name: tutor.name, role: 'Teacher', tenure: 2, allowance: 10, taken: 2, holidayCredit: 0, daysOff: roster.map((unit, day) => unit === 'Off' ? weekdays[day] : null).filter(Boolean).join(' · '), roster });
     }
   }
   for (const thread of state.messages) {
@@ -259,19 +269,41 @@ export function seedTeacherSchedules(state) {
     existingIds.add(booking.id);
   });
   state.teacherSchedulesVersion = 1;
+  return seedSundaySchedules(state);
+}
+function rosterAllows(roster, booking) {
+  const day = (new Date(booking.date + 'T12:00:00').getDay() + 6) % 7, unit = roster[day];
+  return unit === 'Full' || unit === 'AM' && booking.start + booking.duration <= HALF_DAY_BOUNDARY || unit === 'PM' && booking.start >= HALF_DAY_BOUNDARY;
+}
+export function seedSundaySchedules(state) {
+  if (state.sundayScheduleVersion === 1) return state;
+  for (const [id, oldRoster] of Object.entries(legacyTutorRosters)) {
+    const staff = state.staff.find(item => item.id === id), replacement = demoTutorRosters[id];
+    if (!staff || JSON.stringify(staff.roster) !== JSON.stringify(oldRoster)) continue;
+    // Do not make a saved lesson unavailable just to install sample Sunday hours.
+    if (state.bookings.some(booking => booking.tutor === id && activeBooking(booking) && !rosterAllows(replacement, booking))) continue;
+    staff.roster = [...replacement];
+    staff.daysOff = replacement.map((unit, day) => unit === 'Full' ? null : weekdays[day] + (unit === 'AM' ? ' PM' : unit === 'PM' ? ' AM' : '')).filter(Boolean).join(' · ');
+  }
+  const existingIds = new Set(state.bookings.map(booking => booking.id));
+  for (const example of sundayExamples) {
+    const booking = { id: 'sunday-v1-' + example.studentId, ...example, date: WEEK[6], duration: 60, status: 'scheduled', attendance: 'unmarked', note: '' };
+    if (existingIds.has(booking.id) || validateSlot(state, booking)) continue;
+    state.bookings.push(booking);
+    existingIds.add(booking.id);
+  }
+  state.sundayScheduleVersion = 1;
   return state;
 }
 export function activeBooking(b) { return !['moved', 'absent', 'cancelled'].includes(b.status); }
 export function overlaps(a, b) { return a.date === b.date && a.start < b.start + b.duration && b.start < a.start + a.duration; }
 export function validateSlot(state, booking, ignoreIds = []) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(booking.date || '') || !Number.isFinite(Date.parse(booking.date + 'T12:00:00')) || !Number.isFinite(booking.start) || ![30, 60, 90].includes(booking.duration)) return 'Choose a valid lesson time and duration.';
-  if (new Date(booking.date + 'T12:00:00').getDay() === 0) return 'The centre is closed on Sundays.';
   if (booking.start < CENTRE_OPEN || booking.start + booking.duration > CENTRE_CLOSE) return 'Choose a time between 09:00 and 19:00.';
   const staff = state.staff.find(s => s.id === booking.tutor);
   if (!staff) return 'Choose an available tutor.';
-  const day = (new Date(booking.date + 'T12:00:00').getDay() + 6) % 7;
-  const end = booking.start + booking.duration, roster = staff.roster[day];
-  if (!['Full', 'AM', 'PM'].includes(roster) || roster === 'AM' && end > HALF_DAY_BOUNDARY || roster === 'PM' && booking.start < HALF_DAY_BOUNDARY) return 'This tutor is not available during this session.';
+  const end = booking.start + booking.duration;
+  if (!rosterAllows(staff.roster, booking)) return 'This tutor is not available during this session.';
   if (state.staffLeave.some(l => l.staffId === booking.tutor && l.date === booking.date && l.status === 'approved' && (l.unit === 'Full day' || l.unit === 'AM' && booking.start < HALF_DAY_BOUNDARY || l.unit === 'PM' && end > HALF_DAY_BOUNDARY))) return 'This tutor has approved leave at this time.';
   const others = state.bookings.filter(b => activeBooking(b) && !ignoreIds.includes(b.id));
   if (others.some(b => b.studentId === booking.studentId && overlaps(b, booking))) return 'This student already has a lesson at that time.';
