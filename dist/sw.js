@@ -10,7 +10,7 @@ const PRECACHE = [
   '/styles.css', '/scale.css', '/schedule.css', '/student-directory.css',
   '/conversations.css', '/billing-automation.css', '/conversation-wallpaper.svg',
   '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png',
-  '/brand/Asset%201.svg', '/brand/Asset%2010.svg', '/brand/Asset%2015.svg', '/brand/Asset%2016.svg'
+  ...Array.from({ length: 18 }, (_, index) => '/brand/Asset%20' + (index + 1) + '.svg')
 ];
 const staticPaths = new Set(PRECACHE);
 

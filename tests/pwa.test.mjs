@@ -68,7 +68,7 @@ test('first install caches the complete local module and stylesheet graph for of
   await checkModule('/app.js'); await checkModule('/pwa.js');
   const html = await readFile(resolve(dist, 'index.html'), 'utf8');
   for (const match of html.matchAll(/href="(\/[^"?]+\.css)"/g)) assert.ok(cached.has(origin + match[1]), 'Offline stylesheet: ' + match[1]);
-  for (const path of ['/brand/Asset%201.svg', '/brand/Asset%2010.svg', '/conversation-wallpaper.svg']) assert.ok(cached.has(origin + path));
+  for (const path of [...Array.from({ length: 18 }, (_, index) => '/brand/Asset%20' + (index + 1) + '.svg'), '/conversation-wallpaper.svg']) assert.ok(cached.has(origin + path));
   worker.network(async () => { throw new Error('Offline'); });
   assert.match(await (await worker.fetch('/?role=parent', { mode: 'navigate' })).text(), /id="app"/);
   assert.match(await (await worker.fetch('/app.js')).text(), /import /);
