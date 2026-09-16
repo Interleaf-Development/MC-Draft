@@ -1,5 +1,6 @@
 import { TODAY, centre, WEEK, seed, clone, uid, time, dateLabel, money, students, studentById, worksheets, worksheetById, tutors, activeBooking, validateSlot, moveBooking, requestAbsence, approveAbsence, bookMakeup, usedReschedules, issueReceipt, reconciliation, matchReceipt, reportingTotals, assessmentCredit, staffBalance, record, cycleForDate, enrolledStudents, filterStudents, paginate, seedCentreVolume, seedTeacherSchedules, seedBusyAfternoons, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from './model.js';
 import { makeCheckInPass, qrSvg, redeemCheckIn } from './checkin.js';
+import { getStudentProfile, saveStudentProfile } from './student-profile.js';
 const STORAGE = 'mathconcept-demo-v4';
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
@@ -189,10 +190,73 @@ function filterControl(key,filter,label,options){
  return '<select class="btn" data-change="list-filter" data-list="'+key+'" data-filter="'+filter+'" aria-label="'+label+'">'+options.map(([value,text])=>'<option value="'+value+'"'+(collection(key)[filter]===value?' selected':'')+'>'+text+'</option>').join('')+'</select>';
 }
 const matchesStudent=(id,query)=>{const s=studentById(id);return !query||[s.name,s.number,s.parent,s.phone,s.level].join(' ').toLowerCase().includes(query.toLowerCase())||s.phone?.replaceAll(' ','').includes(query.replaceAll(' ',''));};
+const PROFILE_EDIT_FIELDS=['chineseName','dateOfBirth','school','parentRelation','parentSurname','parentGivenName','parentLanguage','parentEmail','parentMobile','parentPhone','region','area','address','paymentReminder','remark','fpsRemark','referralCode','referralNotes','marketingOptIn','marketingNotes'];
+const profileDate=value=>value?dateLabel(value,{year:'numeric'}):'—';
+const profileFact=(label,value,wide=false)=>'<div'+(wide?' class="wide"':'')+'><dt>'+esc(label)+'</dt><dd>'+esc(value||'—')+'</dd></div>';
+const profileNote=(label,value)=>'<dl class="student-note"><dt>'+esc(label)+'</dt><dd>'+esc(value||'—')+'</dd></dl>';
 function studentDirectory(){
- const c=collection('students'),list=filterStudents(state,c),p=collectionPage('students',list),total=enrolledStudents(state).length;
- const controls='<div class="filters">'+searchControl('students','Search students','Name, student ID, parent or phone')+filterControl('students','level','Year level',[['all','All levels'],...STUDENT_LEVELS.map(x=>[x,x])])+filterControl('students','tutor','Teacher',[['all','All teachers'],...tutors.map(t=>[t.id,t.name])])+filterControl('students','day','Lesson day',[['all','All days'],...['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d=>[d,d])])+filterControl('students','status','Student status',[['all','All statuses'],['active','Active'],['paused','Paused']])+filterControl('students','sort','Sort students',[['number','Student ID'],['name','Name A–Z'],['name-desc','Name Z–A'],['level','Level']])+action('clear-list','Clear filters','btn ghost small','data-list="students"')+'</div>';
- return '<div class="between directory-summary"><span class="small muted">'+total+' enrolled students'+(list.length!==total?' · '+list.length+' matching':'')+'</span><span class="small muted">Fictional demo records</span></div>'+controls+'<section class="panel"><div class="table-scroll"><table><thead><tr><th>Student</th><th>Parent / contact</th><th>Regular lesson</th><th>Teacher</th><th>Status</th><th></th></tr></thead><tbody>'+p.items.map(s=>'<tr><td><div class="flex">'+avatar(s)+'<div class="row-title">'+s.name+'<div class="row-meta">'+s.number+' · '+s.level+'</div></div></div></td><td>'+esc(s.parent)+'<div class="row-meta">'+esc(s.phone)+'</div></td><td>'+regularLabel(s)+'</td><td>'+tutors.find(t=>t.id===s.tutor)?.name+'</td><td>'+tag(s.status==='paused'?'Paused':'Active',s.status==='paused'?'amber':'green')+'</td><td>'+action('student-profile','View','btn small','data-id="'+s.id+'" aria-label="View '+s.name+' '+s.number+'"')+'</td></tr>').join('')+'</tbody></table></div>'+(list.length?'':empty('No students found','Try another search or clear the filters.'))+pager('students',p)+'</section>';
+ const c=collection('students'),query=c.query.toLowerCase().trim();
+ const list=filterStudents(state,{...c,query:''}).filter(s=>{
+  if(!query)return true;
+  const p=getStudentProfile(state,s.id),words=[s.name,s.number,s.parent,s.phone,s.level,p.chineseName,p.school,p.parentSurname,p.parentGivenName,p.parentEmail,p.parentMobile,p.parentPhone,p.fpsRemark].join(' ').toLowerCase();
+  const compact=query.replace(/[\s()+.-]/g,'');
+  return query.split(/\s+/).every(part=>words.includes(part))||(compact&&[s.number,p.parentMobile,p.parentPhone].some(value=>value.toLowerCase().replace(/[\s()+.-]/g,'').includes(compact)));
+ });
+ const p=collectionPage('students',list),total=enrolledStudents(state).length;
+ ui.directoryStudent??='chloe';
+ const filters=filterControl('students','level','Year level',[['all','All levels'],...STUDENT_LEVELS.map(x=>[x,x])])+filterControl('students','tutor','Teacher',[['all','All teachers'],...tutors.map(t=>[t.id,t.name])])+filterControl('students','day','Lesson day',[['all','All days'],...['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d=>[d,d])])+filterControl('students','status','Student status',[['all','All statuses'],['active','Active'],['paused','Paused']])+filterControl('students','sort','Sort students',[['number','Student ID'],['name','Name A–Z'],['name-desc','Name Z–A'],['level','Level']])+action('clear-list','Clear filters','btn ghost small','data-list="students"');
+ const filterCount=['level','tutor','day','status'].filter(key=>c[key]!=='all').length;
+ return '<div id="student-workspace" class="student-workspace"><aside class="student-selector panel" aria-label="Student directory"><div class="student-selector-tools">'+searchControl('students','Search students','Name, ID, parent or phone')+'<details class="student-filter-disclosure"'+(ui.studentFiltersOpen?' open':'')+'><summary>Filters & sort'+(filterCount?' · '+filterCount+' active':'')+'</summary><div>'+filters+'</div></details></div><div class="student-selector-summary" aria-live="polite">'+(query||filterCount?list.length+' matching · ':'')+total+' enrolled students</div><div class="student-selector-list">'+p.items.map(s=>action('select-directory-student',avatar(s,'small')+'<span class="grow"><strong>'+esc(s.name)+'</strong><span class="row-meta picker-meta">'+esc(s.number)+' · '+esc(s.level)+(s.status==='paused'?' · Paused':'')+'</span></span>','student-list-item'+(ui.directoryStudent===s.id?' active':''),'data-id="'+s.id+'" aria-pressed="'+(ui.directoryStudent===s.id)+'" aria-label="Open '+esc(s.name)+' '+s.number+'"')).join('')+(list.length?'':empty('No students found','Try another search or clear the filters.'))+'</div><div class="student-selector-footer">'+pager('students',p,true)+'<label>Students per page <select class="btn small" data-change="page-size" data-list="students" aria-label="Students per page">'+[25,50,100].map(n=>'<option value="'+n+'"'+(p.pageSize===n?' selected':'')+'>'+n+'</option>').join('')+'</select></label></div></aside>'+studentProfilePanel(ui.directoryStudent)+'</div>';
+}
+function studentProfilePanel(id){
+ const s=studentById(id),p=getStudentProfile(state,id),draft=ui.profileDrafts?.[id];
+ const studentFacts=profileFact('Branch',p.branch+' · TWN',true)+profileFact('Student ID',p.studentNumber)+profileFact('Chinese name',p.chineseName)+profileFact('Given name',p.givenName)+profileFact('Surname',p.surname)+profileFact('Date of birth',profileDate(p.dateOfBirth))+profileFact('Grade',p.grade)+profileFact('School',p.school,true)+profileFact('Enrolled since',profileDate(p.enrolledSince));
+ const parentFacts=profileFact('Relationship',p.parentRelation)+profileFact('Language',p.parentLanguage)+profileFact('Given name',p.parentGivenName)+profileFact('Surname',p.parentSurname)+profileFact('Mobile',p.parentMobile)+profileFact('Phone',p.parentPhone)+profileFact('Email',p.parentEmail,true)+profileFact('Region',p.region)+profileFact('Area',p.area)+profileFact('Address',p.address,true);
+ const notes='<div class="student-notes-grid">'+profileNote('Student / parent remarks',p.remark)+profileNote('FPS remark',p.fpsRemark)+'</div>';
+ const regular='<div class="student-regular-row"><dl class="student-facts">'+profileFact('Regular lesson',p.lessonDays.join(', ')+(p.lessonTime?' · '+p.lessonTime:''))+profileFact('Teacher',p.instructor)+profileFact('Course / duration',p.course+(p.lessonDuration?' · '+p.lessonDuration+' min':''))+profileFact('Payment reminders',p.paymentReminder?'Enabled':'Off')+'</dl></div>';
+ const active=ui.profileHistoryTab||'Student schedule';
+ const history='<div class="student-history-tabs tabs" aria-label="Student history">'+['Student schedule','Payment history','E-coupon & referral','Marketing','SMS history'].map(item=>action('profile-history-tab',item,active===item?'active':'','data-value="'+esc(item)+'" aria-pressed="'+(active===item)+'"')).join('')+'</div><div class="student-history-body" id="student-history-body">'+studentProfileHistory(id,p)+'</div>';
+ return '<section class="student-detail panel" aria-label="Student profile"><header class="student-profile-head"><div class="flex">'+avatar(s,'large')+'<div><h2>'+esc(p.englishName)+'</h2><div class="row-meta">'+esc(p.studentNumber)+' · '+esc(p.grade)+' · '+(p.status==='paused'?'Paused':p.status==='assessment'?'Assessment':'Active')+(draft?' · Editing':'')+'</div></div></div><div class="student-profile-actions">'+(draft?action('cancel-profile-edit','Cancel','btn small','data-id="'+id+'"')+action('save-profile-edit','Save changes','btn primary small','data-id="'+id+'"'):action('edit-profile','Edit details','btn small','data-id="'+id+'"')+action('view-student-folder',icon('folder','sm')+' Learning folder','btn small','data-id="'+id+'"'))+'</div></header><div class="student-profile-scroll">'+(draft?studentProfileForm(id,draft):'<div class="student-info-grid"><section class="student-info-section"><h3>Student information</h3><dl class="student-facts">'+studentFacts+'</dl></section><section class="student-info-section"><h3>Parent information</h3><dl class="student-facts">'+parentFacts+'</dl></section></div>'+notes+regular+history)+'</div></section>';
+}
+function studentProfileHistory(id,p){
+ const tab=ui.profileHistoryTab||'Student schedule',key='profile-'+id+'-'+tab;
+ if(tab==='Student schedule'){
+  const bookings=state.bookings.filter(b=>b.studentId===id).sort((a,b)=>b.date.localeCompare(a.date)||a.start-b.start),page=collectionPage(key,bookings,10);
+  const attended=bookings.find(b=>b.date<=TODAY&&b.attendance==='present'),year=TODAY.slice(0,4),regularCount=y=>bookings.filter(b=>b.date.startsWith(y)&&activeBooking(b)&&!b.sourceId).length;
+  const summary='<dl class="student-facts student-history-summary">'+profileFact('Last attended lesson',attended?profileDate(attended.date):'—')+profileFact('Recorded regular lessons',year+': '+regularCount(year)+' · '+(Number(year)-1)+': '+regularCount(String(Number(year)-1)))+profileFact('Reschedules used',usedReschedules(state,id)+' / 3 this block')+profileFact('Pending make-up',state.makeups.filter(m=>m.studentId===id).reduce((n,m)=>n+m.minutes-m.used,0)+' min')+'</dl>';
+  return summary+(bookings.length?'<div class="table-scroll"><table><thead><tr><th>Date / time</th><th>Duration</th><th>Teacher</th><th>Remark</th><th>Attendance</th><th></th></tr></thead><tbody>'+page.items.map(b=>{
+   const source=b.sourceId&&state.bookings.find(x=>x.id===b.sourceId),status=b.status==='moved'?'Moved':b.status==='absent'||b.attendance==='absent'?'Absent':b.status==='cancelled'?'Cancelled':b.attendance==='present'?'Attended':'Unmarked';
+   const remark=[b.note,source?'Rescheduled from '+dateLabel(source.date):''].filter(Boolean).join(' · ');
+   return '<tr><td><span'+(['moved','cancelled'].includes(b.status)?' class="muted" style="text-decoration:line-through"':'')+'>'+profileDate(b.date)+'</span><div class="row-meta">'+time(b.start)+'</div></td><td>'+b.duration+' min</td><td>'+esc(tutorName(b.tutor))+'</td><td>'+esc(remark||'—')+'</td><td>'+tag(status,status==='Attended'?'green':'')+'</td><td>'+action('booking-detail','Open','btn small','data-id="'+b.id+'" aria-label="Open lesson '+profileDate(b.date)+' '+time(b.start)+'"')+'</td></tr>';
+  }).join('')+'</tbody></table></div>'+pager(key,page,true):empty('No lessons recorded'));
+ }
+ if(tab==='Payment history'){
+  const invoices=state.invoices.filter(i=>i.studentId===id).sort((a,b)=>b.issued.localeCompare(a.issued)),page=collectionPage(key,invoices,10);
+  return invoices.length?'<div class="table-scroll"><table><thead><tr><th>Invoice / period</th><th>Amount</th><th>Due</th><th>Receipt / bank match</th><th></th></tr></thead><tbody>'+page.items.map(i=>{
+   const receipt=state.receipts.find(r=>r.id===i.receiptId),match=receipt&&reconciliation(state,receipt);
+   return '<tr><td>'+esc(i.id)+'<div class="row-meta">'+esc(i.period)+'</div></td><td>'+money(i.amount)+'</td><td>'+profileDate(i.due)+'</td><td>'+tag(receipt?'Receipt issued':i.proof?'Proof received':'Awaiting proof',receipt?'green':i.proof?'blue':'')+(receipt?'<div class="row-meta">'+esc(receipt.id)+' · '+esc(match.status)+'</div>':'')+'</td><td><div class="flex wrap">'+action('view-invoice','Invoice','btn small','data-id="'+i.id+'"')+(receipt?action('view-receipt','Receipt','btn small','data-id="'+receipt.id+'"'):'')+'</div></td></tr>';
+  }).join('')+'</tbody></table></div>'+pager(key,page,true):empty('No payment history');
+ }
+ if(tab==='E-coupon & referral')return '<dl class="student-facts student-history-summary">'+profileFact('Referral code',p.referralCode)+profileFact('Referral notes',p.referralNotes,true)+'</dl>'+empty('No e-coupons recorded');
+ if(tab==='Marketing')return '<dl class="student-facts student-history-summary">'+profileFact('Marketing consent',p.marketingOptIn?'Opted in':'Not opted in')+profileFact('Preferred language',p.parentLanguage)+profileFact('Marketing notes',p.marketingNotes,true)+'</dl>';
+ return empty('No SMS history','No SMS messages have been sent in this demo.');
+}
+function studentProfileForm(id,draft){
+ const text=(key,label,type='text',wide=false)=>'<div class="field'+(wide?' wide':'')+'"><label for="profile-'+key+'">'+label+'</label>'+(type==='textarea'?'<textarea id="profile-'+key+'" data-profile-field="'+key+'">'+esc(draft[key])+'</textarea>':'<input id="profile-'+key+'" data-profile-field="'+key+'" type="'+type+'" value="'+esc(draft[key])+'"'+(type==='date'?' max="'+TODAY+'"':'')+'>')+'</div>';
+ const boolean=(key,label)=>'<label class="check-option"><input type="checkbox" data-profile-field="'+key+'" '+(draft[key]?'checked':'')+'>'+label+'</label>';
+ return '<form id="student-profile-form" class="student-edit-form" data-student-id="'+id+'"><div class="form-error wide" id="profile-form-error" role="alert"></div><h3>Student information</h3>'+text('chineseName','Chinese name')+text('dateOfBirth','Date of birth','date')+text('school','School','text',true)+'<h3>Parent information</h3>'+text('parentRelation','Relationship')+text('parentLanguage','Preferred language')+text('parentGivenName','Parent given name')+text('parentSurname','Parent surname')+text('parentMobile','Mobile','tel')+text('parentPhone','Phone','tel')+text('parentEmail','Email','email',true)+text('region','Region')+text('area','Area')+text('address','Address','textarea',true)+text('remark','Student / parent remarks','textarea',true)+text('fpsRemark','FPS remark','textarea',true)+boolean('paymentReminder','Payment reminders')+'<h3>Referral & marketing</h3>'+text('referralCode','Referral code')+boolean('marketingOptIn','Marketing consent received')+text('referralNotes','Referral notes','textarea',true)+text('marketingNotes','Marketing notes','textarea',true)+'</form>';
+}
+function renderStudentWorkspace(resetDetails=false){
+ const old=$('#student-workspace');if(!old){render();return;}
+ const left=$('.student-selector-list').scrollTop,right=$('.student-profile-scroll').scrollTop,filters=$('.student-filter-disclosure');
+ ui.studentFiltersOpen=filters.open;
+ old.outerHTML=studentDirectory();
+ $('.student-selector-list').scrollTop=left;
+ $('.student-profile-scroll').scrollTop=resetDetails?0:right;
+}
+function updateProfileDraft(target){
+ const form=target.closest('#student-profile-form'),key=target.dataset.profileField;
+ if(form&&key&&ui.profileDrafts?.[form.dataset.studentId])ui.profileDrafts[form.dataset.studentId][key]=target.type==='checkbox'?target.checked:target.value;
 }
 function pickerResults(){
  const p=ui.picker;
@@ -220,7 +284,7 @@ function bankResults(){
  const p=collectionPage('bank',available,10);
  return p.items.map(b=>'<button class="bank-choice '+(b.id===ui.selectedBank?'selected':'')+'" data-action="choose-bank" data-id="'+b.id+'"><div class="between"><strong class="small">'+money(b.amount)+'</strong><span class="small">'+dateLabel(b.date)+'</span></div><p class="row-meta">'+esc(b.reference)+'</p>'+(b.suggestedStudent===r.studentId?'<p class="row-meta">Student reference matches</p>':'')+'</button>').join('')+(p.total?'':empty('No bank entries found'))+pager('bank',p,true);
 }
-function renderCollection(key){if(key==='bank'){$('#bank-results').innerHTML=bankResults();return;}render();}
+function renderCollection(key){if(key==='bank'){$('#bank-results').innerHTML=bankResults();return;}if((key==='students'||key.startsWith('profile-'))&&$('#student-workspace')){renderStudentWorkspace();return;}render();}
 function applyListSearch(key,input){const c=collection(key);c.query=input.value;c.page=1;const focus=input.getAttribute('data-list-query'),cursor=input.selectionStart;renderCollection(key);const next=$('[data-list-query="'+focus+'"]');if(next){next.focus();if(next.type==='search')next.setSelectionRange(cursor,cursor);}}
 function checkInDialog(){
  const s=studentById(ui.familyStudent);let pass;
@@ -232,7 +296,7 @@ function checkInDialog(){
 }
 
 function studentsPage(){
- return heading('Students',action('assessment-details',icon('plus')+' Assessment & enrolment','btn primary'))+tabs(['Students','Assessments'],ui.studentsTab,'students-tab')+(ui.studentsTab==='Students'?studentDirectory():'<section class="panel"><div class="list-row">'+avatar(studentById('mia'),'large')+'<div class="grow"><h3>Mia Cheung</h3><p class="small muted">P2 · Assessment on '+dateLabel(state.assessment.assessmentDate)+'</p></div>'+tag(state.assessment.enrolled?'Enrolled':'Report ready',state.assessment.enrolled?'green':'blue')+action('assessment-details','View assessment','btn')+'</div><div class="panel-body"><div class="notice">The HK$200 assessment deduction is available when enrolment is completed within seven days of the assessment.</div></div></section>');
+ return heading('Students')+'<div class="students-view-toolbar">'+tabs(['Students','Assessments'],ui.studentsTab,'students-tab')+action('assessment-details',icon('plus')+' Assessment & enrolment','btn primary')+'</div>'+(ui.studentsTab==='Students'?studentDirectory():'<section class="panel"><div class="list-row">'+avatar(studentById('mia'),'large')+'<div class="grow"><h3>Mia Cheung</h3><p class="small muted">P2 · Assessment on '+dateLabel(state.assessment.assessmentDate)+'</p></div>'+tag(state.assessment.enrolled?'Enrolled':'Report ready',state.assessment.enrolled?'green':'blue')+action('assessment-details','View assessment','btn')+'</div><div class="panel-body"><div class="notice">The HK$200 assessment deduction is available when enrolment is completed within seven days of the assessment.</div></div></section>');
 }
 function billingPage(){
  const receiptView=ui.billingTab==='Reconciliation',key=receiptView?'receipts':'invoices',c=collection(key);
@@ -403,15 +467,15 @@ document.addEventListener('click', e => {
   else if (a==='schedule-date') {ui.date=button.dataset.date;ui.scheduleView='day';render();}
   else if (a==='prev-week'||a==='next-week') {const delta=a==='prev-week'?-1:1,d=new Date(ui.date+'T12:00:00');d.setDate(d.getDate()+delta*(ui.scheduleView==='week'?7:1));ui.date=d.toISOString().slice(0,10);ui.weekOffset=Math.floor((new Date(ui.date+'T12:00:00')-new Date(WEEK[0]+'T12:00:00'))/604800000);render();}
   else if (a==='today') {ui.weekOffset=0;ui.date=TODAY;render();}
-  else if (a==='booking-detail') {if(ui.moveId){const slot=button.closest('[data-slot]');if(slot)moveTo(ui.moveId,{date:slot.dataset.date,start:Number(slot.dataset.start),tutor:slot.dataset.tutor});}else bookingDetail(id);}
-  else if (a==='begin-move') {ui.moveId=id;closeModal();render();}
+  else if (a==='booking-detail') {const slot=button.closest('[data-slot]');if(ui.moveId&&slot)moveTo(ui.moveId,{date:slot.dataset.date,start:Number(slot.dataset.start),tutor:slot.dataset.tutor});else bookingDetail(id);}
+  else if (a==='begin-move') {const b=state.bookings.find(b=>b.id===id);ui.moveId=id;ui.role='admin';ui.page='schedule';ui.scheduleTutor=b.tutor;ui.date=b.date;ui.weekOffset=Math.floor((Date.parse(b.date+'T12:00:00Z')-Date.parse(WEEK[0]+'T12:00:00Z'))/(7*86400000));closeModal();render();}
   else if (a==='cancel-move') {ui.moveId=null;render();}
   else if (a==='save-booking-note') {const value=$('#booking-note').value;change(()=>{state.bookings.find(b=>b.id===id).note=value;},'Remark saved');closeModal();}
   else if (a==='undo-state') {if(previousState){state=previousState;previousState=null;persist();render();toast('Change undone.');}}
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>This is a front-end prototype with fictional students and payments. Changes stay in this browser. No messages, payments or reports are sent to an external service.</p><p class="mt-16 muted">The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>Restore the original fictional students, lessons and payments. Your demo edits and handwriting in this browser will be cleared.</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);ui.collections={};ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor='chan';previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:'chan',moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);ui.collections={};ui.profileDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student schedule';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor='chan';previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:'chan',moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeup(id,mode='single'){
@@ -467,6 +531,19 @@ function downloadText(filename,content,type='text/csv'){
  const url=URL.createObjectURL(new Blob([content],{type}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function handleAction(a,id,button){
+ if(a==='select-directory-student'){ui.directoryStudent=id;renderStudentWorkspace(true);$('[data-action="select-directory-student"][data-id="'+id+'"]').focus({preventScroll:true});return;}
+ if(a==='profile-history-tab'){ui.profileHistoryTab=button.dataset.value;renderStudentWorkspace();$('[data-action="profile-history-tab"][data-value="'+ui.profileHistoryTab+'"]').focus({preventScroll:true});return;}
+ if(a==='edit-profile'){
+  const p=getStudentProfile(state,id);ui.profileDrafts??={};ui.profileDrafts[id]=Object.fromEntries(PROFILE_EDIT_FIELDS.map(key=>[key,p[key]]));renderStudentWorkspace(true);$('#profile-chineseName').focus({preventScroll:true});return;
+ }
+ if(a==='cancel-profile-edit'){delete ui.profileDrafts[id];renderStudentWorkspace(true);$('[data-action="edit-profile"]').focus({preventScroll:true});return;}
+ if(a==='save-profile-edit'){
+  const form=$('#student-profile-form');if(!form||form.dataset.studentId!==id||!form.reportValidity())return;
+  $$('[data-profile-field]',form).forEach(updateProfileDraft);
+  try{saveStudentProfile(state,id,ui.profileDrafts[id]);delete ui.profileDrafts[id];previousState=null;persist();renderStudentWorkspace(true);toast('Student details saved.');$('[data-action="edit-profile"]').focus({preventScroll:true});}
+  catch(error){const area=$('#profile-form-error');area.textContent=error.message;area.classList.add('visible');area.scrollIntoView({block:'nearest'});}return;
+ }
+
  if(a==='show-checkin'){ui.checkInBooking=null;checkInDialog();return;}
  if(a==='simulate-checkin'){
   let result;if(change(()=>{result=redeemCheckIn(state,ui.checkInPayload);},'Demo scan: '+studentById(ui.familyStudent).name+' is checked in.'))checkInDialog();return;
@@ -549,7 +626,7 @@ function handleAction(a,id,button){
   if(change(()=>{if(!note.topics||!note.comment)throw new Error('Add the topics and a lesson summary.');const existing=state.lessonNotes.find(n=>n.studentId===id&&n.date===note.date);if(existing)Object.assign(existing,note);else state.lessonNotes.push({id:uid('note'),...note});},a==='publish-note'?'Shared in the parent’s handbook.':'Draft saved.'))closeModal();
  }else if(a==='students-tab'){ui.studentsTab=button.dataset.value;ui.search='';render();}
  else if(a==='student-profile'){
-  const s=studentById(id);modal(s.name,'<div class="flex">'+avatar(s,'large')+'<div><h3>'+s.level+' · Mathematics</h3><p class="small muted">'+s.number+' · '+esc(s.parent)+' · '+esc(s.phone)+'</p></div></div><dl class="detail-grid"><div><dt>Regular lesson</dt><dd>'+regularLabel(s)+'</dd></div><div><dt>Learning focus</dt><dd>'+s.focus+'</dd></div><div><dt>Current block</dt><dd>Aug–Sep 2026</dd></div><div><dt>Reschedules used</dt><dd>'+usedReschedules(state,id)+' / 3</dd></div></dl><p class="small muted">Pending make-up time: '+state.makeups.filter(m=>m.studentId===id).reduce((n,m)=>n+m.minutes-m.used,0)+' minutes</p>',action('close-modal','Close','btn')+action('view-student-folder','Open learning folder','btn primary','data-id="'+id+'"'));
+  ui.role='admin';ui.page='students';ui.studentsTab='Students';ui.directoryStudent=id;ui.profileHistoryTab='Student schedule';const c=collection('students');c.query=studentById(id).number;c.page=1;c.level=c.tutor=c.day=c.status='all';render();
  }else if(a==='view-student-folder'){closeModal();ui.role='teacher';ui.page='classroom';ui.selectedStudent=id;ui.standaloneFolder=true;collection('folder-work').page=1;render();}
  else if(a==='assessment-details'){
   const assessment=state.assessment;modal('Mia Cheung · assessment','<div class="timeline"><div class="timeline-item"><span class="timeline-mark done">'+icon('check','sm')+'</span><div><h4>Assessment booked & paid</h4><p>'+dateLabel(assessment.assessmentDate)+' · HK$200</p></div></div><div class="timeline-item"><span class="timeline-mark done">'+icon('file','sm')+'</span><div><h4>Report ready</h4><p>'+esc(assessment.report)+'</p></div></div><div class="timeline-item"><span class="timeline-mark '+(assessment.enrolled?'done':'')+'">'+icon('users','sm')+'</span><div><h4>'+(assessment.enrolled?'Enrolled':'Discuss programme & enrol')+'</h4><p>Assessment deduction available until 3 October.</p></div></div></div>',action('close-modal','Close','btn')+(assessment.enrolled?'':action('enrol-mia','Enrol student','btn primary')));
@@ -594,6 +671,7 @@ function handleAction(a,id,button){
 }
 document.addEventListener('change',e=>{
  const target=e.target,type=target.dataset.change;
+ if(target.dataset.profileField){updateProfileDraft(target);return;}
  if(type==='makeup-date'||type==='makeup-tutor'){ui[type==='makeup-date'?'makeupDate':'makeupTutor']=target.value;openMakeup(ui.makeupId,'single');return;}
  if(target.id==='new-duration'){const duration=Number(target.value),current=Number($('#new-time').value);$('#new-time').innerHTML=lessonTimeOptions(duration,Math.min(current,CENTRE_CLOSE-duration));return;}
  if(type==='checkin-lesson'){ui.checkInBooking=target.value;checkInDialog();return;}
@@ -610,8 +688,10 @@ document.addEventListener('change',e=>{
  else if(target.id==='work-feedback'&&currentAssignment()&&ui.role==='teacher'){currentAssignment().note=target.value;persist();}
 });
 document.addEventListener('keydown',e=>{if(e.target.matches('[data-action=teacher-tab]')&&['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const index=tutors.findIndex(t=>t.id===ui.scheduleTutor);ui.scheduleTutor=tutors[e.key==='Home'?0:e.key==='End'?tutors.length-1:(index+(e.key==='ArrowRight'?1:-1)+tutors.length)%tutors.length].id;render();$('#teacher-tab-'+ui.scheduleTutor).focus();return;}if(ui.moveId&&e.target.matches('[data-slot]')&&['Enter',' '].includes(e.key)){e.preventDefault();moveTo(ui.moveId,{date:e.target.dataset.date,start:Number(e.target.dataset.start),tutor:e.target.dataset.tutor});return;}if(e.key==='Enter'&&e.target.dataset.listQuery){e.preventDefault();clearTimeout(searchTimer);applyListSearch(e.target.dataset.listQuery,e.target);}else if(e.key==='Enter'&&e.target.id==='chat-input'){e.preventDefault();$('[data-action="send-message"]').click();}else if(e.key==='Enter'&&e.target.id==='library-search')$('[data-action="search-library"]').click();else if(e.key==='Enter'&&e.target.id==='student-search')$('[data-action="search-students"]').click();});
+document.addEventListener('submit',e=>{if(e.target.id==='student-profile-form'){e.preventDefault();handleAction('save-profile-edit',e.target.dataset.studentId);}});
 let searchTimer;
 document.addEventListener('input',e=>{
+ if(e.target.dataset.profileField){updateProfileDraft(e.target);return;}
  if(e.target.id==='picker-query'){ui.picker.query=e.target.value;ui.picker.page=1;updatePicker();return;}
  if(e.target.dataset.listQuery){const input=e.target;clearTimeout(searchTimer);searchTimer=setTimeout(()=>{if(input.isConnected)applyListSearch(input.dataset.listQuery,input);},180);return;}
  const assignment=currentAssignment();if(!assignment)return;

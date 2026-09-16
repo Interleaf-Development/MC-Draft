@@ -27,7 +27,9 @@ The demo date is **30 September 2026**. Some sample bank transactions extend int
 The demo includes **700 enrolled fictional students** (plus Mia's assessment), searchable student numbers, level/teacher/day/status filters, sorting, and 25/50/100-row pages. Student search supports names, IDs, parent names and the deliberately fictional `0000 xxxx` contact numbers.
 
 - **Parent → Overview or Lessons → Attendance QR:** open a real, locally generated QR for the child's lesson that day. **Simulate centre scan** marks the linked booking present; check **Teacher → My classroom** to see the result. Multiple same-day lessons can be selected individually. Duplicate scans do not duplicate attendance, and changed/cancelled/expired lesson passes are rejected.
-- **Admin → Students:** search `MC-0701` to find a student near the end of the directory, or combine the level, teacher and weekday filters. A profile opens that student's folder independently of the teacher's current class.
+- **Admin → Students:** a searchable, paginated list stays beside the selected student's record. Search `MC-0701` (or `mc0701`) to find a student near the end of the directory, or combine level, teacher, weekday and status filters. Filtering and paging keep the current profile open until another student is selected.
+- **Student record:** student identity, Chinese name, date of birth, school/grade, enrolment date, parent relationship/contact/language/address, remarks, FPS remark, regular lessons and reminder preference. History tabs show recorded lessons and attendance, invoices/receipts, referrals, marketing preferences and SMS history. Names and contact details are fictional; missing information is shown as a dash. No coupon or SMS activity is fabricated.
+- **Edit details:** edit contact details and remarks in the profile. Unsaved drafts stay with their student when switching records; Save persists locally and Cancel discards that draft. Core identity, enrolment status and recurring lessons remain read-only. The learning folder opens independently of the teacher's current class, and moving a lesson from history opens its teacher's calendar.
 - **Add lesson / Lesson records:** use the searchable student picker; no 700-option dropdown.
 - **Teacher → Worksheet library → Assign:** defaults to the current class. Switch to **Whole centre** to find more students. Selections persist across searches/pages; **Review** shows only selected students before assignment.
 - **Billing, bank matching, conversations and director review:** bounded lists with search/filter or pagination as appropriate. Report totals and exports cover the complete report, across all pages. The schedule stays scoped by date and teacher; pending request queues and folder histories are also paginated.
@@ -104,6 +106,8 @@ dist/index.html       App entry point
 dist/styles.css       Responsive visual system
 dist/scale.css        Bounded lists, pickers and QR presentation
 dist/schedule.css     Teacher tabs and compact 09:00–19:00 timetable
+dist/student-directory.css  Persistent student list and profile layout
+dist/student-profile.js     Fictional profile fields and validated local edits
 dist/checkin.js       Local lesson passes and attendance demo
 dist/vendor/          Offline QR encoder and its MIT licence
 dist/app.js           Screens, interactions, browser-local persistence
