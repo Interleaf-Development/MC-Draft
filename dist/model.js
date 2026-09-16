@@ -15,7 +15,122 @@ export const students = [
   { id: 'mia', name: 'Mia Cheung', level: 'P2', initials: 'MC', colour: 'pink', parent: 'Mrs Cheung', regular: 'Not yet enrolled', focus: 'Entrance assessment' },
   { id: 'ryan', name: 'Ryan Lau', level: 'P5', initials: 'RL', colour: 'slate', parent: 'Mr Lau', regular: 'Friday · 15:00', focus: 'Fractions and ratios' }
 ];
-export const studentById = id => students.find(s => s.id === id) || students[0];
+const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const directoryColours = ['rose', 'blue', 'green', 'amber', 'violet', 'teal', 'pink', 'slate'];
+const directoryFocus = ['Number sense', 'Addition and subtraction', 'Multiplication', 'Long division', 'Equivalent fractions', 'Decimals', 'Word problems', 'Fractions and ratios', 'Algebra'];
+students.forEach((student, index) => Object.assign(student, {
+  number: 'MC-' + String(index + 1).padStart(4, '0'),
+  phone: '0000 ' + String(index + 1).padStart(4, '0'),
+  tutor: student.id === 'ryan' ? 'wong' : 'chan',
+  day: student.id === 'mia' ? '' : student.id === 'ryan' ? 'Friday' : 'Wednesday',
+  status: student.id === 'mia' ? 'assessment' : 'active'
+}));
+// These directory-only records do not add bookings to the demonstration timetable.
+const givenNames = ['Adrian', 'Amber', 'Aiden', 'Alicia', 'Alvin', 'Anson', 'Ashley', 'Audrey', 'Bella', 'Benjamin', 'Caleb', 'Carmen', 'Celia', 'Clara', 'Daniel', 'Daphne', 'Derek', 'Elena', 'Felix', 'Fiona', 'Gabriel', 'Grace', 'Henry', 'Iris', 'Isaac', 'Jasmine', 'Jasper', 'Joyce', 'Justin', 'Kayla', 'Leo', 'Lydia', 'Marcus', 'Natalie', 'Nathan', 'Nicole', 'Oscar', 'Phoebe', 'Samuel', 'Zoe'];
+const familyNames = ['Chan', 'Cheung', 'Chiu', 'Choi', 'Chow', 'Chung', 'Fong', 'Ho', 'Hui', 'Ip', 'Kwan', 'Kwok', 'Lam', 'Lau', 'Lee', 'Leung', 'Lo', 'Lok', 'Ma', 'Mak', 'Ng', 'Pang', 'Poon', 'Siu'];
+const directoryNames = new Set(students.map(student => student.name));
+for (let candidate = 0; students.length < 701; candidate++) {
+  const first = givenNames[candidate % givenNames.length];
+  const surname = familyNames[Math.floor(candidate / givenNames.length)];
+  const name = first + ' ' + surname;
+  if (directoryNames.has(name)) continue;
+  const index = students.length - 8, number = students.length + 1, day = weekdays[index % weekdays.length];
+  const tutor = day === 'Tuesday' ? 'wong' : day === 'Thursday' ? 'chan' : Math.floor(index / 6) % 2 ? 'wong' : 'chan';
+  students.push({
+    id: 'student-' + String(number).padStart(4, '0'), number: 'MC-' + String(number).padStart(4, '0'),
+    name, initials: first[0] + surname[0], level: ['K3', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'S1', 'S2'][index % 9],
+    colour: directoryColours[index % directoryColours.length], parent: (index % 2 ? 'Mr ' : 'Mrs ') + surname,
+    phone: '0000 ' + String(number).padStart(4, '0'), tutor, day, status: index % 17 === 0 ? 'paused' : 'active',
+    regular: day + ' · ' + ['15:00', '16:00', '17:00'][Math.floor(index / 9) % 3],
+    focus: directoryFocus[index % directoryFocus.length]
+  });
+  directoryNames.add(name);
+}
+const studentsById = new Map(students.map(student => [student.id, student]));
+export const studentById = id => studentsById.get(id) || students[0];
+
+export function enrolledStudents(state) {
+  return students.filter(student => student.id !== 'mia' || state?.assessment?.enrolled).map(student => {
+    if (student.id !== 'mia') return student;
+    const booking = state.bookings?.find(item => item.studentId === 'mia' && activeBooking(item));
+    const day = booking ? new Date(booking.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' }) : student.day;
+    return { ...student, status: 'active', parent: state.assessment.parent || student.parent, phone: state.assessment.phone || student.phone, tutor: booking?.tutor || student.tutor, day, regular: booking ? day + ' · ' + time(booking.start) : student.regular };
+  });
+}
+
+export function filterStudents(state, { query = '', level = '', tutor = '', day = '', status = '', sort = 'name' } = {}) {
+  const norm = value => String(value ?? '').trim().toLowerCase();
+  const requested = { level: norm(level), tutor: norm(tutor), day: norm(day), status: norm(status) };
+  const tokens = norm(query).split(/\s+/).filter(Boolean);
+  const list = enrolledStudents(state).filter(student => {
+    if (Object.entries(requested).some(([key, value]) => value && value !== 'all' && norm(student[key]) !== value)) return false;
+    const searchable = [student.number, student.id, student.name, student.parent, student.phone].map(norm).join(' ');
+    const compact = searchable.replace(/[\s-]/g, '');
+    return tokens.every(token => searchable.includes(token) || compact.includes(token.replace(/-/g, '')));
+  });
+  const compareName = (a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base', numeric: true }) || a.number.localeCompare(b.number);
+  const by = {
+    name: compareName,
+    'name-asc': compareName,
+    'name-desc': (a, b) => -compareName(a, b),
+    number: (a, b) => a.number.localeCompare(b.number),
+    'number-asc': (a, b) => a.number.localeCompare(b.number),
+    'number-desc': (a, b) => b.number.localeCompare(a.number),
+    level: (a, b) => ['K3', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'S1', 'S2'].indexOf(a.level) - ['K3', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'S1', 'S2'].indexOf(b.level) || compareName(a, b),
+    day: (a, b) => weekdays.indexOf(a.day) - weekdays.indexOf(b.day) || compareName(a, b)
+  };
+  return list.sort(by[sort] || compareName);
+}
+
+export function paginate(items, page = 1, pageSize = 25) {
+  pageSize = Number.isFinite(Number(pageSize)) && Number(pageSize) >= 1 ? Math.floor(Number(pageSize)) : 25;
+  const total = items.length, pageCount = Math.max(1, Math.ceil(total / pageSize));
+  page = Number.isFinite(Number(page)) ? Math.min(pageCount, Math.max(1, Math.floor(Number(page)))) : 1;
+  const offset = (page - 1) * pageSize;
+  return { items: items.slice(offset, offset + pageSize), total, page, pageSize, pageCount, start: total ? offset + 1 : 0, end: Math.min(offset + pageSize, total) };
+}
+
+// Idempotent browser migration: preserve original scenarios and any user edits.
+export function seedCentreVolume(state) {
+  const invoiceIds = new Set(state.invoices.map(invoice => invoice.id));
+  const threadStudentIds = new Set(state.messages.map(thread => thread.studentId));
+  const topics = [
+    ['Could you confirm the time for our next lesson?', 'Your regular lesson time is unchanged. We look forward to seeing you.'],
+    ['We may need to change a lesson because of a school activity.', 'Please send the date when you have it, and we can check replacement times.'],
+    ['Thank you for the lesson update. We will finish the homework this week.', 'Thank you. Please keep the working so the tutor can review it next lesson.'],
+    ['I have sent the tuition payment proof. Please let me know if you need anything else.', 'Thank you. Reception will issue the receipt and our accounts team will reconcile the bank entry.'],
+    ['Could the tutor share which topic we should practise at home?', 'We will add the recommended practice to the next lesson record.']
+  ];
+  students.slice(8).forEach((student, index) => {
+    const suffix = String(5001 + index), invoiceId = 'INV-' + suffix;
+    if (!invoiceIds.has(invoiceId)) {
+      const historic = student.status === 'paused', group = index % 10;
+      const hasProof = historic || group >= 2, hasReceipt = historic || group >= 4;
+      const bankMatched = historic || group >= 6, mismatch = !historic && group === 9 && index % 3 === 0;
+      const issuedDate = historic ? '2026-08-21' : group === 6 ? '2026-10-01' : '2026-09-29';
+      const bankDate = historic ? '2026-08-21' : group === 6 ? '2026-09-30' : group === 7 ? '2026-10-01' : '2026-09-29';
+      const invoice = {
+        id: invoiceId, studentId: student.id, amount: 2000,
+        period: historic ? 'Aug–Sep 2026' : 'Oct–Nov 2026', issued: historic ? '2026-07-20' : '2026-09-20', due: historic ? '2026-08-20' : '2026-10-20',
+        description: 'Regular programme · 8 lessons', receiptId: hasReceipt ? 'R-' + suffix : null, proof: hasProof,
+        ...(hasProof ? { proofDate: historic ? '2026-08-21' : '2026-09-29', proofReference: 'DEMO ' + student.number } : {})
+      };
+      state.invoices.push(invoice);
+      invoiceIds.add(invoiceId);
+      if (hasReceipt) state.receipts.push({ id: invoice.receiptId, invoiceId, studentId: student.id, amount: 2000, proofDate: invoice.proofDate, issuedDate, bankId: bankMatched ? 'BANK-' + suffix : null, note: mismatch ? 'Review the HK$200 difference with the parent.' : '' });
+      if (hasReceipt) state.bankTransactions.push({ id: 'BANK-' + suffix, date: bankDate, amount: mismatch ? 1800 : 2000, reference: 'DEMO TRANSFER · ' + student.number, suggestedStudent: student.id });
+    }
+    if (index < 120 && !threadStudentIds.has(student.id)) {
+      const [question, answer] = topics[index % topics.length], followUp = index % 4 === 0;
+      state.messages.push({
+        id: 'thread-' + student.id, studentId: student.id, assignedTo: index % 3 === 0 ? 'Reception' : student.tutor === 'chan' ? 'Ms Chan' : 'Mr Wong', followUp,
+        messages: [{ author: 'parent', text: question, time: 'Yesterday' }, ...(!followUp ? [{ author: 'centre', text: answer, time: 'Yesterday' }] : [])]
+      });
+      threadStudentIds.add(student.id);
+    }
+  });
+  return state;
+}
 export const worksheets = [
   { id: 'fractions-01', code: 'FR · 031', title: 'Equivalent fractions', topic: 'Fractions', level: 'P3', pages: 1, minutes: 15, colour: 'rose' },
   { id: 'fractions-02', code: 'FR · 032', title: 'Comparing fractions', topic: 'Fractions', level: 'P3', pages: 1, minutes: 20, colour: 'amber' },

@@ -22,6 +22,18 @@ These are browser prototypes of the intended app experiences, not native builds.
 
 The demo date is **30 September 2026**. Some sample bank transactions extend into October to demonstrate month-end reconciliation.
 
+## Centre-scale lists and attendance
+
+The demo includes **700 enrolled fictional students** (plus Mia's assessment), searchable student numbers, level/teacher/day/status filters, sorting, and 25/50/100-row pages. Student search supports names, IDs, parent names and the deliberately fictional `0000 xxxx` contact numbers.
+
+- **Parent → Overview or Lessons → Attendance QR:** open a real, locally generated QR for the child's lesson that day. **Simulate centre scan** marks the linked booking present; check **Teacher → My classroom** to see the result. Multiple same-day lessons can be selected individually. Duplicate scans do not duplicate attendance, and changed/cancelled/expired lesson passes are rejected.
+- **Admin → Students:** search `MC-0701` to find a student near the end of the directory, or combine the level, teacher and weekday filters. A profile opens that student's folder independently of the teacher's current class.
+- **Add lesson / Lesson records:** use the searchable student picker; no 700-option dropdown.
+- **Teacher → Worksheet library → Assign:** defaults to the current class. Switch to **Whole centre** to find more students. Selections persist across searches/pages; **Review** shows only selected students before assignment.
+- **Billing, bank matching, conversations and director review:** bounded lists with search/filter or pagination as appropriate. Report totals and exports cover the complete report, across all pages. The schedule stays scoped by date and teacher; pending request queues and folder histories are also paginated.
+
+The QR contains an opaque demo token, with no student name or contact details. This remains a browser-local demonstration: a production scanner, server validation and authentication are not connected. The 700-student dataset demonstrates the interface at that volume; the timetable remains a focused set of walkthrough lessons rather than 700 generated schedules.
+
 ## Client walkthroughs
 
 ### 1. Paperless lesson
@@ -80,6 +92,9 @@ Receipt issue dates are never overwritten by bank dates. Amount matching and dat
 ~~~text
 dist/index.html       App entry point
 dist/styles.css       Responsive visual system
+dist/scale.css        Bounded lists, pickers and QR presentation
+dist/checkin.js       Local lesson passes and attendance demo
+dist/vendor/          Offline QR encoder and its MIT licence
 dist/app.js           Screens, interactions, browser-local persistence
 dist/model.js         Demo data and workflow rules
 dist/brand/           Supplied SVG artwork used by the app
@@ -94,4 +109,4 @@ npm run check
 npm test
 ~~~
 
-Tests cover linked moves, six-student capacity during extensions, atomic split booking, billing-block expiry, receipt-before-match, date-forward/date-back reporting, the assessment deduction window and leave balances.
+Tests also cover 700-student search/filter/pagination, idempotent sample-data migration and attendance-pass validation. Workflow tests cover linked moves, six-student capacity during extensions, atomic split booking, billing-block expiry, receipt-before-match, date-forward/date-back reporting, the assessment deduction window and leave balances.
