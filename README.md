@@ -22,6 +22,8 @@ The app shell and local artwork are cached after the first successful online vis
 
 ## Device priorities
 
+Parent and Student screens use **Hong Kong Traditional Chinese (`zh-HK`)**, including new features going forward. Admin and Teacher screens remain English. Shared components select their language by role; user-authored messages, notes and worksheet answers retain their original text. See `AGENTS.md` for the development convention.
+
 - **Parent: mobile first.** A single-column app layout, persistent bottom tabs, 44px minimum action targets, 16px form inputs, safe-area spacing and bottom-sheet dialogs. The Demo menu contains the presentation controls. The same narrow layout is kept on desktop for client review.
 - **Student: large tablet first.** Designed around iPad Pro-size portrait and landscape viewports (1024 × 1366 and 1366 × 1024). A full-width worksheet replaces the desktop sidebar; 48px writing tools and Hand in stay visible while the page scrolls. Notes and typed working open in a side panel. Use Pen to write or Move page to scroll across the sheet.
 - **Admin / Teacher: desktop first.** Denser operational views retain their sidebar and tables.

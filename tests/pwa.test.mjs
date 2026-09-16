@@ -42,7 +42,8 @@ function harness() {
 
 test('install manifest opens the parent app and supplies correctly sized PNG icons', async () => {
   const manifest = JSON.parse(await readFile(resolve(dist, 'manifest.webmanifest'), 'utf8'));
-  assert.equal(manifest.name, 'MathConcept (Tsuen Wan)');
+  assert.equal(manifest.name, 'MathConcept（荃灣）');
+  assert.equal(manifest.lang, 'zh-HK');
   assert.equal(manifest.id, '/'); assert.equal(manifest.scope, '/'); assert.equal(manifest.display, 'standalone');
   assert.equal(new URL(manifest.start_url, origin).searchParams.get('role'), 'parent');
   assert.deepEqual(manifest.icons.map(icon => icon.sizes).sort(), ['192x192', '512x512']);

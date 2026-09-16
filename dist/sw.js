@@ -1,10 +1,10 @@
 // Bump this version when changing the offline asset set or cache policy.
 const CACHE_PREFIX = 'mathconcept-static-';
-const CACHE_NAME = CACHE_PREFIX + 'v1';
+const CACHE_NAME = CACHE_PREFIX + 'v2-zh-hk';
 const PRECACHE = [
   '/index.html',
-  '/app.js', '/model.js', '/checkin.js', '/student-profile.js',
-  '/conversations.js', '/conversations-ui.js',
+  '/app.js', '/model.js', '/checkin.js', '/student-profile.js', '/family-locale.js',
+  '/conversations.js', '/conversations-ui.js', '/chat-seed-locale.js',
   '/billing-automation.js', '/billing-proof-ui.js', '/bank-check-ui.js', '/statement-csv.js',
   '/vendor/qrcode.js', '/pwa.js',
   '/styles.css', '/scale.css', '/schedule.css', '/student-directory.css',

@@ -1,9 +1,9 @@
 {
   "id": "/",
-  "name": "MathConcept (Tsuen Wan)",
+  "name": "MathConcept（荃灣）",
   "short_name": "MathConcept",
-  "description": "MathConcept centre, teacher, parent and student workflow demo.",
-  "lang": "en-HK",
+  "description": "MathConcept（荃灣）家長及學生應用程式示範。",
+  "lang": "zh-HK",
   "start_url": "/?role=parent",
   "scope": "/",
   "display": "standalone",
