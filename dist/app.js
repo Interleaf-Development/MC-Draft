@@ -1,10 +1,12 @@
 import { TODAY, centre, WEEK, seed, clone, uid, time, dateLabel, money, students, studentById, worksheets, worksheetById, tutors, activeBooking, validateSlot, moveBooking, requestAbsence, approveAbsence, bookMakeup, usedReschedules, issueReceipt, reconciliation, matchReceipt, reportingTotals, assessmentCredit, staffBalance, record, cycleForDate, enrolledStudents, filterStudents, paginate, seedCentreVolume, seedTeacherSchedules, seedBusyAfternoons, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from './model.js';
 import { makeCheckInPass, qrSvg, redeemCheckIn } from './checkin.js';
 import { getStudentProfile, saveStudentProfile } from './student-profile.js';
+import { normalizeConversations } from './conversations.js';
+import { createConversationUI } from './conversations-ui.js';
 const STORAGE = 'mathconcept-demo-v4';
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
-seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);
+seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeConversations(state);
 const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:'chan', date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Invoices', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:'chan' };
 let previousState = null;
 let returnFocus = null;
@@ -82,11 +84,12 @@ function modal(title, body, footer = '', wide = false) {
 }
 const NAV = {
  admin: [['schedule','calendar','Schedule'],['students','users','Students'],['billing','wallet','Billing & reconciliation'],['messages','message','Conversations'],['staff','briefcase','Staff & leave'],['calendar','settings','Centre calendar']],
- teacher: [['classroom','users','My classroom'],['library','book','Worksheet library'],['notes','file','Lesson records'],['roster','calendar','My roster & leave']],
+ teacher: [['classroom','users','My classroom'],['library','book','Worksheet library'],['notes','file','Lesson records'],['messages','message','Conversations'],['roster','calendar','My roster & leave']],
  parent: [['overview','home','Overview'],['lessons','calendar','Lessons'],['handbook','book','Handbook'],['payments','wallet','Payments'],['messages','message','Messages']],
  student: [['work','edit','My work'],['past','folder','Past work']]
 };
 const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre manager', initials: 'KK', colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: 'KK', colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
+const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),persist:()=>{previousState=null;persist();},render:()=>render(),modal,closeModal,toast,openStudent:id=>handleAction('student-profile',id),childSwitch:()=>childSwitch()});
 function render() {
   const nav = NAV[ui.role]; const user = identity();
   const pageKey=ui.role+'|'+ui.page+'|'+(ui.assignmentId||'');
@@ -95,6 +98,7 @@ function render() {
   document.body.className = 'role-' + ui.role + (ui.page === 'worksheet' ? ' worksheet-open' : '') + (ui.workNotes ? ' work-notes-open' : '') + (ui.page === 'messages' ? ' messages-open' : '');
   $('#app').innerHTML = '<div class="app-shell"><aside class="sidebar"><div class="wordmark">Math<span>Concept</span></div><div class="centre-label">('+centre.branch+')</div><div class="nav-section">' + ({admin:'Centre',teacher:'Teaching',parent:'Family',student:'My classroom'}[ui.role]) + '</div><nav class="nav-list" aria-label="Main navigation">' + nav.map(([id, ic, label]) => action('navigate', icon(ic) + '<span>' + label + '</span>', 'nav-item' + (ui.page === id ? ' active' : ''), 'data-page="' + id + '"' + (ui.page === id ? ' aria-current="page"' : ''))).join('') + '</nav><div class="sidebar-bottom"><div class="flex">' + avatar(user) + '<div><div class="small strong">' + esc(user.name) + '</div><div class="user-caption">' + esc(user.title || user.level) + '</div></div></div></div></aside><header class="topbar"><div class="mobile-brand">' + action('toggle-menu', icon('menu'), 'icon-btn mobile-menu', 'aria-label="Open navigation"') + '<span class="brand-lockup"><span class="wordmark">Math<span>Concept</span></span><span class="brand-branch">('+centre.branch+')</span></span></div><div class="role-switch" role="group" aria-label="Demo role">' + ['admin','teacher','parent','student'].map(r => action('role', r[0].toUpperCase() + r.slice(1), ui.role === r ? 'active' : '', 'data-role="' + r + '" aria-pressed="' + (ui.role === r) + '"')).join('') + '</div><div class="topbar-actions"><span class="date">Wednesday, 30 September 2026</span>' + action(ui.role==='parent'?'demo-controls':'demo-info', 'Demo', 'demo-label', 'aria-label="'+(ui.role==='parent'?'Demo controls':'About this demo')+'"') + action('reset-demo', icon('reset') + '<span class="reset-label">Reset</span>', 'btn ghost small', 'aria-label="Reset demo"') + '</div></header><main class="main ' + (['parent','student'].includes(ui.role) ? 'family-main' : '') + '" id="main-content">' + page() + '</main><nav class="mobile-bottom-nav" aria-label="Mobile navigation">' + nav.slice(0,5).map(([id,ic,label]) => action('navigate', icon(ic) + '<span>' + (label === 'Billing & reconciliation' ? 'Billing' : ({'My classroom':'Classroom','My work':'My work','My roster & leave':'My leave'}[label]||label)) + '</span>', ui.page === id ? 'active' : '', 'data-page="' + id + '"')).join('') + '</nav></div>';
   attachDrawing();
+  if(ui.page==='messages')conversationUI.afterRender();
   if(paperScroll&&$('.paper-wrap')){$('.paper-wrap').scrollTop=paperScroll.top;$('.paper-wrap').scrollLeft=paperScroll.left;}
   if(pageKey!==lastPageKey){window.scrollTo(0,0);lastPageKey=pageKey;}
 }
@@ -335,16 +339,7 @@ function centreCalendarPage(){
  const periods=['Jan–Feb','Mar–Apr','May–Jun','Jul–Aug','Sep–Oct','Nov–Dec'];
  return heading('Centre calendar',tag('2026'),'Annual teaching plan')+'<div class="two-columns"><section class="panel"><div class="panel-head"><h3>Lesson allocation by day</h3><span class="small muted">Annual target: 48</span></div><div class="table-scroll"><table><thead><tr><th>Period</th>'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<th>'+d+'</th>').join('')+'</tr></thead><tbody>'+periods.map((p,i)=>'<tr><td class="strong">'+p+'</td>'+[0,1,2,3,4,5,6].map(d=>'<td>'+(d===2&&i===2?tag('7','amber'):d===2&&i===3?tag('9','blue'):'8')+'</td>').join('')+'</tr>').join('')+'<tr><td class="strong">Annual total</td>'+Array(7).fill('<td class="strong green-text">48</td>').join('')+'</tr></tbody></table></div><div class="panel-footer"><p class="small muted">Illustrative allocation for discussion. Actual closure dates and billing blocks need the centre’s annual calendar.</p></div></section><aside class="stack"><section class="panel"><div class="panel-head"><h3>Calendar balancing</h3></div><div class="panel-body"><p class="small muted">A seven-lesson period may be balanced by a later nine-lesson period within the calendar year. If there is no later balancing period, arrange an extra lesson.</p><div class="notice blue mt-16">Planned centre closures are separate from a student’s absence and make-up record.</div></div></section><section class="panel"><div class="panel-body"><h3>Parent notices</h3><p class="small muted mt-8">Confirmed closures should appear on the schedule and in affected families’ upcoming lessons.</p></div></section></aside></div>';
 }
-function messagesPage(){
- const parent=ui.role==='parent',c=collection('conversations');
- const threads=state.messages.filter(t=>parent?t.studentId===ui.familyStudent:matchesStudent(t.studentId,c.query)&&(c.status==='all'||c.status==='followup'&&t.followUp||c.status==='reception'&&t.assignedTo==='Reception'));
- const p=collectionPage('conversations',threads,15);
- const selected=threads.find(t=>t.id===ui.thread)||p.items[0];
- if(selected)ui.thread=selected.id;
- const filters=parent?'':'<div class="filters">'+searchControl('conversations','Search conversations','Student, parent or student ID')+filterControl('conversations','status','Conversation filter',[['all','All conversations'],['followup','Needs follow-up'],['reception','Assigned to reception']])+'</div>';
- if(!selected)return heading(parent?'Messages':'Conversations',parent?childSwitch():'')+filters+'<div class="panel">'+empty(parent?'Start a conversation':'No matching conversations',parent?'Your centre is here to help.':'Try another search or filter.',14)+(parent?action('start-conversation','Message the centre','btn primary','style="margin:0 20px 20px"'):'')+'</div>';
- return heading(parent?'Messages':'Conversations',parent?childSwitch():'')+filters+'<section class="panel inbox"><div class="thread-column"><div class="thread-list">'+p.items.map(t=>{const s=studentById(t.studentId);return '<button class="thread-item '+(t.id===selected.id?'active':'')+'" data-action="thread" data-id="'+t.id+'"><div class="flex">'+avatar(s,'small')+'<div class="grow"><div class="small strong">'+(parent?centre.name:s.parent)+'</div><div class="row-meta">'+s.name+' · '+s.number+'</div></div>'+(t.followUp&&!parent?icon('flag','sm'):'')+'</div><div class="thread-snippet">'+esc(t.messages.at(-1)?.text||'New conversation')+'</div></button>';}).join('')+'</div>'+(!parent?pager('conversations',p,true):'')+'</div><div class="conversation"><div class="chat-header between"><div><h3>'+(parent?centre.name:studentById(selected.studentId).parent)+'</h3><p class="row-meta">'+(parent?'Reception & teaching team':studentById(selected.studentId).name+' · '+studentById(selected.studentId).number+' · '+selected.assignedTo)+'</p></div>'+(!parent?action('toggle-followup',icon('flag')+(selected.followUp?' Following up':' Follow up'),'btn small'+(selected.followUp?' soft':''),'data-id="'+selected.id+'"'):'')+'</div><div class="chat-messages">'+(selected.messages.length>(ui.messageLimit||50)?action('older-messages','Show earlier messages','btn small'):'')+selected.messages.slice(-(ui.messageLimit||50)).map(m=>'<div class="bubble '+((parent&&m.author==='parent')||(!parent&&m.author==='centre')?'own':'')+'">'+esc(m.text)+'<span class="bubble-time">'+esc(m.time)+'</span></div>').join('')+'</div><div class="chat-compose"><input id="chat-input" aria-label="Message" placeholder="Write a message…">'+action('send-message',icon('send'),'btn primary','data-id="'+selected.id+'" aria-label="Send demo message"')+'</div></div></section>';
-}
+function messagesPage(){return conversationUI.render();}
 const assignmentStatus = status => ({upcoming:['Up next','blue'],'in-progress':['In progress','amber'],submitted:['Ready to mark','blue'],corrections:['Corrections needed','red'],completed:['Completed','green']}[status] || [status,'']);
 const thumbnail = w => '<span class="sheet-thumb '+w.colour+'"><span class="symbol">'+({Fractions:'½',Division:'÷','Word problems':'+','Number sense':'123',Decimals:'.5'}[w.topic] || '∑')+'</span><span class="line"></span><span class="line"></span></span>';
 function assignmentRow(a, readonly=false){
@@ -453,6 +448,7 @@ function attachDrawing(){
 }
 
 document.addEventListener('click', e => {
+  conversationUI.onDocumentClick(e);
   const button = e.target.closest('[data-action]');
   if (!button) {
     const slot = e.target.closest('[data-slot]');
@@ -461,6 +457,7 @@ document.addEventListener('click', e => {
     return;
   }
   const a=button.dataset.action, id=button.dataset.id;
+  if (a.startsWith('wa-')) {conversationUI.handleAction(a,id,button);return;}
   if (a==='navigate') { ui.page=button.dataset.page;if(ui.page==='classroom')ui.standaloneFolder=false; ui.assignmentId=null; ui.search=''; render(); }
   else if (a==='role') { closeModal(); ui.standaloneFolder=false;ui.role=button.dataset.role; ui.page=NAV[ui.role][0][0]; ui.moveId=null; ui.assignmentId=null; render(); }
   else if (a==='close-modal') closeModal();
@@ -478,7 +475,7 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>This is a front-end prototype with fictional students and payments. Changes stay in this browser. No messages, payments or reports are sent to an external service.</p><p class="mt-16 muted">The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>Restore the original fictional students, lessons and payments. Your demo edits and handwriting in this browser will be cleared.</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);ui.collections={};ui.profileDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor='chan';previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:'chan',moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeConversations(state);conversationUI.reset();ui.collections={};ui.profileDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor='chan';previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:'chan',moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeup(id,mode='single'){
@@ -661,11 +658,7 @@ function handleAction(a,id,button){
   state.receipts.forEach(r=>{const match=reconciliation(state,r);if(match.month===ui.reportMonth||match.status!=='Matched')rows.push(['Receipt',r.id,studentById(r.studentId).name,r.amount,match.bank?.amount||'',r.issuedDate,match.bank?.date||'',match.month||'Unallocated',match.status,match.adjustment||'',r.note]);});
   reportingTotals(state,ui.reportMonth).unmatchedBank.forEach(b=>rows.push(['Unmatched bank entry',b.id,b.reference,'',b.amount,'',b.date,b.date.slice(0,7),'Unmatched','','']));
   downloadText('MathConcept-Tsuen-Wan-'+ui.reportMonth+'-demo-report.csv','\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'));toast('Report exported with unmatched items and exceptions.');
- }else if(a==='thread'){ui.messageLimit=50;ui.thread=id;render();}
- else if(a==='toggle-followup'){change(()=>{const t=state.messages.find(t=>t.id===id);t.followUp=!t.followUp;});}
- else if(a==='send-message'){const text=$('#chat-input').value.trim();if(text)change(()=>{state.messages.find(t=>t.id===id).messages.push({author:ui.role==='parent'?'parent':'centre',text,time:'Now'});},'Demo message added.');}
- else if(a==='start-conversation'){change(()=>{const t={id:uid('thread'),studentId:ui.familyStudent,assignedTo:'Reception',followUp:true,messages:[]};state.messages.push(t);ui.thread=t.id;});}
- else if(a==='request-staff-leave'){
+ }else if(a==='request-staff-leave'){
   modal('Request annual leave','<div class="form-stack">'+field('Date','<input type="date" id="al-date" value="2026-10-09">')+field('Duration','<select id="al-unit"><option>Full day</option><option>AM</option><option>PM</option></select>')+field('Reason','<input id="al-reason" placeholder="Optional note for the manager">')+'</div>',action('close-modal','Cancel','btn')+action('save-staff-leave','Submit request','btn primary'));
  }else if(a==='save-staff-leave'){
   const date=$('#al-date').value,unit=$('#al-unit').value,reason=$('#al-reason').value,days=unit==='Full day'?1:.5;
@@ -673,6 +666,7 @@ function handleAction(a,id,button){
  }else if(a==='approve-staff-leave'||a==='decline-staff-leave'){change(()=>{const l=state.staffLeave.find(l=>l.id===id);if(l.status!=='pending')throw new Error('This request has already been handled.');l.status=a==='approve-staff-leave'?'approved':'declined';record(state,l.status+' staff leave for '+dateLabel(l.date)+' · '+l.unit);},a==='approve-staff-leave'?'Leave approved. Review affected lessons on the schedule.':'Leave request declined.');}
 }
 document.addEventListener('change',e=>{
+ if(conversationUI.onChange(e))return;
  const target=e.target,type=target.dataset.change;
  if(target.dataset.profileField){updateProfileDraft(target);return;}
  if(type==='makeup-date'||type==='makeup-tutor'){ui[type==='makeup-date'?'makeupDate':'makeupTutor']=target.value;openMakeup(ui.makeupId,'single');return;}
@@ -690,10 +684,11 @@ document.addEventListener('change',e=>{
  else if(target.id==='student-working'&&currentAssignment()&&ui.role==='student'&&canDraw()){currentAssignment().working=target.value;persist();}
  else if(target.id==='work-feedback'&&currentAssignment()&&ui.role==='teacher'){currentAssignment().note=target.value;persist();}
 });
-document.addEventListener('keydown',e=>{if(e.target.matches('[data-action=teacher-tab]')&&['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const index=tutors.findIndex(t=>t.id===ui.scheduleTutor);ui.scheduleTutor=tutors[e.key==='Home'?0:e.key==='End'?tutors.length-1:(index+(e.key==='ArrowRight'?1:-1)+tutors.length)%tutors.length].id;render();$('#teacher-tab-'+ui.scheduleTutor).focus();return;}if(ui.moveId&&e.target.matches('[data-slot]')&&['Enter',' '].includes(e.key)){e.preventDefault();moveTo(ui.moveId,{date:e.target.dataset.date,start:Number(e.target.dataset.start),tutor:e.target.dataset.tutor});return;}if(e.key==='Enter'&&e.target.dataset.listQuery){e.preventDefault();clearTimeout(searchTimer);applyListSearch(e.target.dataset.listQuery,e.target);}else if(e.key==='Enter'&&e.target.id==='chat-input'){e.preventDefault();$('[data-action="send-message"]').click();}else if(e.key==='Enter'&&e.target.id==='library-search')$('[data-action="search-library"]').click();else if(e.key==='Enter'&&e.target.id==='student-search')$('[data-action="search-students"]').click();});
+document.addEventListener('keydown',e=>{if(conversationUI.onKeyDown(e))return;if(e.target.matches('[data-action=teacher-tab]')&&['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const index=tutors.findIndex(t=>t.id===ui.scheduleTutor);ui.scheduleTutor=tutors[e.key==='Home'?0:e.key==='End'?tutors.length-1:(index+(e.key==='ArrowRight'?1:-1)+tutors.length)%tutors.length].id;render();$('#teacher-tab-'+ui.scheduleTutor).focus();return;}if(ui.moveId&&e.target.matches('[data-slot]')&&['Enter',' '].includes(e.key)){e.preventDefault();moveTo(ui.moveId,{date:e.target.dataset.date,start:Number(e.target.dataset.start),tutor:e.target.dataset.tutor});return;}if(e.key==='Enter'&&e.target.dataset.listQuery){e.preventDefault();clearTimeout(searchTimer);applyListSearch(e.target.dataset.listQuery,e.target);}else if(e.key==='Enter'&&e.target.id==='library-search')$('[data-action="search-library"]').click();else if(e.key==='Enter'&&e.target.id==='student-search')$('[data-action="search-students"]').click();});
 document.addEventListener('submit',e=>{if(e.target.id==='student-profile-form'){e.preventDefault();handleAction('save-profile-edit',e.target.dataset.studentId);}});
 let searchTimer;
 document.addEventListener('input',e=>{
+ if(conversationUI.onInput(e))return;
  if(e.target.dataset.profileField){updateProfileDraft(e.target);return;}
  if(e.target.id==='picker-query'){ui.picker.query=e.target.value;ui.picker.page=1;updatePicker();return;}
  if(e.target.dataset.listQuery){const input=e.target;clearTimeout(searchTimer);searchTimer=setTimeout(()=>{if(input.isConnected)applyListSearch(input.dataset.listQuery,input);},180);return;}

@@ -86,6 +86,14 @@ Receipt issue dates are never overwritten by bank dates. Amount matching and dat
 - **Teacher → My roster & leave:** request a full day or AM/PM.
 - **Admin → Staff & leave:** approve the request and see affected bookings. Approval does not silently move lessons.
 
+### 5. Conversations
+
+- **Admin / Teacher → Conversations:** WhatsApp-style shared inbox, All / Unread / Favourites / Groups filters, archived chats and search. New chat searches the full student directory; the visible list is bounded.
+- Open a parent chat or the staff-only Tsuen Wan team group. Send text, reply, react, add emoji or share a worksheet. Photos, PDFs and text documents under 2 MB can be attached locally.
+- **Parent → Messages:** mobile chat list and full-screen conversation with Back navigation. Only the selected child’s centre conversation is shown; staff groups stay in staff views. Student tablets have no chat.
+- Drafts stay with each chat while navigating. Read indicators, archive/favourite preferences, follow-ups and sent messages persist locally. Enter sends; Shift+Enter adds a line.
+- Voice/video call and microphone controls show a prototype notice. They do not access the camera or microphone, or place calls. Attachments remain in this browser; no external upload occurs.
+
 ## Deliberate prototype boundaries
 
 - No real authentication, authorisation, WhatsApp connection, bank integration, messages, payments or external HQ submissions.
@@ -108,6 +116,9 @@ dist/scale.css        Bounded lists, pickers and QR presentation
 dist/schedule.css     Teacher tabs and compact 09:00–19:00 timetable
 dist/student-directory.css  Persistent student list and profile layout
 dist/student-profile.js     Fictional profile fields and validated local edits
+dist/conversations.js        Local chat model and viewer scoping
+dist/conversations-ui.js     Chat list, messages and composer interactions
+dist/conversations.css       WhatsApp-style desktop and mobile chat layout
 dist/checkin.js       Local lesson passes and attendance demo
 dist/vendor/          Offline QR encoder and its MIT licence
 dist/app.js           Screens, interactions, browser-local persistence
