@@ -255,7 +255,6 @@
 .leave-strip-balance h3 { font-size: 14px; line-height: 1.4; letter-spacing: 0; }
 .leave-strip-balance p { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .leave-strip-balance p strong { color: var(--ink); font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.leave-pending { display: inline-block; margin-left: 10px; color: #a48027; font-size: 12px; white-space: nowrap; }
 .leave-strip-actions { display: flex; align-items: center; justify-content: flex-end; flex-shrink: 0; gap: 8px; }
 .leave-strip-actions .btn { min-height: 36px; font-size: 13px; }
 .leave-summary-grid {
@@ -271,23 +270,23 @@
 .leave-roster .roster-grid { min-width: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .leave-roster .roster-header { margin-bottom: 4px; }
 .leave-roster .roster-cell { min-width: 0; padding: 6px 2px; font-size: 11px; }
-.leave-request-list { min-width: 0; margin-top: 18px; }
-.leave-request-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
-.leave-request-row:last-child { border-bottom: 0; }
-.leave-request-copy { flex: 1; min-width: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
-.leave-request-copy p { margin-top: 3px; color: var(--muted); font-size: 12px; }
-.leave-request-copy strong { color: var(--ink); font-size: 13px; font-weight: 650; }
-.leave-request-actions { display: flex; align-items: center; justify-content: flex-end; flex-shrink: 0; flex-wrap: wrap; gap: 6px; }
-.leave-request-actions .btn { min-height: 32px; padding: 6px 10px; font-size: 12px; }
+.leave-entry-list { min-width: 0; margin-top: 18px; }
+.leave-entry-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.leave-entry-row:last-child { border-bottom: 0; }
+.leave-entry-copy { flex: 1; min-width: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.leave-entry-copy p { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.leave-entry-copy strong { color: var(--ink); font-size: 13px; font-weight: 650; }
+.leave-entry-actions { display: flex; align-items: center; justify-content: flex-end; flex-shrink: 0; flex-wrap: wrap; gap: 6px; }
+.leave-entry-actions .btn { min-height: 32px; padding: 6px 10px; font-size: 12px; }
 
 @media (max-width: 600px) {
   .schedule-leave-strip { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px 16px; }
   .leave-strip-actions .btn { flex: 1; min-height: 40px; }
   .leave-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 18px; }
   .leave-summary-grid dd { font-size: 19px; }
-  .leave-request-row { flex-wrap: wrap; gap: 8px; }
-  .leave-request-copy { flex-basis: 100%; }
-  .leave-request-actions { margin-left: auto; }
+  .leave-entry-row { flex-wrap: wrap; gap: 8px; }
+  .leave-entry-copy { flex-basis: 100%; }
+  .leave-entry-actions { margin-left: auto; }
   .leave-roster .roster-grid { gap: 4px; }
 }
 

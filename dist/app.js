@@ -1,4 +1,4 @@
-import { TODAY, centre, WEEK, seed, clone, uid, time, dateLabel, money, students, studentById, worksheets, worksheetById, tutors, activeBooking, validateSlot, moveBooking, requestAbsence, approveAbsence, bookMakeup, usedReschedules, issueReceipt, reconciliation, matchReceipt, reportingTotals, assessmentCredit, staffBalance, record, cycleForDate, enrolledStudents, filterStudents, paginate, seedCentreVolume, seedTeacherSchedules, seedBusyAfternoons, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from './model.js';
+import { TODAY, centre, WEEK, seed, clone, uid, time, dateLabel, money, students, studentById, worksheets, worksheetById, tutors, activeBooking, validateSlot, moveBooking, requestAbsence, approveAbsence, bookMakeup, usedReschedules, issueReceipt, reconciliation, matchReceipt, reportingTotals, assessmentCredit, staffBalance, activeStaffLeave, staffLeaveUnits, normalizeStaffLeave, setStaffLeave, cancelStaffLeave, record, cycleForDate, enrolledStudents, filterStudents, paginate, seedCentreVolume, seedTeacherSchedules, seedBusyAfternoons, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from './model.js';
 import { makeCheckInPass, qrSvg, redeemCheckIn } from './checkin.js';
 import { getStudentProfile, saveStudentProfile } from './student-profile.js';
 import { normalizeConversations } from './conversations.js';
@@ -6,7 +6,7 @@ import { createConversationUI } from './conversations-ui.js';
 const STORAGE = 'mathconcept-demo-v4';
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
-seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeConversations(state);
+seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeStaffLeave(state);normalizeConversations(state);
 const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:'chan', date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Invoices', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:'chan' };
 let previousState = null;
 let returnFocus = null;
@@ -137,14 +137,14 @@ function calendarCell(date,start,tutor,rowHeight){
  const bookings=slotBookings(date,start,tutor);
  const moving=ui.role==='admin'&&ui.moveId;
  const targetStart=start+(state.bookings.find(b=>b.id===moving)?.start%60||0);
- const onLeave=state.staffLeave.some(l=>l.staffId===tutor&&l.date===date&&l.status==='approved'&&(l.unit==='Full day'||l.unit==='AM'&&start<HALF_DAY_BOUNDARY||l.unit==='PM'&&start+60>HALF_DAY_BOUNDARY));
+ const onLeave=state.staffLeave.some(l=>l.staffId===tutor&&l.date===date&&activeStaffLeave(l)&&(l.unit==='Full day'||l.unit==='AM'&&start<HALF_DAY_BOUNDARY||l.unit==='PM'&&start+60>HALF_DAY_BOUNDARY));
  return '<div class="calendar-cell'+(moving?' pick-target':'')+(onLeave?' tutor-away':'')+'" style="--row-height:'+rowHeight+'px" data-slot data-date="'+date+'" data-start="'+start+'" data-tutor="'+tutor+'"'+(moving?' tabindex="0" role="button" aria-label="Move lesson to '+esc(tutorName(tutor)+' · '+dateLabel(date)+' · '+time(targetStart))+'"':'')+'>'+bookings.map(b=>bookingChip(b,start)).join('')+(onLeave?'<span class="tutor-away-note">On leave</span>':'')+'</div>';
 }
 function timetable(dates,tutor){
  const days=dates.map(date=>action('schedule-date','<span class="day-name">'+dateLabel(date,{weekday:'short',day:undefined,month:undefined})+'</span><span class="day-number">'+Number(date.slice(8))+'</span>','timetable-dayhead'+(date===TODAY?' today':''),'data-date="'+date+'" aria-label="View '+dateLabel(date,{weekday:'long'})+'"')).join('');
  const rows=SCHEDULE_HOURS.map(start=>{
   const count=Math.max(0,...dates.map(date=>slotBookings(date,start,tutor).length));
-  const hasLeave=dates.some(date=>state.staffLeave.some(l=>l.staffId===tutor&&l.date===date&&l.status==='approved'&&(l.unit==='Full day'||l.unit==='AM'&&start<HALF_DAY_BOUNDARY||l.unit==='PM'&&start+60>HALF_DAY_BOUNDARY)));
+  const hasLeave=dates.some(date=>state.staffLeave.some(l=>l.staffId===tutor&&l.date===date&&activeStaffLeave(l)&&(l.unit==='Full day'||l.unit==='AM'&&start<HALF_DAY_BOUNDARY||l.unit==='PM'&&start+60>HALF_DAY_BOUNDARY)));
   const rowHeight=Math.max(40,count*24+8+(hasLeave?18:0));
   return '<div class="timetable-time" style="--row-height:'+rowHeight+'px" data-hour="'+start+'">'+time(start)+'</div>'+dates.map(date=>calendarCell(date,start,tutor,rowHeight)).join('');
  }).join('');
@@ -161,7 +161,7 @@ function schedulePage(){
  const teacherTabs=admin?'<div class="teacher-tabs" role="tablist" aria-label="Teacher schedules">'+tutors.map(t=>action('teacher-tab',t.name,'teacher-tab'+(tutor===t.id?' active':''),'id="teacher-tab-'+t.id+'" role="tab" aria-selected="'+(tutor===t.id)+'" aria-controls="teacher-schedule" tabindex="'+(tutor===t.id?'0':'-1')+'" data-tutor="'+t.id+'"')).join('')+'</div>':'';
  const dateTitle=ui.scheduleView==='week'?dateLabel(dates[0])+' – '+dateLabel(dates.at(-1),{year:'numeric'}):dateLabel(ui.date,{weekday:'long',year:'numeric'});
  const calendar='<section class="panel" id="teacher-schedule" '+(admin?'role="tabpanel" aria-labelledby="teacher-tab-'+tutor+'"':'aria-label="My schedule"')+'><div class="calendar-toolbar"><div class="calendar-controls">'+action('prev-week',icon('left'),'icon-btn border','aria-label="Previous '+ui.scheduleView+'"')+action('next-week',icon('right'),'icon-btn border','aria-label="Next '+ui.scheduleView+'"')+'<span class="calendar-title">'+dateTitle+'</span>'+action('today','Today','btn small')+'</div><div class="calendar-tools"><div class="segmented">'+action('calendar-view','Day',ui.scheduleView==='day'?'active':'','data-view="day"')+action('calendar-view','Week',ui.scheduleView==='week'?'active':'','data-view="week"')+'</div>'+(admin?action('find-schedule-student',icon('search')+' Find student','btn small')+action('new-booking',icon('plus')+' Add lesson','btn primary small'):'')+'</div></div><div class="calendar-scroll">'+timetable(dates,tutor)+'</div><div class="calendar-legend"><span><i class="legend-line"></i>Regular lesson</span><span><i class="legend-line red"></i>Rescheduled</span><span><i class="legend-line gray"></i>Original booking</span><span>'+icon('check','attendance-tick')+' Attended</span></div></section>';
- return heading(admin?'Schedule':'My schedule')+teacherTabs+(moving?'<div class="move-banner"><span>Choose a new time for <strong>'+studentById(moving.studentId).name+'</strong>.</span>'+action('cancel-move','Cancel','btn ghost small')+'</div>':'')+'<div class="schedule-layout'+(admin?'':' teacher-schedule-layout')+'"><div class="schedule-main">'+calendar+scheduleLeaveStrip(tutor)+'</div>'+(admin?'<aside class="schedule-rail stack">'+scheduleQueues()+staffLeaveQueue()+'</aside>':'')+'</div>';
+ return heading(admin?'Schedule':'My schedule')+teacherTabs+(moving?'<div class="move-banner"><span>Choose a new time for <strong>'+studentById(moving.studentId).name+'</strong>.</span>'+action('cancel-move','Cancel','btn ghost small')+'</div>':'')+'<div class="schedule-layout'+(admin?'':' teacher-schedule-layout')+'"><div class="schedule-main">'+calendar+scheduleLeaveStrip(tutor)+'</div>'+(admin?'<aside class="schedule-rail stack">'+scheduleQueues()+'</aside>':'')+'</div>';
 }
 function bookingDetail(id) {
   const b = state.bookings.find(x=>x.id===id), s = studentById(b.studentId), source = state.bookings.find(x=>x.id===b.sourceId);
@@ -331,38 +331,35 @@ function scheduleQueues(){
 }
 function scheduleLeaveStrip(staffId){
  const balance=staffBalance(state,staffId);
- return '<section class="panel schedule-leave-strip" aria-label="'+esc(tutorName(staffId))+' annual leave"><div class="leave-strip-balance"><h3>Annual leave</h3><p><strong>'+balance.available+'</strong> days available'+(balance.pending?' <span class="leave-pending">· '+balance.pending+' pending</span>':'')+'</p></div><div class="leave-strip-actions">'+action('leave-details','Details','btn small','data-id="'+staffId+'"')+(ui.role==='teacher'?action('request-staff-leave',icon('plus')+' Request leave','btn small','data-id="'+staffId+'"'):'')+'</div></section>';
-}
-function staffLeaveQueue(){
- const pending=state.staffLeave.filter(l=>l.status==='pending');
- return pending.length?'<section class="panel rail-card"><div class="rail-title"><h3>Staff leave requests</h3>'+tag(pending.length)+'</div>'+action('review-staff-leave','Review requests '+icon('arrow','sm'),'btn small w-full')+'</section>':'';
+ return '<section class="panel schedule-leave-strip" aria-label="'+esc(tutorName(staffId))+' annual leave"><div class="leave-strip-balance"><h3>Annual leave</h3><p><strong>'+balance.available+'</strong> days available</p></div><div class="leave-strip-actions">'+action('leave-details','Details','btn small','data-id="'+staffId+'"')+(ui.role==='admin'?action('set-staff-leave',icon('plus')+' Set leave','btn small','data-id="'+staffId+'"'):'')+'</div></section>';
 }
 function leaveAffectedBookings(leave){
  return state.bookings.filter(b=>b.tutor===leave.staffId&&b.date===leave.date&&activeBooking(b)&&(leave.unit==='Full day'||leave.unit==='AM'&&b.start<HALF_DAY_BOUNDARY||leave.unit==='PM'&&b.start+b.duration>HALF_DAY_BOUNDARY));
 }
-function staffLeaveDialog(staffId=null,more=false){
- if(ui.role!=='admin'&&ui.role!=='teacher')return;
+function staffLeaveDialog(staffId,more=false){
+ if(!['admin','teacher'].includes(ui.role))return;
  if(ui.role==='teacher')staffId='chan';
- const staff=staffId?state.staff.find(s=>s.id===staffId):null;
- if(staffId&&!staff)return;
+ const staff=state.staff.find(s=>s.id===staffId);if(!staff)return;
  ui.leaveDialogStaff=staffId;ui.leaveHistoryLimit=more?(ui.leaveHistoryLimit||20)+20:20;
- const balance=staff?staffBalance(state,staffId):null;
- const requests=state.staffLeave.filter(l=>staffId?l.staffId===staffId:l.status==='pending').sort((a,b)=>Number(b.status==='pending')-Number(a.status==='pending')||b.date.localeCompare(a.date));
- const totals=staff?'<dl class="leave-summary-grid"><div><dt>Annual allowance</dt><dd>'+balance.allowance+'</dd></div><div><dt>Holiday credits</dt><dd>+'+balance.holidayCredit+'</dd></div><div><dt>Taken / approved</dt><dd>−'+balance.taken+'</dd></div><div><dt>Available</dt><dd>'+balance.available+' days</dd></div></dl>'+(balance.pending?'<p class="small muted">'+balance.pending+' days reserved for pending requests.</p>':'')+'<div class="leave-roster"><h3>Regular working days</h3><div class="roster-grid">'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<div class="roster-header">'+d+'</div>').join('')+staff.roster.map(d=>'<div class="roster-cell '+(d==='Off'?'off':d==='AM'||d==='PM'?'half':'')+'">'+(d==='Full'?'Full day':d)+'</div>').join('')+'</div></div><h3 class="mb-16">Leave history</h3>':'';
- const rows=requests.slice(0,ui.leaveHistoryLimit).map(l=>{const affected=leaveAffectedBookings(l).length;return '<div class="leave-request-row"><div class="leave-request-copy">'+(!staffId?'<p class="small strong">'+esc(tutorName(l.staffId))+'</p>':'')+'<p class="small strong">'+dateLabel(l.date,{year:'numeric'})+' · '+esc(l.unit)+' · '+l.days+' day'+(l.days===1?'':'s')+'</p>'+(l.reason?'<p class="row-meta">'+esc(l.reason)+'</p>':'')+((l.status==='pending'||l.status==='approved')&&affected?'<div class="mt-8">'+action('leave-affected-lessons',affected+' affected lesson'+(affected===1?'':'s'),'inline-link small','data-id="'+l.id+'"')+'</div>':'')+'</div><div class="leave-request-actions">'+tag(l.status[0].toUpperCase()+l.status.slice(1),l.status==='approved'?'green':l.status==='declined'?'red':'amber')+(ui.role==='admin'&&l.status==='pending'?action('approve-staff-leave','Approve','btn primary small','data-id="'+l.id+'"')+action('decline-staff-leave','Decline','btn small','data-id="'+l.id+'"'):'')+'</div></div>';}).join('');
- modal(staff?esc(tutorName(staffId))+' · Annual leave '+TODAY.slice(0,4):'Staff leave requests',totals+'<div class="leave-request-list">'+(rows||'<p class="small muted">'+(staff?'No leave requests yet.':'No pending requests.')+'</p>')+'</div>'+(requests.length>ui.leaveHistoryLimit?'<div class="mt-16">'+action('more-leave-history','Show more','btn small')+'</div>':''),action('close-modal','Close','btn')+(ui.role==='teacher'?action('request-staff-leave',icon('plus')+' Request leave','btn primary','data-id="'+staffId+'"'):''),true);
-}
-function staffLeaveUnits(staffId,date){
- const staff=state.staff.find(s=>s.id===staffId);if(!staff||!/^\d{4}-\d{2}-\d{2}$/.test(date))return [];
- const day=(new Date(date+'T12:00:00').getDay()+6)%7,roster=staff.roster[day];
- return roster==='Full'?['Full day','AM','PM']:['AM','PM'].includes(roster)?[roster]:[];
+ const balance=staffBalance(state,staffId);
+ const entries=state.staffLeave.filter(l=>l.staffId===staffId&&(activeStaffLeave(l)||l.status==='cancelled')).sort((a,b)=>b.date.localeCompare(a.date));
+ const totals='<dl class="leave-summary-grid"><div><dt>Annual allowance</dt><dd>'+balance.allowance+'</dd></div><div><dt>Holiday credits</dt><dd>+'+balance.holidayCredit+'</dd></div><div><dt>Used / scheduled</dt><dd>−'+balance.taken+'</dd></div><div><dt>Available</dt><dd>'+balance.available+' days</dd></div></dl><div class="leave-roster"><h3>Regular working days</h3><div class="roster-grid">'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<div class="roster-header">'+d+'</div>').join('')+staff.roster.map(d=>'<div class="roster-cell '+(d==='Off'?'off':d==='AM'||d==='PM'?'half':'')+'">'+(d==='Full'?'Full day':d)+'</div>').join('')+'</div></div><h3 class="mb-16">Leave history</h3>';
+ const rows=entries.slice(0,ui.leaveHistoryLimit).map(l=>{const affected=activeStaffLeave(l)?leaveAffectedBookings(l).length:0;return '<div class="leave-entry-row"><div class="leave-entry-copy"><p class="small strong">'+dateLabel(l.date,{year:'numeric'})+' · '+esc(l.unit)+' · '+l.days+' day'+(l.days===1?'':'s')+'</p>'+(l.reason?'<p class="row-meta">'+esc(l.reason)+'</p>':'')+(affected?'<div class="mt-8">'+action('leave-affected-lessons',affected+' affected booking'+(affected===1?'':'s'),'inline-link small','data-id="'+l.id+'"')+'</div>':'')+'</div><div class="leave-entry-actions">'+(l.status==='cancelled'?tag('Cancelled'):ui.role==='admin'?action('remove-staff-leave','Remove','btn small','data-id="'+l.id+'" aria-label="Remove '+esc(tutorName(staffId))+' leave on '+dateLabel(l.date)+' '+esc(l.unit)+'"'):'')+'</div></div>';}).join('');
+ modal(esc(tutorName(staffId))+' · Annual leave '+TODAY.slice(0,4),totals+'<div class="leave-entry-list">'+(rows||'<p class="small muted">No leave recorded yet.</p>')+'</div>'+(entries.length>ui.leaveHistoryLimit?'<div class="mt-16">'+action('more-leave-history','Show more','btn small')+'</div>':''),action('close-modal','Close','btn')+(ui.role==='admin'?action('set-staff-leave',icon('plus')+' Set leave','btn primary','data-id="'+staffId+'"'):''),true);
 }
 function refreshStaffLeaveUnits(){
  const select=$('#al-unit');if(!select)return;
- const units=staffLeaveUnits(ui.leaveRequestStaff,$('#al-date').value),value=select.value;
+ const units=staffLeaveUnits(state,ui.leaveEditingStaff,$('#al-date').value),value=select.value;
  select.innerHTML=units.length?units.map(unit=>'<option'+(unit===value?' selected':'')+'>'+unit+'</option>').join(''):'<option value="">Non-working day</option>';
  select.disabled=!units.length;
- $('#al-roster-note').textContent=units.length===1?'Your regular working time is '+units[0]+'. This uses 0.5 day of leave.':!units.length?'Choose one of your working days.':'';
+ $('[data-action="save-staff-leave"]').disabled=!units.length;
+ $('#al-roster-note').textContent=units.length===1?tutorName(ui.leaveEditingStaff)+' works '+units[0]+' only. This uses 0.5 day of leave.':!units.length?'Choose a working day for '+tutorName(ui.leaveEditingStaff)+'.':'';
+ refreshStaffLeaveImpact();
+}
+function refreshStaffLeaveImpact(){
+ const date=$('#al-date')?.value,unit=$('#al-unit')?.value,notice=$('#al-affected');if(!notice)return;
+ const count=unit?leaveAffectedBookings({staffId:ui.leaveEditingStaff,date,unit}).length:0;
+ notice.hidden=!count;notice.textContent=count?count+' student booking'+(count===1?' overlaps':'s overlap')+' this leave.':'';
 }
 function centreCalendarPage(){
  const periods=['Jan–Feb','Mar–Apr','May–Jun','Jul–Aug','Sep–Oct','Nov–Dec'];
@@ -500,7 +497,7 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>This is a front-end prototype with fictional students and payments. Changes stay in this browser. No messages, payments or reports are sent to an external service.</p><p class="mt-16 muted">The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>Restore the original fictional students, lessons and payments. Your demo edits and handwriting in this browser will be cleared.</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeConversations(state);conversationUI.reset();ui.collections={};ui.profileDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor='chan';previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:'chan',moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeStaffLeave(state);normalizeConversations(state);conversationUI.reset();ui.collections={};ui.profileDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor='chan';previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:'chan',moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeup(id,mode='single'){
@@ -684,22 +681,22 @@ function handleAction(a,id,button){
   reportingTotals(state,ui.reportMonth).unmatchedBank.forEach(b=>rows.push(['Unmatched bank entry',b.id,b.reference,'',b.amount,'',b.date,b.date.slice(0,7),'Unmatched','','']));
   downloadText('MathConcept-Tsuen-Wan-'+ui.reportMonth+'-demo-report.csv','\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'));toast('Report exported with unmatched items and exceptions.');
  }else if(a==='leave-details')staffLeaveDialog(id);
- else if(a==='review-staff-leave')staffLeaveDialog();
  else if(a==='more-leave-history')staffLeaveDialog(ui.leaveDialogStaff,true);
  else if(a==='leave-affected-lessons'){const leave=state.staffLeave.find(l=>l.id===id);if(!leave||!['admin','teacher'].includes(ui.role)||ui.role==='teacher'&&leave.staffId!=='chan')return;ui.page='schedule';ui.scheduleTutor=leave.staffId;ui.date=leave.date;ui.weekOffset=Math.floor((Date.parse(leave.date+'T12:00:00Z')-Date.parse(WEEK[0]+'T12:00:00Z'))/(7*86400000));ui.scheduleView='day';ui.moveId=null;closeModal();render();}
  else if(a==='open-calendar-class'){const b=state.bookings.find(b=>b.id===id);if(ui.role!=='teacher'||!b||b.tutor!=='chan')return;ui.classDate=b.date;ui.classStart=b.start;ui.classTutor=b.tutor;ui.selectedStudent=b.studentId;ui.standaloneFolder=false;ui.page='classroom';closeModal();render();}
- else if(a==='request-staff-leave'){
-  if(ui.role!=='teacher')return;
-  ui.leaveRequestStaff='chan';
-  modal('Request annual leave','<div class="form-stack">'+field('Date','<input type="date" id="al-date" value="2026-10-09" min="2026-01-01" max="2026-12-31">')+field('Duration','<select id="al-unit"><option>Full day</option><option>AM</option><option>PM</option></select><p id="al-roster-note" class="small muted mt-8"></p>')+field('Reason','<input id="al-reason" placeholder="Optional note for the manager">')+'</div>',action('close-modal','Cancel','btn')+action('save-staff-leave','Submit request','btn primary','data-id="'+ui.leaveRequestStaff+'"'));
+ else if(a==='set-staff-leave'){
+  if(ui.role!=='admin'||!state.staff.some(s=>s.id===id))return;
+  ui.leaveEditingStaff=id;
+  modal(esc(tutorName(id))+' · Set leave','<div class="form-stack">'+field('Date','<input type="date" id="al-date" value="'+ui.date+'" min="'+TODAY.slice(0,4)+'-01-01" max="'+TODAY.slice(0,4)+'-12-31">')+field('Duration','<select id="al-unit"><option>Full day</option><option>AM</option><option>PM</option></select><p id="al-roster-note" class="small muted mt-8"></p>')+field('Note','<input id="al-reason" placeholder="Optional note">')+'<p id="al-affected" class="notice" hidden></p></div>',action('close-modal','Cancel','btn')+action('save-staff-leave','Save leave','btn primary','data-id="'+id+'"'));
   refreshStaffLeaveUnits();
  }else if(a==='save-staff-leave'){
-  if(ui.role!=='teacher'||id!=='chan')return;
-  const date=$('#al-date').value,unit=$('#al-unit').value,reason=$('#al-reason').value,days=unit==='Full day'?1:.5;
-  if(change(()=>{if(!date||date.slice(0,4)!==TODAY.slice(0,4))throw new Error('Choose a date in the current leave year.');if(!staffLeaveUnits(id,date).includes(unit))throw new Error('Choose leave within your regular working hours.');if(state.staffLeave.some(l=>l.staffId===id&&l.date===date&&l.status!=='declined'&&(l.unit===unit||l.unit==='Full day'||unit==='Full day')))throw new Error('A leave request already covers this time.');const b=staffBalance(state,id);if(days>b.available-b.pending)throw new Error('This request exceeds the available leave balance.');state.staffLeave.push({id:uid('al'),staffId:id,date,unit,days,reason,status:'pending'});},'Leave request sent to the manager.'))closeModal();
- }else if(a==='approve-staff-leave'||a==='decline-staff-leave'){
+  if(ui.role!=='admin'||id!==ui.leaveEditingStaff)return;
+  const date=$('#al-date').value,unit=$('#al-unit').value,reason=$('#al-reason').value;
+  if(change(()=>setStaffLeave(state,{staffId:id,date,unit,reason}),'Leave recorded.',true))closeModal();
+ }else if(a==='remove-staff-leave'){
   if(ui.role!=='admin')return;
-  if(change(()=>{const l=state.staffLeave.find(l=>l.id===id);if(!l||l.status!=='pending')throw new Error('This request has already been handled.');l.status=a==='approve-staff-leave'?'approved':'declined';record(state,l.status+' staff leave for '+dateLabel(l.date)+' · '+l.unit);},a==='approve-staff-leave'?'Leave approved. Review affected lessons on the schedule.':'Leave request declined.'))staffLeaveDialog(ui.leaveDialogStaff);
+  const leave=state.staffLeave.find(l=>l.id===id);if(!leave)return;
+  if(change(()=>cancelStaffLeave(state,id),'Leave removed. Balance updated.',true))closeModal();
  }
 
 }
@@ -707,6 +704,7 @@ document.addEventListener('change',e=>{
  if(conversationUI.onChange(e))return;
  const target=e.target,type=target.dataset.change;
  if(target.id==='al-date'){refreshStaffLeaveUnits();return;}
+ if(target.id==='al-unit'){refreshStaffLeaveImpact();return;}
  if(target.dataset.profileField){updateProfileDraft(target);return;}
  if(type==='makeup-date'||type==='makeup-tutor'){ui[type==='makeup-date'?'makeupDate':'makeupTutor']=target.value;openMakeup(ui.makeupId,'single');return;}
  if(target.id==='new-duration'){const duration=Number(target.value),current=Number($('#new-time').value);$('#new-time').innerHTML=lessonTimeOptions(duration,Math.min(current,CENTRE_CLOSE-duration));return;}

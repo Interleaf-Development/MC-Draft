@@ -73,7 +73,9 @@ test('amount differences stay unresolved, and bank entries cannot be double matc
 test('assessment deduction includes the seventh day and expires afterward',()=>{
  const a=seed().assessment;assert.equal(assessmentCredit(a,'2026-10-03'),200);assert.equal(assessmentCredit(a,'2026-10-04'),0);assert.equal(assessmentCredit(a,'2026-09-25'),0);
 });
-test('holiday overlap credits add to leave; pending leave does not count as taken',()=>{
- const s=seed();assert.deepEqual(staffBalance(s,'chan'),{allowance:14,holidayCredit:1,taken:4,available:11,pending:.5});
- s.staffLeave[0].status='approved';assert.equal(staffBalance(s,'chan').available,10.5);assert.equal(staffBalance(s,'chan').pending,0);
+test('holiday overlap credits add to the balance; only recorded leave is deducted',()=>{
+ const s=seed();assert.deepEqual(s.staffLeave,[]);assert.deepEqual(staffBalance(s,'chan'),{allowance:14,holidayCredit:1,taken:4,available:11,pending:0});
+ s.staffLeave.push({id:'legacy-pending',staffId:'chan',date:'2026-10-07',unit:'PM',days:.5,status:'pending'});
+ assert.equal(staffBalance(s,'chan').available,11);assert.equal(staffBalance(s,'chan').pending,0);
+ s.staffLeave[0].status='recorded';assert.equal(staffBalance(s,'chan').available,10.5);assert.equal(staffBalance(s,'chan').pending,0);
 });

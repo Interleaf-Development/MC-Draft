@@ -44,7 +44,7 @@ The QR contains an opaque demo token, with no student name or contact details. T
 - Drag within a teacher's schedule, or choose **Move lesson**, switch teacher tabs and select the destination. Half-hour starts keep their minute offset. Original bookings remain struck through, replacements show their source date, and Undo restores the move.
 - Capacity labels are hidden; the six-student overlap check still applies. Adding a lesson supports half-hour start times and 30/60/90-minute durations that end by 19:00.
 - The single-lesson make-up chooser filters by date and teacher, with available half-hour starts across the same opening hours. The split-extension flow remains linked to the student's existing lessons.
-- Teachers have a read-only **My schedule** calendar with leave balance and requests underneath. Managers retain the teacher tabs and editing controls.
+- Teachers can view their **My schedule** calendar and leave balance together. Managers retain the teacher tabs and editing controls.
 - The eight teacher names are provided by the user; rosters and bookings are illustrative. AM/PM uses a 14:00 boundary for the demo and requires confirmation with the centre.
 
 ## Client walkthroughs
@@ -84,8 +84,8 @@ Receipt issue dates are never overwritten by bank dates. Amount matching and dat
 
 - **Admin → Students → Assessment & enrolment:** review Mia's assessment and create an enrolment. The sample can include one introductory lesson plus the next block, less an eligible HK$200 assessment deduction.
 - **Parent:** select Mia in the child menu to see her assessment and invoice.
-- **Teacher → My schedule → Request leave:** use the compact annual-leave row below the calendar. Request a full day or the working AM/PM half; non-working time is excluded.
-- **Admin → Schedule:** the annual-leave row follows the selected teacher. **Details** shows the balance calculation, regular working days and leave history; **Staff leave requests** in the schedule side rail opens pending approvals across the centre. Affected lessons link back to that teacher’s date. Approval does not silently move lessons.
+- **Teacher → My schedule:** view the leave balance and history below the calendar. Staff discuss leave with the owner outside the app.
+- **Admin → Schedule → select a teacher → Set leave:** Koko records a full day or working AM/PM half directly. Saving immediately updates the balance and marks the teacher on leave; there is no request or approval stage. **Details** shows the calculation, regular working days and history, with **Remove** for corrections. Affected lessons link back to that teacher’s date; existing lessons stay visible for rescheduling.
 
 ### 5. Conversations
 
@@ -100,6 +100,7 @@ Receipt issue dates are never overwritten by bank dates. Amount matching and dat
 - No real authentication, authorisation, WhatsApp connection, bank integration, messages, payments or external HQ submissions.
 - All role views share browser-local demonstration data. The role switch is a presentation tool, not access control.
 - Sample worksheets illustrate the interaction; they are not MathConcept's actual curriculum. Supplied mascot SVGs are preserved under assets/SVG and copied into dist/brand.
+- Old prototype requests stay inactive during migration; saved confirmed leave remains active.
 - The roster and annual calendar are illustrative. The calendar shows the 48-lesson target and a seven/nine balancing example; it is not a generated operational calendar.
 - Recurring future lessons are seeded examples. This is not a full annual timetable engine.
 - The sample introductory rate is HK$250 and needs client confirmation.

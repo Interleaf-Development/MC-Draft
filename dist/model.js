@@ -244,7 +244,7 @@ export function seed() {
       { id: 'chan', name: centre.manager, role: 'Centre manager', tenure: 3, allowance: 14, taken: 4, holidayCredit: 1, daysOff: 'Tuesday · Thursday AM · Sunday PM', roster: [...demoTutorRosters.chan] },
       { id: 'wong', name: 'Mr Alex Wong', role: 'Teacher', tenure: 2, allowance: 10, taken: 2, holidayCredit: 0.5, daysOff: 'Monday AM · Tuesday AM · Thursday PM · Sunday AM', roster: [...demoTutorRosters.wong] }
     ],
-    staffLeave: [{ id: 'al-001', staffId: 'chan', date: '2026-10-07', unit: 'PM', days: 0.5, reason: 'Personal appointment', status: 'pending' }],
+    staffLeave: [],
     audit: [{ id: 'audit-seed', text: 'R-1028 matched to BANK-104', actor: 'Accounts administrator', at: '28 Sep, 16:40' }],
     reportSubmitted: false
   };
@@ -376,7 +376,7 @@ export function validateSlot(state, booking, ignoreIds = []) {
   if (!staff) return 'Choose an available tutor.';
   const end = booking.start + booking.duration;
   if (!rosterAllows(staff.roster, booking)) return 'This tutor is not available during this session.';
-  if (state.staffLeave.some(l => l.staffId === booking.tutor && l.date === booking.date && l.status === 'approved' && (l.unit === 'Full day' || l.unit === 'AM' && booking.start < HALF_DAY_BOUNDARY || l.unit === 'PM' && end > HALF_DAY_BOUNDARY))) return 'This tutor has approved leave at this time.';
+  if (state.staffLeave.some(l => l.staffId === booking.tutor && l.date === booking.date && activeStaffLeave(l) && (l.unit === 'Full day' || l.unit === 'AM' && booking.start < HALF_DAY_BOUNDARY || l.unit === 'PM' && end > HALF_DAY_BOUNDARY))) return 'This tutor is on leave at this time.';
   const conflict = studentTimeConflict(state, booking, ignoreIds);
   if (conflict) {
     const studentName = studentsById.get(booking.studentId)?.name || 'This student';
@@ -508,9 +508,50 @@ export function assessmentCredit(assessment, enrolDate) {
   const days = (Date.parse(enrolDate) - Date.parse(assessment.assessmentDate)) / 86400000;
   return days >= 0 && days <= assessment.creditDays && assessment.paid ? 200 : 0;
 }
+export function activeStaffLeave(leave) { return leave.status === 'recorded' || leave.status === 'approved'; }
+export function normalizeStaffLeave(state) {
+  const statuses = { approved: 'recorded', declined: 'cancelled', pending: 'unrecorded' };
+  state.staffLeave ??= [];
+  for (const leave of state.staffLeave) if (Object.hasOwn(statuses, leave.status)) leave.status = statuses[leave.status];
+  return state;
+}
+function validStaffLeaveDate(date) {
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date.slice(0, 4) !== TODAY.slice(0, 4)) return false;
+  const parsed = new Date(date + 'T00:00:00Z');
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+}
+export function staffLeaveUnits(state, staffId, date) {
+  const staff = state.staff.find(item => item.id === staffId);
+  if (!staff || !validStaffLeaveDate(date)) return [];
+  const day = (new Date(date + 'T12:00:00Z').getUTCDay() + 6) % 7, roster = staff.roster[day];
+  return roster === 'Full' ? ['Full day', 'AM', 'PM'] : ['AM', 'PM'].includes(roster) ? [roster] : [];
+}
+export function setStaffLeave(state, { staffId, date, unit, reason = '' }) {
+  const staff = state.staff.find(item => item.id === staffId);
+  if (!staff) throw new Error('Choose a valid staff member.');
+  if (!validStaffLeaveDate(date)) throw new Error('Choose a valid date in the ' + TODAY.slice(0, 4) + ' leave year.');
+  if (!staffLeaveUnits(state, staffId, date).includes(unit)) throw new Error('Choose leave within this staff member’s regular working hours.');
+  if (typeof reason !== 'string') throw new Error('Enter a text note for this leave.');
+  if (state.staffLeave.some(leave => leave.staffId === staffId && leave.date === date && activeStaffLeave(leave) && (leave.unit === unit || leave.unit === 'Full day' || unit === 'Full day'))) throw new Error('Leave is already recorded for this time.');
+  const days = unit === 'Full day' ? 1 : 0.5;
+  if (days > staffBalance(state, staffId).available) throw new Error('This leave exceeds the available balance.');
+  const leave = { id: uid('al'), staffId, date, unit, days, reason: reason.trim(), status: 'recorded', recordedBy: centre.manager };
+  state.staffLeave.push(leave);
+  record(state, 'Recorded annual leave for ' + staff.name + ' · ' + dateLabel(date, { year: 'numeric' }) + ' · ' + unit, centre.manager);
+  return leave;
+}
+export function cancelStaffLeave(state, id) {
+  const leave = state.staffLeave.find(item => item.id === id);
+  if (!leave || !activeStaffLeave(leave)) throw new Error('This leave is not an active record.');
+  leave.status = 'cancelled';
+  leave.cancelledBy = centre.manager;
+  const staff = state.staff.find(item => item.id === leave.staffId);
+  record(state, 'Cancelled annual leave for ' + (staff?.name || leave.staffId) + ' · ' + dateLabel(leave.date, { year: 'numeric' }) + ' · ' + leave.unit, centre.manager);
+  return leave;
+}
 export function staffBalance(state, staffId) {
   const staff = state.staff.find(s => s.id === staffId);
-  const approved = state.staffLeave.filter(l => l.staffId === staffId && l.status === 'approved').reduce((n, l) => n + l.days, 0);
-  const pending = state.staffLeave.filter(l => l.staffId === staffId && l.status === 'pending').reduce((n, l) => n + l.days, 0);
-  return { allowance: staff.allowance, holidayCredit: staff.holidayCredit, taken: staff.taken + approved, available: staff.allowance + staff.holidayCredit - staff.taken - approved, pending };
+  if (!staff) throw new Error('Choose a valid staff member.');
+  const recorded = state.staffLeave.filter(l => l.staffId === staffId && activeStaffLeave(l)).reduce((n, l) => n + l.days, 0);
+  return { allowance: staff.allowance, holidayCredit: staff.holidayCredit, taken: staff.taken + recorded, available: staff.allowance + staff.holidayCredit - staff.taken - recorded, pending: 0 };
 }
