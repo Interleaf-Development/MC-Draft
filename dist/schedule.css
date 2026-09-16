@@ -231,3 +231,72 @@
 .timetable :is(.chip-duration,.chip-offset){font-size:10px;flex-shrink:0;color:#8a94a3}
 .timetable .tutor-away{background:#fffaf1}
 .tutor-away-note{font-size:10px;color:#a48027;line-height:16px;display:block}
+
+/* Leave belongs to the selected teacher's calendar column. */
+.schedule-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.schedule-main > .panel { min-width: 0; max-width: 100%; }
+.schedule-layout.teacher-schedule-layout { grid-template-columns: minmax(0, 1fr); }
+.schedule-leave-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 72px;
+  padding: 13px 18px;
+}
+.leave-strip-balance { min-width: 0; }
+.leave-strip-balance h3 { font-size: 14px; line-height: 1.4; letter-spacing: 0; }
+.leave-strip-balance p { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.leave-strip-balance p strong { color: var(--ink); font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.leave-pending { display: inline-block; margin-left: 10px; color: #a48027; font-size: 12px; white-space: nowrap; }
+.leave-strip-actions { display: flex; align-items: center; justify-content: flex-end; flex-shrink: 0; gap: 8px; }
+.leave-strip-actions .btn { min-height: 36px; font-size: 13px; }
+.leave-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+.leave-summary-grid > :is(div, dl) { min-width: 0; margin: 0; }
+.leave-summary-grid dt { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.leave-summary-grid dd { margin: 5px 0 0; color: var(--ink); font-size: 20px; font-weight: 650; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.leave-roster { min-width: 0; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.leave-roster .roster-grid { min-width: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.leave-roster .roster-header { margin-bottom: 4px; }
+.leave-roster .roster-cell { min-width: 0; padding: 6px 2px; font-size: 11px; }
+.leave-request-list { min-width: 0; margin-top: 18px; }
+.leave-request-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.leave-request-row:last-child { border-bottom: 0; }
+.leave-request-copy { flex: 1; min-width: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.leave-request-copy p { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.leave-request-copy strong { color: var(--ink); font-size: 13px; font-weight: 650; }
+.leave-request-actions { display: flex; align-items: center; justify-content: flex-end; flex-shrink: 0; flex-wrap: wrap; gap: 6px; }
+.leave-request-actions .btn { min-height: 32px; padding: 6px 10px; font-size: 12px; }
+
+@media (max-width: 600px) {
+  .schedule-leave-strip { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px 16px; }
+  .leave-strip-actions .btn { flex: 1; min-height: 40px; }
+  .leave-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 18px; }
+  .leave-summary-grid dd { font-size: 19px; }
+  .leave-request-row { flex-wrap: wrap; gap: 8px; }
+  .leave-request-copy { flex-basis: 100%; }
+  .leave-request-actions { margin-left: auto; }
+  .leave-roster .roster-grid { gap: 4px; }
+}
+
+/* Keep the compact leave row in view while the lesson grid scrolls. */
+.schedule-main .calendar-scroll { max-height: max(360px, calc(100dvh - 410px)); }
+@media (min-width: 1450px) {
+  .schedule-main .calendar-scroll { max-height: max(360px, calc(100dvh - 360px)); }
+}
+.teacher-schedule-layout .calendar-scroll { max-height: max(360px, calc(100dvh - 340px)); }
+@media print {
+  .schedule-main .calendar-scroll { max-height: none; }
+}

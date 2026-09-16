@@ -44,6 +44,7 @@ The QR contains an opaque demo token, with no student name or contact details. T
 - Drag within a teacher's schedule, or choose **Move lesson**, switch teacher tabs and select the destination. Half-hour starts keep their minute offset. Original bookings remain struck through, replacements show their source date, and Undo restores the move.
 - Capacity labels are hidden; the six-student overlap check still applies. Adding a lesson supports half-hour start times and 30/60/90-minute durations that end by 19:00.
 - The single-lesson make-up chooser filters by date and teacher, with available half-hour starts across the same opening hours. The split-extension flow remains linked to the student's existing lessons.
+- Teachers have a read-only **My schedule** calendar with leave balance and requests underneath. Managers retain the teacher tabs and editing controls.
 - The eight teacher names are provided by the user; rosters and bookings are illustrative. AM/PM uses a 14:00 boundary for the demo and requires confirmation with the centre.
 
 ## Client walkthroughs
@@ -83,8 +84,8 @@ Receipt issue dates are never overwritten by bank dates. Amount matching and dat
 
 - **Admin → Students → Assessment & enrolment:** review Mia's assessment and create an enrolment. The sample can include one introductory lesson plus the next block, less an eligible HK$200 assessment deduction.
 - **Parent:** select Mia in the child menu to see her assessment and invoice.
-- **Teacher → My roster & leave:** request a full day or AM/PM.
-- **Admin → Staff & leave:** approve the request and see affected bookings. Approval does not silently move lessons.
+- **Teacher → My schedule → Request leave:** use the compact annual-leave row below the calendar. Request a full day or the working AM/PM half; non-working time is excluded.
+- **Admin → Schedule:** the annual-leave row follows the selected teacher. **Details** shows the balance calculation, regular working days and leave history; **Staff leave requests** in the schedule side rail opens pending approvals across the centre. Affected lessons link back to that teacher’s date. Approval does not silently move lessons.
 
 ### 5. Conversations
 
