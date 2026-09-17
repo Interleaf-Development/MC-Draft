@@ -185,21 +185,13 @@
 .booking-chip.cell-colour-green,
 .schedule-colour-swatch.swatch-green,
 .legend-colour.green { --cell-tint: #e9f4ed; --cell-ink: #2c6040; --cell-edge: #a4cbb0; }
-.booking-chip.cell-colour-blue,
-.schedule-colour-swatch.swatch-blue { --cell-tint: #eaf1fb; --cell-ink: #36577f; --cell-edge: #a9c0df; }
-.booking-chip.cell-colour-yellow,
-.schedule-colour-swatch.swatch-yellow { --cell-tint: #fff5db; --cell-ink: #725a21; --cell-edge: #ddc37e; }
-.booking-chip.cell-colour-purple,
-.schedule-colour-swatch.swatch-purple { --cell-tint: #f0ebf8; --cell-ink: #634d85; --cell-edge: #bdaed7; }
-.booking-chip.cell-colour-pink,
-.schedule-colour-swatch.swatch-pink { --cell-tint: #fbecef; --cell-ink: #87475d; --cell-edge: #dfafbd; }
-.booking-chip:is(.cell-colour-green, .cell-colour-blue, .cell-colour-yellow, .cell-colour-purple, .cell-colour-pink) {
+.booking-chip.cell-colour-green {
   background: var(--cell-tint);
 }
-.booking-chip:is(.cell-colour-green, .cell-colour-blue, .cell-colour-yellow, .cell-colour-purple, .cell-colour-pink):not(.moved):not(.absent):not(.cancelled) {
+.booking-chip.cell-colour-green:not(.moved):not(.absent):not(.cancelled) {
   color: var(--cell-ink);
 }
-.booking-chip:is(.cell-colour-green, .cell-colour-blue, .cell-colour-yellow, .cell-colour-purple, .cell-colour-pink):is(.moved, .absent, .cancelled) {
+.booking-chip.cell-colour-green:is(.moved, .absent, .cancelled) {
   color: #a9afb8;
   border-left-color: #d8dce1;
 }
