@@ -102,7 +102,7 @@ An ordinary move can also be done by dragging a booking, or by opening it and ch
 4. The sample includes **Ethan / R-1025** (receipt 1 August, bank 31 July → date back), **Lucas / R-1026** (receipt 31 July, bank 2 August → date forward), **Emma / R-1027** (HK$200 short), an ambiguous payment and an unidentified deposit. Chloe’s default proof reference matches her sample deposit.
 5. **HQ report:** choose a bank-credit month, inspect the matched ledger and export CSV. Receipt dates stay unchanged; unmatched receipts have no assumed reporting month. Open **Details** for the proof and bank dates; changing an existing match is a separate action.
 
-**Admin → Billing & reconciliation → Receipts:** browse receipts sent in a day or Monday–Sunday week, jump to a date, or search by student, parent, receipt or payment reference. Rows are grouped by date sent with pagination and direct **Receipt** / **Payment proof** actions. This demo issues and sends receipts together, so the register uses the original receipt issue date; bank date-forward/back adjustments do not move a receipt between groups. Saved uploads open as images/PDFs, while fixture evidence is explicitly labeled as fictional.
+**Admin → Billing & reconciliation → Receipts:** browse a Monday–Sunday board with seven date columns, jump to a week, or search by student, parent, receipt or payment reference. Every receipt appears under its date sent, showing only the student and amount. Select an entry to open its receipt and **Payment proof** action. Busy days scroll within the board without hiding later days behind pagination. This demo issues and sends receipts together, so the register uses the original receipt issue date; bank date-forward/back adjustments do not move a receipt between groups. Saved uploads open as images/PDFs, while fixture evidence is explicitly labeled as fictional.
 
 The working screens show one toolbar and a compact ledger. Reconciliation defaults to **Needs review**; routine matches remain in the status filter. **Unmatched deposits** and **Statement history** open on demand. Invoice details hold proof/receipt actions instead of repeating those controls and descriptions on every row.
 
@@ -161,7 +161,7 @@ dist/conversations-ui.js     Chat list, messages and composer interactions
 dist/conversations.css       WhatsApp-style desktop and mobile chat layout
 dist/billing-automation.js   Proof screening, receipt automation and statement matching
 dist/billing-proof-ui.js     Parent proof upload and review flow
-dist/receipts-ui.js          Receipt register with day/week browsing and proof access
+dist/receipts-ui.js          Seven-column weekly receipts and proof access
 dist/receipts.css            Shared receipt register layout
 dist/bank-check-ui.js        Statement preview, exception review and import history
 dist/statement-csv.js        Validated local CSV statement parser

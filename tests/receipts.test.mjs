@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TODAY, seed, seedCentreVolume } from '../dist/model.js';
+import { TODAY, seed, seedCentreVolume, money } from '../dist/model.js';
 import { normalizeBillingAutomation, submitPaymentProof } from '../dist/billing-automation.js';
 import { receiptPeriod, receiptRegister, hasReceiptProof, createReceiptsUI } from '../dist/receipts-ui.js';
 
@@ -16,7 +16,7 @@ test('receipt week is Monday–Sunday across month, year and leap-day boundaries
   assert.deepEqual(receiptPeriod('2027-01-01'), { start: '2026-12-28', end: '2027-01-03' });
   assert.deepEqual(receiptPeriod('2027-01-03'), { start: '2026-12-28', end: '2027-01-03' });
   assert.deepEqual(receiptPeriod('2027-01-04'), { start: '2027-01-04', end: '2027-01-10' });
-  assert.deepEqual(receiptPeriod('2028-02-29', 'day'), { start: '2028-02-29', end: '2028-02-29' });
+  assert.deepEqual(receiptPeriod('2028-02-29'), { start: '2028-02-28', end: '2028-03-05' });
   assert.deepEqual(receiptPeriod('2026-02-29'), receiptPeriod(TODAY));
 });
 
@@ -24,19 +24,22 @@ test('sent-date register uses receipt issue date, not proof date or bank credit 
   const state = fresh();
   const receipt = state.receipts.find(item => item.id === 'R-1025');
   assert.equal(receipt.issuedDate, '2026-08-01');
-  state.bankTransactions.push({ id: 'bank-test', date: '2026-07-31', amount: 2000 });
-  receipt.bankId = 'bank-test'; receipt.proofDate = '2026-07-31';
-  assert.equal(receiptRegister(state, { date: '2026-07-31', view: 'day', query: receipt.id }).total, 0);
-  const result = receiptRegister(state, { date: '2026-08-01', view: 'day', query: receipt.id });
-  assert.equal(result.total, 1); assert.equal(result.groups[0].date, '2026-08-01');
+  state.bankTransactions.push({ id: 'bank-test', date: '2026-08-03', amount: 2000 });
+  receipt.bankId = 'bank-test'; receipt.proofDate = '2026-07-26';
+  assert.equal(receiptRegister(state, { date: receipt.proofDate, query: receipt.id }).total, 0);
+  assert.equal(receiptRegister(state, { date: '2026-08-03', query: receipt.id }).total, 0);
+  const result = receiptRegister(state, { date: '2026-08-01', query: receipt.id });
+  assert.equal(result.total, 1);
+  assert.deepEqual(result.groups.find(group => group.date === '2026-08-01').rows.map(row => row.receipt.id), [receipt.id]);
   assert.equal(result.items[0].receipt, receipt);
 });
 
-test('week includes both endpoints, excludes adjacent dates and sorts sent-day groups newest first', () => {
+test('week includes both endpoints, excludes adjacent dates and keeps all seven sent days in calendar order', () => {
   const state = { invoices: [], receipts: ['2026-09-27', '2026-09-28', '2026-09-30', '2026-10-04', '2026-10-05'].map((issuedDate, index) => ({ id: 'R-' + index, studentId: 'chloe', amount: 2000, issuedDate })) };
   const result = receiptRegister(state);
   assert.equal(result.total, 3); assert.equal(result.amount, 6000);
-  assert.deepEqual(result.groups.map(group => group.date), ['2026-10-04', '2026-09-30', '2026-09-28']);
+  assert.deepEqual(result.groups.map(group => group.date), ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04']);
+  assert.deepEqual(result.groups.map(group => group.rows.length), [1, 0, 1, 0, 0, 0, 1]);
 });
 
 test('search finds student, parent, student number, receipt, invoice and payment references within the period', () => {
@@ -52,25 +55,28 @@ test('search finds student, parent, student number, receipt, invoice and payment
   assert.equal(receiptRegister(state, { query: 'Emma Lam' }).items[0].parent, 'Winnie Lam');
 });
 
-test('large fixture ledger paginates without duplicates and totals cover all filtered results', () => {
+test('busy week contains every receipt once across seven columns, without hiding later records behind pagination', () => {
   const state = fresh(), before = JSON.stringify(state);
-  const first = receiptRegister(state), second = receiptRegister(state, { page: 2 });
-  assert.ok(first.total > 100); assert.equal(first.items.length, 25); assert.equal(second.items.length, 25);
-  assert.equal(new Set([...first.items, ...second.items].map(row => row.receipt.id)).size, 50);
-  assert.equal(first.amount, first.total * 2000);
-  assert.equal(second.amount, first.amount);
-  const last = receiptRegister(state, { page: 900, pageSize: 50 });
-  assert.equal(last.page, last.pageCount); assert.equal(last.last, last.total);
-  assert.equal(last.pageSize, 50); assert.ok(last.items.length <= 50);
+  const result = receiptRegister(state), grouped = result.groups.flatMap(group => group.rows);
+  const expected = state.receipts.filter(receipt => receipt.issuedDate >= result.start && receipt.issuedDate <= result.end);
+  assert.ok(result.total > 100);
+  assert.equal(result.items.length, expected.length);
+  assert.equal(grouped.length, expected.length);
+  assert.equal(result.groups.length, 7);
+  assert.deepEqual(new Set(grouped.map(row => row.receipt.id)), new Set(expected.map(receipt => receipt.id)));
+  assert.ok(result.items.some(row => row.receipt.id === expected.at(-1).id));
+  for (const group of result.groups) assert.ok(group.rows.every(row => row.receipt.issuedDate === group.date));
+  assert.equal(result.amount, expected.reduce((total, receipt) => total + receipt.amount, 0));
   assert.equal(JSON.stringify(state), before, 'Reading the receipt register never modifies fixture records');
 });
 
 test('new automatically issued receipt appears in today’s group with its saved payment proof', () => {
   const state = fresh();
-  assert.equal(receiptRegister(state, { view: 'day', query: 'Chloe Chan' }).total, 0);
+  assert.equal(receiptRegister(state, { query: 'Chloe Chan' }).total, 0);
   submitPaymentProof(state, 'INV-1024', { scenario: 'pass', reference: 'FPS RECEIPTS-TEST', paymentDate: TODAY });
-  const result = receiptRegister(state, { view: 'day', query: 'Chloe Chan' });
-  assert.equal(result.total, 1); assert.equal(result.groups[0].date, TODAY);
+  const result = receiptRegister(state, { query: 'Chloe Chan' });
+  assert.equal(result.total, 1);
+  assert.deepEqual(result.groups.find(group => group.date === TODAY).rows.map(row => row.receipt.id), ['R-1024']);
   assert.equal(result.items[0].receipt.id, 'R-1024');
   assert.ok(result.items[0].proofAvailable);
 });
@@ -78,7 +84,7 @@ test('new automatically issued receipt appears in today’s group with its saved
 test('receipt and payment-proof actions open the correct connected records without changing data', () => {
   const state = fresh(), before = JSON.stringify(state), { ui, calls } = createUI(state);
   const html = ui.render();
-  assert.match(html, /data-action="receipts-proof"/);
+  assert.doesNotMatch(html, /data-action="receipts-proof"/);
   assert.match(html, /aria-label="Receipts by sent date"/);
   ui.handleAction('receipts-open', 'R-1027');
   ui.handleAction('receipts-proof', 'R-1027');
@@ -88,15 +94,31 @@ test('receipt and payment-proof actions open the correct connected records witho
   assert.equal(JSON.stringify(state), before);
 });
 
+test('seven-column board shows only student names and amounts in its receipt entries', () => {
+  const state = fresh(), { ui } = createUI(state), html = ui.render();
+  const rows = new Map(receiptRegister(state).items.map(row => [row.receipt.id, row]));
+  const columns = html.match(/class="[^"]*\breceipts-day-column\b[^"]*"/g) || [];
+  const entries = [...html.matchAll(/<button\b(?=[^>]*data-action="receipts-open")([^>]*)>([\s\S]*?)<\/button>/g)];
+  assert.equal(columns.length, 7);
+  assert.equal(entries.length, rows.size);
+  for (const [, attributes, content] of entries) {
+    const id = attributes.match(/data-id="([^"]+)"/)?.[1];
+    const row = rows.get(id);
+    assert.ok(row, `Receipt entry links to a known receipt: ${id}`);
+    const visibleText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    assert.equal(visibleText, `${row.student.name} ${money(row.receipt.amount)}`);
+  }
+  assert.doesNotMatch(html, /data-action="receipts-(?:view|page)"|id="receipts-page-size"/);
+});
+
 test('missing legacy proof remains unavailable; valid saved uploads and explicit demo samples are viewable', () => {
   const state = fresh(), invoice = state.invoices.find(item => item.id === 'INV-1027');
   assert.ok(hasReceiptProof(invoice));
   delete invoice.proofReview;
   const { ui, calls } = createUI(state);
   ui.onChange({ target: { id: 'receipts-date', value: '2026-09-29' } });
-  ui.handleAction('receipts-view', null, { dataset: { view: 'day' } });
   ui.onInput({ target: { id: 'receipts-search', value: 'R-1027', isConnected: false } });
-  assert.match(ui.render(), /Proof unavailable/);
+  assert.equal(receiptRegister(state, { query: 'R-1027' }).items[0].proofAvailable, false);
   assert.doesNotMatch(ui.render(), /data-action="receipts-proof"/);
   ui.handleAction('receipts-proof', 'R-1027');
   assert.deepEqual(calls.proofs, []);
@@ -109,27 +131,39 @@ test('missing legacy proof remains unavailable; valid saved uploads and explicit
   ui.reset();
 });
 
-test('day/week navigation, date jumps and pagination reset use the chosen sent period', () => {
+test('week navigation, date jumps and reset retain a seven-day period', () => {
   const { ui } = createUI(fresh());
-  ui.handleAction('receipts-page', null, { dataset: { page: '3' } });
-  assert.match(ui.render(), /51–75 of/);
-  ui.handleAction('receipts-view', null, { dataset: { view: 'day' } });
-  assert.match(ui.render(), /No receipts sent this day/);
   ui.handleAction('receipts-previous');
-  assert.match(ui.render(), /value="2026-09-29"/);
-  ui.handleAction('receipts-view', null, { dataset: { view: 'week' } });
+  assert.match(ui.render(), /value="2026-09-23"/);
   ui.handleAction('receipts-next');
-  assert.match(ui.render(), /value="2026-10-06"/);
+  assert.match(ui.render(), /value="2026-09-30"/);
+  ui.handleAction('receipts-next');
+  assert.match(ui.render(), /value="2026-10-07"/);
   ui.onChange({ target: { id: 'receipts-date', value: '2027-01-01' } });
-  assert.match(ui.render(), /28 Dec – 3 Jan 2027/);
+  for (const date of ['2026-12-28', '2027-01-03']) assert.ok(ui.render().includes(date));
   ui.onChange({ target: { id: 'receipts-date', value: '' } });
   assert.match(ui.render(), /value="2027-01-01"/);
   ui.handleAction('receipts-today');
   assert.match(ui.render(), /value="2026-09-30"/);
-  ui.onChange({ target: { id: 'receipts-page-size', value: '50' } });
-  assert.match(ui.render(), /1–50 of/);
+  ui.onChange({ target: { id: 'receipts-date', value: '2027-01-01' } });
+  ui.onInput({ target: { id: 'receipts-search', value: 'missing-receipt', isConnected: false } });
   ui.reset();
-  assert.match(ui.render(), /1–25 of/);
+  assert.match(ui.render(), /value="2026-09-30"/);
+  assert.doesNotMatch(ui.render(), /missing-receipt/);
+  assert.ok(ui.render().includes('R-1027'));
+});
+
+test('an empty or searched-empty week still displays all seven dates', () => {
+  const { ui } = createUI({ invoices: [], receipts: [] });
+  const result = receiptRegister({ invoices: [], receipts: [] });
+  assert.equal(result.total, 0); assert.equal(result.amount, 0);
+  assert.equal(result.groups.length, 7);
+  assert.ok(result.groups.every(group => group.rows.length === 0));
+  for (const date of result.groups.map(group => group.date)) assert.ok(ui.render().includes(date));
+  ui.onInput({ target: { id: 'receipts-search', value: 'nobody', isConnected: false } });
+  assert.equal((ui.render().match(/class="[^"]*\breceipts-day-column\b[^"]*"/g) || []).length, 7);
+  assert.doesNotMatch(ui.render(), /data-action="receipts-open"/);
+  ui.reset();
 });
 
 test('debounced search preserves the cursor and only restores focus when the search still owns it', async () => {

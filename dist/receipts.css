@@ -1,32 +1,28 @@
-.receipts-period-toolbar,
+.receipts-toolbar,
 .receipts-period-controls,
 .receipts-date-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.receipts-period-toolbar { justify-content: space-between; gap: 12px; }
+.receipts-toolbar { justify-content: space-between; gap: 12px; }
 .receipts-period-controls .icon-btn { width: 32px; height: 32px; flex: none; }
 .receipts-period-title { margin: 0 5px; font-size: 14px; font-weight: 650; white-space: nowrap; }
 .receipts-date-controls { margin-left: auto; }
-.receipts-date-controls > label { color: var(--muted); font-size: 12px; }
-.receipts-date-controls > input,
-.receipts-page-size > select { min-height: 32px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font: inherit; font-size: 12px; }
-.receipts-date-controls .segmented { margin-left: 5px; }
-.receipts-search-toolbar > input { flex: 0 1 380px; }
-.receipts-search-toolbar > .billing-total { margin-left: auto; }
-.receipts-workspace .receipts-table .table-scroll { max-height: max(300px, calc(100dvh - 340px)); }
-.receipts-workspace .receipts-table table { min-width: 780px; }
-.receipts-workspace .receipts-table .receipts-day > td { padding: 8px 14px; background: #f6f7f9; color: #69758a; font-size: 12px; font-weight: 600; text-align: left; }
-.receipts-workspace .receipts-table td:first-child { min-width: 190px; }
-.receipts-row-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
-.receipts-no-proof { min-width: 108px; color: var(--muted); font-size: 12px; text-align: center; }
-.receipts-page-size { display: flex; align-items: center; gap: 7px; margin-right: 8px; color: var(--muted); font-size: 12px; }
+.receipts-date-controls > input { min-height: 34px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font: inherit; font-size: 12px; }
+.receipts-date-controls > input[type=search] { width: 185px; }
+.receipts-board { overflow: auto; max-height: max(360px, calc(100dvh - 235px)); }
+.receipts-week-grid { display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); min-width: 840px; min-height: 360px; }
+.receipts-day-column { min-width: 0; border-right: 1px solid var(--line); }
+.receipts-day-column:last-child { border-right: 0; }
+.receipts-day-heading { position: sticky; top: 0; z-index: 1; margin: 0; padding: 13px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; background: #fafbfd; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 650; }
+.receipts-day-heading > span { color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.receipts-day-heading.is-today > time { color: #cf373e; }
+.receipts-day-list { display: flex; flex-direction: column; gap: 5px; padding: 7px; }
+.receipts-entry { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 9px 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; text-align: left; font: inherit; cursor: pointer; }
+.receipts-entry:hover { background: #faf7f7; border-color: #deb9bc; }
+.receipts-entry:focus-visible { outline: 2px solid #cf373e; outline-offset: 1px; }
+.receipts-entry-name { color: var(--ink); font-size: 12px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.receipts-entry-amount { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.receipts-day-empty { padding: 12px 0; color: #a1aab8; text-align: center; font-size: 12px; }
+.receipts-empty-search { margin: 0; }
 @media (max-width: 850px) {
   .receipts-date-controls { width: 100%; margin-left: 0; }
-  .receipts-date-controls .segmented { margin-left: auto; }
-  .receipts-search-toolbar > input { flex: 1 1 230px; }
-}
-@media (max-width: 480px) {
-  .receipts-period-title { font-size: 12px; }
-  .receipts-period-controls { gap: 5px; }
-  .receipts-period-controls > .btn { padding: 5px 7px; }
-  .receipts-date-controls > input { font-size: 16px; }
-  .receipts-search-toolbar > .billing-total { margin-left: 0; }
+  .receipts-date-controls > input[type=search] { flex: 1; }
 }
