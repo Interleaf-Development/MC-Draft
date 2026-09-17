@@ -373,7 +373,7 @@
   max-width: 100%;
 }
 .schedule-main > .panel { min-width: 0; max-width: 100%; }
-.schedule-layout.teacher-schedule-layout { grid-template-columns: minmax(0, 1fr); }
+
 .schedule-leave-strip {
   display: flex;
   align-items: center;
@@ -494,3 +494,24 @@
  .regular-date-change { display: none; }
  .regular-rule-summary p { flex-wrap: wrap; }
 }
+
+/* A holding area for leave without an arranged replacement. */
+.schedule-leave-dropzone {
+ display: flex;
+ align-items: center;
+ gap: 10px;
+ min-height: 76px;
+ margin-bottom: 14px;
+ padding: 14px 12px;
+ border: 1px dashed #c8d0da;
+ border-radius: 8px;
+ background: #fafbfc;
+ color: #6a7789;
+ transition: background .15s, border-color .15s;
+}
+.schedule-leave-dropzone > .icon { width: 24px; height: 24px; flex-shrink: 0; }
+.schedule-leave-dropzone strong { display: block; color: var(--ink); font-size: 13px; }
+.schedule-leave-dropzone span { display: block; margin-top: 4px; font-size: 11px; line-height: 1.5; }
+.schedule-leave-dropzone.is-dragging { border-color: #b27832; background: #fffaf0; }
+.schedule-leave-dropzone.drag-over { border: 2px solid #b27832; padding: 13px 11px; background: #fff0d4; color: #946323; }
+@media (prefers-reduced-motion: reduce) { .schedule-leave-dropzone { transition: none; } }

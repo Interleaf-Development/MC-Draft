@@ -39,7 +39,9 @@ class Element {
   setAttribute(name, value) { this.attributes[name] = value; }
   getBoundingClientRect() { return this.rect || { height: this.height }; }
   matches(selector) {
+    if (selector.includes(',')) return selector.split(',').some(part => this.matches(part.trim()));
     if (selector === '[data-slot]') return 'slot' in this.dataset;
+    if (selector === '[data-leave-dropzone]') return 'leaveDropzone' in this.dataset;
     if (selector === '.booking-chip[draggable=true]') return this.classes.has('booking-chip') && this.draggable;
     if (selector === '.timetable:not(.drag-source-table)') return this.classes.has('timetable') && !this.classes.has('drag-source-table');
     if (selector === '.timetable:not(.drag-source-table) [data-slot]') return 'slot' in this.dataset && Boolean(this.parent?.closest('.timetable:not(.drag-source-table)'));
@@ -68,13 +70,15 @@ function fakeClock() {
   };
 }
 
-function setup() {
+function setup({ role = 'admin', booking = {}, scheduleTutor = 'chan' } = {}) {
   const state = model.seed();
-  state.bookings = [{ id: 'drag-lesson', studentId: 'chloe', tutor: 'chan', date: model.TODAY, start: 960, duration: 60, status: 'scheduled' }];
-  const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor: 'chan', date: model.TODAY, weekOffset: 0 };
+  state.bookings = [{ id: 'drag-lesson', studentId: 'chloe', tutor: 'chan', date: model.TODAY, start: 960, duration: 60, status: 'scheduled', ...booking }];
+  const ui = { role, page: 'schedule', scheduleView: 'week', scheduleTutor, date: model.TODAY, weekOffset: 0 };
   const body = new Element(), scroll = new Element('calendar-scroll'), title = new Element(); body.root = true; body.append(scroll);
+  const bin = new Element('schedule-leave-dropzone', { leaveDropzone: '' }); body.append(bin);
   Object.assign(scroll, { clientWidth: 800, clientHeight: 500, scrollTop: 320, scrollLeft: 42, rect: { left: 100, top: 80 } });
-  const documentListeners = new Map(), windowListeners = new Map(), clock = fakeClock(), moves = [], hints = [];
+  const documentListeners = new Map(), windowListeners = new Map(), clock = fakeClock(), moves = [], parked = [], changes = [], hints = [];
+  const queue = { query: 'other student', page: 3 }, toasts = [], renders = [];
   const document = { body, documentElement: body, hidden: false, addEventListener: (type, handler) => documentListeners.set(type, handler) };
   const all = (selector, root = body) => descendants(root).filter(node => node.matches(selector));
 
@@ -107,9 +111,13 @@ function setup() {
     $$: all, esc: value => value, tutorName: () => 'Koko', action: () => '', bookingChip: () => '',
     closeScheduleColourMenu() {}, showScheduleDragHint: (direction, duration) => hints.push({ direction, duration }),
     createEdgePager: options => createEdgePager({ ...options, setTimer: clock.setTimer, clearTimer: clock.clearTimer }),
-    moveTo: (id, destination) => moves.push({ id, destination: { ...destination } })
+    moveTo: (id, destination) => moves.push({ id, destination: { ...destination } }),
+    parkBookingForMakeup: (...args) => { parked.push(args); return { id: 'new-makeup', studentId: 'chloe' }; },
+    change: (apply, message, undoable) => { changes.push({ message, undoable }); apply(); return true; },
+    identity: () => ({ name: 'Koko Ko' }), collection: name => { assert.equal(name, 'makeups'); return queue; },
+    toast: (...args) => toasts.push(args), render: () => renders.push(true)
   });
-  vm.runInContext('let scheduleDrag=null;\n' + ['shiftedWeek', 'slotBookings', 'calendarCell', 'timetable', 'scheduleDragBounds', 'scheduleDragEdge', 'pageDraggedWeek', 'finishScheduleDrag'].map(functionSource).join('\n') + '\nconst scheduleEdgePager=createEdgePager({onPage:pageDraggedWeek,onHint:showScheduleDragHint});\n' + source.slice(listenerStart, listenerEnd), context);
+  vm.runInContext('let scheduleDrag=null;\n' + ['shiftedWeek', 'slotBookings', 'calendarCell', 'timetable', 'scheduleDragBounds', 'scheduleDragEdge', 'pageDraggedWeek', 'finishScheduleDrag', 'canParkScheduleBooking', 'parkScheduleBooking'].map(functionSource).join('\n') + '\nconst scheduleEdgePager=createEdgePager({onPage:pageDraggedWeek,onHint:showScheduleDragHint});\n' + source.slice(listenerStart, listenerEnd), context);
   const original = gridFromHTML(context.timetable(model.WEEK, 'chan', { 960: 176 })); scroll.append(original);
   const originalSlot = original.children.find(node => node.dataset.date === model.TODAY && node.dataset.start === '960');
   const chip = new Element('booking-chip', { id: 'drag-lesson' }); chip.draggable = true; originalSlot.append(chip);
@@ -122,7 +130,7 @@ function setup() {
     while (ms > 0) { emit('dragover'); const step = Math.min(100, ms); clock.advance(step); ms -= step; }
   }
   return {
-    state, ui, context, body, scroll, original, chip, title, clock, moves, hints, document, emit, hover,
+    state, ui, context, body, scroll, bin, original, chip, title, clock, moves, parked, changes, queue, toasts, renders, hints, document, emit, hover, windowListeners,
     start: () => emit('dragstart', { target: chip }),
     visible: () => all('.timetable:not(.drag-source-table)', scroll)[0],
     rows: grid => Object.fromEntries(all('.timetable-time', grid).map(row => [row.dataset.hour, row.height])),
@@ -202,4 +210,155 @@ test('a nested dragleave outside calendar bounds cancels edge dwell without endi
   app.clock.advance(2000); assert.equal(app.ui.weekOffset, 0);
   app.hover(850); assert.equal(app.ui.weekOffset, 1, 'Re-entering starts a fresh dwell');
   assert.deepEqual(app.state, before); assert.deepEqual(app.moves, []);
+});
+
+test('dropping a paged lesson into the Leave bin pauses edge paging and delegates once without a timetable move', () => {
+  const app = setup(), before = model.clone(app.state);
+  app.start(); app.hover(850);
+  assert.equal(app.ui.weekOffset, 1); assert.equal(app.clock.pending, 1);
+  const label = new Element(); app.bin.append(label);
+  const over = app.emit('dragover', { target: label, clientX: 1050 });
+  assert.equal(over.prevented, true); assert.equal(app.bin.classList.contains('drag-over'), true);
+  assert.equal(app.clock.pending, 0, 'Holding over the bin must cancel the next-week dwell');
+  app.clock.advance(3000); assert.equal(app.ui.weekOffset, 1);
+  app.emit('drop', { target: label, clientX: 1050 }); app.emit('dragend');
+  app.emit('drop', { target: label, clientX: 1050 });
+  assert.equal(app.parked.length, 1); assert.equal(app.changes.length, 1);
+  assert.equal(app.changes[0].undoable, true);
+  assert.deepEqual(app.queue, { query: '', page: 1 }); assert.equal(app.renders.length, 1);
+  assert.deepEqual(app.moves, []); assert.deepEqual(app.state, before, 'Mutation is delegated to the leave model');
+  assert.equal(app.bin.classList.contains('drag-over'), false); assert.equal(app.drag(), null);
+  assert.equal(app.original.isConnected, false); assert.equal(app.clock.pending, 0);
+});
+
+test('a teacher can park their own unattended lesson, but cannot move it into a timetable slot or page weeks', () => {
+  const app = setup({ role: 'teacher', scheduleTutor: 'other-tutor' });
+  app.start(); assert.ok(app.drag());
+  app.hover(2400);
+  assert.equal(app.ui.weekOffset, 0); assert.equal(app.clock.pending, 0);
+  const slot = app.visible().children.find(node => node.dataset.start === '1020');
+  const over = app.emit('dragover', { target: slot, clientX: 500 });
+  assert.equal(over.prevented, false); assert.equal(slot.classList.contains('drag-over'), false);
+  app.emit('drop', { target: slot, clientX: 500 }); app.emit('dragend');
+  assert.deepEqual(app.moves, []); assert.deepEqual(app.parked, []); assert.equal(app.drag(), null);
+
+  // The first cleanup replaces the grid, so start from the current live DOM.
+  const freshChip = new Element('booking-chip', { id: 'drag-lesson' }); freshChip.draggable = true;
+  app.visible().children.find(node => node.dataset.start === '960').append(freshChip);
+  app.emit('dragstart', { target: freshChip });
+  assert.ok(app.drag()); assert.equal(app.drag().tutor, model.centre.managerId);
+  app.emit('dragover', { target: app.bin, clientX: 1050 });
+  assert.equal(app.bin.classList.contains('drag-over'), true);
+  app.emit('drop', { target: app.bin, clientX: 1050 }); app.emit('dragend');
+  assert.equal(app.parked.length, 1); assert.equal(app.changes[0].undoable, true);
+  assert.deepEqual(app.moves, []); assert.equal(app.bin.classList.contains('drag-over'), false);
+});
+
+test('Leave bin rejects external drags, other teachers’ lessons, and lessons that are already attended', () => {
+  const external = setup();
+  const over = external.emit('dragover', { target: external.bin });
+  external.emit('drop', { target: external.bin });
+  assert.equal(over.prevented, false); assert.deepEqual(external.parked, []); assert.equal(external.drag(), null);
+
+  for (const booking of [{ tutor: 'lam' }, { attendance: 'present' }, { status: 'absent' }, { status: 'cancelled' }]) {
+    const app = setup({ role: 'teacher', booking });
+    app.start(); app.emit('dragover', { target: app.bin }); app.emit('drop', { target: app.bin });
+    assert.equal(app.drag(), null); assert.deepEqual(app.parked, []); assert.deepEqual(app.moves, []);
+    assert.equal(app.bin.classList.contains('drag-over'), false);
+  }
+  const attended = setup({ booking: { attendance: 'present' } });
+  attended.start(); attended.emit('dragover', { target: attended.bin }); attended.emit('drop', { target: attended.bin });
+  assert.deepEqual(attended.parked, [], 'Admin must not turn an attended lesson into leave');
+});
+
+test('Leave bin rechecks booking state and staff role at drop instead of using stale drag-start eligibility', () => {
+  for (const invalidate of [
+    app => { app.state.bookings[0].attendance = 'present'; },
+    app => { app.state.bookings[0].status = 'absent'; },
+    app => { app.state.bookings = []; },
+    app => { app.ui.role = 'parent'; },
+    app => { app.ui.page = 'classroom'; }
+  ]) {
+    const app = setup(); app.start(); app.emit('dragover', { target: app.bin });
+    assert.equal(app.bin.classList.contains('drag-over'), true);
+    invalidate(app);
+    app.emit('drop', { target: app.bin });
+    assert.deepEqual(app.parked, []); assert.deepEqual(app.moves, []);
+    assert.equal(app.drag(), null); assert.equal(app.bin.classList.contains('drag-over'), false);
+  }
+  const teacher = setup({ role: 'teacher' }); teacher.start(); teacher.state.bookings[0].tutor = 'lam';
+  teacher.emit('drop', { target: teacher.bin }); assert.deepEqual(teacher.parked, []);
+});
+
+test('leaving the bin and aborting a drag clear its highlight without recording leave', () => {
+  for (const abort of [
+    app => app.emit('dragend'),
+    app => app.windowListeners.get('blur')(),
+    app => app.windowListeners.get('pagehide')(),
+    app => { app.document.hidden = true; app.emit('visibilitychange'); }
+  ]) {
+    const app = setup(); app.start(); app.emit('dragover', { target: app.bin });
+    assert.equal(app.bin.classList.contains('drag-over'), true);
+    const label = new Element(); app.bin.append(label);
+    app.emit('dragleave', { target: label, relatedTarget: app.bin, clientX: 1050 });
+    assert.equal(app.bin.classList.contains('drag-over'), true, 'Moving between children inside the bin keeps its hint');
+    app.emit('dragleave', { target: app.bin, relatedTarget: app.scroll, clientX: 500 });
+    assert.equal(app.bin.classList.contains('drag-over'), false);
+    app.emit('dragover', { target: app.bin }); abort(app);
+    assert.equal(app.bin.classList.contains('drag-over'), false); assert.equal(app.drag(), null);
+    assert.equal(app.clock.pending, 0); assert.equal(app.scroll.classList.contains('lesson-dragging'), false);
+    assert.deepEqual(app.parked, []); assert.deepEqual(app.moves, []);
+  }
+});
+
+test('staff leave-bin actions record the acting role and keep the calendar position while revealing the follow-up queue', () => {
+  for (const role of ['admin', 'teacher']) {
+    const booking = role === 'admin' ? { tutor: 'lam' } : {};
+    const app = setup({ role, booking, scheduleTutor: booking.tutor || 'chan' });
+    app.ui.moveId = 'another-lesson';
+    app.start(); app.emit('drop', { target: app.bin });
+    assert.equal(app.parked.length, 1);
+    assert.equal(app.parked[0][0], app.state); assert.equal(app.parked[0][1], 'drag-lesson');
+    assert.equal(app.parked[0][2].actor, 'Koko Ko · ' + (role === 'admin' ? 'Centre director' : 'Teacher'));
+    assert.equal(app.ui.moveId, null); assert.deepEqual(app.queue, { query: '', page: 1 });
+    assert.equal(app.scroll.scrollTop, 320); assert.equal(app.scroll.scrollLeft, 42);
+  }
+});
+
+test('a fast dragenter then drop into the Leave bin works without an intervening dragover after edge paging', () => {
+  const app = setup(); app.start(); app.hover(850);
+  assert.equal(app.ui.weekOffset, 1); assert.equal(app.clock.pending, 1);
+  const label = new Element(); app.bin.append(label);
+  // Native browsers can deliver enter followed immediately by drop when the
+  // pointer crosses a short distance; do not require a dragover over the bin.
+  const entered = app.emit('dragenter', { target: label, clientX: 1050 });
+  assert.equal(entered.prevented, true); assert.equal(entered.dataTransfer.dropEffect, 'move');
+  assert.equal(app.bin.classList.contains('drag-over'), true); assert.equal(app.clock.pending, 0);
+  app.clock.advance(2000); assert.equal(app.ui.weekOffset, 1);
+  app.emit('drop', { target: label, clientX: 1050 }); app.emit('dragend');
+  assert.equal(app.parked.length, 1); assert.equal(app.changes[0].undoable, true);
+  assert.deepEqual(app.moves, []); assert.equal(app.drag(), null);
+  assert.equal(app.bin.classList.contains('drag-over'), false);
+  assert.equal(app.original.isConnected, false); assert.equal(app.clock.pending, 0);
+});
+
+test('dragenter does not accept the Leave bin for external, attended, inactive or unauthorised lessons', () => {
+  for (const invalidate of [
+    app => { app.state.bookings[0].attendance = 'present'; },
+    app => { app.state.bookings[0].status = 'absent'; },
+    app => { app.state.bookings = []; },
+    app => { app.ui.role = 'parent'; },
+    app => { app.ui.role = 'teacher'; app.state.bookings[0].tutor = 'lam'; },
+    app => { app.ui.page = 'classroom'; }
+  ]) {
+    const app = setup(); app.start(); invalidate(app);
+    const entered = app.emit('dragenter', { target: app.bin });
+    assert.equal(entered.prevented, false); assert.equal(app.bin.classList.contains('drag-over'), false);
+    app.emit('drop', { target: app.bin }); app.emit('dragend');
+    assert.deepEqual(app.parked, []); assert.deepEqual(app.moves, []); assert.equal(app.drag(), null);
+  }
+  const external = setup();
+  const entered = external.emit('dragenter', { target: external.bin });
+  assert.equal(entered.prevented, false); assert.equal(external.bin.classList.contains('drag-over'), false);
+  external.emit('drop', { target: external.bin }); assert.deepEqual(external.parked, []);
 });

@@ -1,4 +1,4 @@
-import { TODAY, centre, WEEK, seed, clone, uid, time, money, students, studentById, worksheets, worksheetById, tutors, activeBooking, validateSlot, moveBooking, requestAbsence, normalizeParentLeave, setMakeupPreferences, bookMakeup, usedReschedules, reconciliation, matchReceipt, reportingTotals, assessmentCredit, staffBalance, activeStaffLeave, staffLeaveUnits, normalizeStaffLeave, setStaffLeave, cancelStaffLeave, record, cycleForDate, enrolledStudents, filterStudents, paginate, seedCentreVolume, seedTeacherSchedules, seedBusyAfternoons, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from './model.js';
+import { TODAY, centre, WEEK, seed, clone, uid, time, money, students, studentById, worksheets, worksheetById, tutors, activeBooking, validateSlot, moveBooking, requestAbsence, parkBookingForMakeup, normalizeParentLeave, setMakeupPreferences, bookMakeup, usedReschedules, reconciliation, matchReceipt, reportingTotals, assessmentCredit, staffBalance, activeStaffLeave, staffLeaveUnits, normalizeStaffLeave, setStaffLeave, cancelStaffLeave, record, cycleForDate, enrolledStudents, filterStudents, paginate, seedCentreVolume, seedTeacherSchedules, seedBusyAfternoons, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from './model.js';
 import { makeCheckInPass, qrSvg, redeemCheckIn } from './checkin.js';
 import { getStudentProfile, saveStudentProfile } from './student-profile.js';
 import { normalizeConversations } from './conversations.js';
@@ -29,6 +29,7 @@ const $ = (query, root = document) => root.querySelector(query);
 const $$ = (query, root = document) => [...root.querySelectorAll(query)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const icons = {
+ inbox: '<path d="M4 4h16l2 10v6H2v-6L4 4ZM2 14h6l2 3h4l2-3h6"/>',
  qr: '<path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h3v3h3v3h-6v-3h-3v-6h3z"/>',
  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/>',
@@ -217,11 +218,27 @@ function lessonTimeOptions(duration=60,selected=CENTRE_OPEN){
 function slotBookings(date,start,tutor){
  return state.bookings.filter(b=>b.date===date&&b.tutor===tutor&&b.start<start+60&&(activeBooking(b)?b.start+b.duration>start:b.start>=start)).sort((a,b)=>a.start-b.start);
 }
+function canParkScheduleBooking(b){
+ return Boolean(b&&activeBooking(b)&&b.attendance!=='present'&&(ui.role==='admin'||ui.role==='teacher'&&b.tutor===centre.managerId));
+}
+function parkScheduleBooking(id){
+ if(ui.page!=='schedule')return false;
+ const booking=state.bookings.find(b=>b.id===id);
+ if(!canParkScheduleBooking(booking)){toast('Choose an unattended lesson on your schedule.',false,true);return false;}
+ const scroll=$('.calendar-scroll'),position=scroll?{top:scroll.scrollTop,left:scroll.scrollLeft}:null;
+ if(!change(()=>parkBookingForMakeup(state,id,{actor:identity().name+' · '+(ui.role==='admin'?'Centre director':'Teacher')}),'Leave recorded. Make-up awaiting arrangement.',true))return false;
+ ui.moveId=null;
+ // Clear stale filters when returning to the follow-up queue.
+ const list=collection('makeups');list.query='';list.page=1;
+ render();
+ if(position&&$('.calendar-scroll')){$('.calendar-scroll').scrollTop=position.top;$('.calendar-scroll').scrollLeft=position.left;}
+ return true;
+}
 function bookingChip(b,rowStart=b.start){
  const student=studentById(b.studentId),source=state.bookings.find(x=>x.id===b.sourceId),continued=b.start<rowStart;
  const colour=SCHEDULE_COLOURS.find(([value])=>value===b.scheduleColour&&value!=='default');
  const detail=[student.name+' ('+student.level+')',tutorName(b.tutor),dateLabel(b.date),time(b.start)+'–'+time(b.start+b.duration),source?'Rescheduled from '+dateLabel(source.date):'',continued?'Continues from previous hour':'',b.attendance==='present'?'Attended':'',colour?.[1],b.note].filter(Boolean).join(' · ');
- return '<button class="booking-chip '+b.status+(b.sourceId||activeBooking(b)&&b.caseId?' makeup':'')+(continued?' continuation':'')+(colour?' cell-colour-'+colour[0]:'')+(ui.role==='admin'&&ui.scheduleBookingId===b.id?' is-selected':'')+'" draggable="'+(ui.role==='admin'&&activeBooking(b))+'" data-action="booking-detail" data-id="'+b.id+'" title="'+esc(detail)+'" aria-label="'+esc(detail)+'"'+(ui.role==='admin'?' aria-keyshortcuts="Shift+F10" aria-controls="schedule-student-info" aria-pressed="'+(ui.scheduleBookingId===b.id)+'"':'')+'>'+ (b.attendance==='present'?icon('check','attendance-tick'):'')+(continued?'<span class="continuation-mark" aria-hidden="true">↳</span>':'')+'<span class="chip-name"><span class="chip-label">'+esc(student.name)+'</span> <span class="chip-grade">('+esc(student.level)+')</span></span>'+(source?'<span class="chip-from">'+dateLabel(source.date)+'</span>':b.duration!==60?'<span class="chip-duration">'+(b.duration===90?'1½h':'½h')+'</span>':'')+(b.start%60&&!continued?'<span class="chip-offset">:'+String(b.start%60).padStart(2,'0')+'</span>':'')+'</button>';
+ return '<button class="booking-chip '+b.status+(b.sourceId||activeBooking(b)&&b.caseId?' makeup':'')+(continued?' continuation':'')+(colour?' cell-colour-'+colour[0]:'')+(ui.role==='admin'&&ui.scheduleBookingId===b.id?' is-selected':'')+'" draggable="'+(ui.role==='admin'&&activeBooking(b)||ui.role==='teacher'&&canParkScheduleBooking(b))+'" data-action="booking-detail" data-id="'+b.id+'" title="'+esc(detail)+'" aria-label="'+esc(detail)+'"'+(ui.role==='admin'?' aria-keyshortcuts="Shift+F10" aria-controls="schedule-student-info" aria-pressed="'+(ui.scheduleBookingId===b.id)+'"':'')+'>'+ (b.attendance==='present'?icon('check','attendance-tick'):'')+(continued?'<span class="continuation-mark" aria-hidden="true">↳</span>':'')+'<span class="chip-name"><span class="chip-label">'+esc(student.name)+'</span> <span class="chip-grade">('+esc(student.level)+')</span></span>'+(source?'<span class="chip-from">'+dateLabel(source.date)+'</span>':b.duration!==60?'<span class="chip-duration">'+(b.duration===90?'1½h':'½h')+'</span>':'')+(b.start%60&&!continued?'<span class="chip-offset">:'+String(b.start%60).padStart(2,'0')+'</span>':'')+'</button>';
 }
 function calendarCell(date,start,tutor,rowHeight){
  const bookings=slotBookings(date,start,tutor);
@@ -252,7 +269,7 @@ function schedulePage(){
  const teacherTabs=admin?'<div class="teacher-tabs" role="tablist" aria-label="Teacher schedules">'+tutors.map(t=>action('teacher-tab',t.name,'teacher-tab'+(tutor===t.id?' active':''),'id="teacher-tab-'+t.id+'" role="tab" aria-selected="'+(tutor===t.id)+'" aria-controls="teacher-schedule" tabindex="'+(tutor===t.id?'0':'-1')+'" data-tutor="'+t.id+'"')).join('')+'</div>':'';
  const dateTitle=ui.scheduleView==='week'?dateLabel(dates[0])+' – '+dateLabel(dates.at(-1),{year:'numeric'}):dateLabel(ui.date,{weekday:'long',year:'numeric'});
  const calendar='<section class="panel" id="teacher-schedule" '+(admin?'role="tabpanel" aria-labelledby="teacher-tab-'+tutor+'"':'aria-label="My schedule"')+'><div class="calendar-toolbar"><div class="calendar-controls">'+action('prev-week',icon('left'),'icon-btn border','aria-label="Previous '+ui.scheduleView+'"')+action('next-week',icon('right'),'icon-btn border','aria-label="Next '+ui.scheduleView+'"')+'<span class="calendar-title">'+dateTitle+'</span>'+action('today','Today','btn small')+'</div><div class="calendar-tools"><div class="segmented">'+action('calendar-view','Day',ui.scheduleView==='day'?'active':'','data-view="day"')+action('calendar-view','Week',ui.scheduleView==='week'?'active':'','data-view="week"')+'</div>'+(admin?action('find-schedule-student',icon('search')+' Find student','btn small')+action('new-booking',icon('plus')+' Add lesson','btn primary small'):'')+'</div></div><div class="calendar-scroll">'+timetable(dates,tutor)+'</div><div class="calendar-legend"><span><i class="legend-line"></i>Regular lesson</span><span><i class="legend-line red"></i>Rescheduled</span><span>'+icon('check','attendance-tick')+' Attended</span><span><i class="legend-colour green"></i>New student</span></div></section>';
- return heading(admin?'Schedule':'My schedule')+teacherTabs+(moving?'<div class="move-banner"><span>Choose a new time for <strong>'+studentById(moving.studentId).name+'</strong>.</span>'+action('cancel-move','Cancel','btn ghost small')+'</div>':'')+'<div class="schedule-layout'+(admin?'':' teacher-schedule-layout')+'"><div class="schedule-main">'+calendar+scheduleLeaveStrip(tutor)+'</div>'+(admin?'<aside class="schedule-rail stack">'+scheduleQueues()+scheduleStudentInfo()+'</aside>':'')+'</div>';
+ return heading(admin?'Schedule':'My schedule')+teacherTabs+(moving?'<div class="move-banner"><span>Choose a new time for <strong>'+studentById(moving.studentId).name+'</strong>.</span>'+action('cancel-move','Cancel','btn ghost small')+'</div>':'')+'<div class="schedule-layout'+(admin?'':' teacher-schedule-layout')+'"><div class="schedule-main">'+calendar+scheduleLeaveStrip(tutor)+'</div>'+'<aside class="schedule-rail stack">'+scheduleQueues()+(admin?scheduleStudentInfo():'')+'</aside>'+'</div>';
 }
 function scheduleStudentInfo(){
  const b=state.bookings.find(b=>b.id===ui.scheduleBookingId);
@@ -264,7 +281,7 @@ function scheduleStudentInfo(){
  const attendance=b.attendance==='present'?'Attended':b.status==='absent'||b.attendance==='absent'?'Absent':'Not marked';
  const booking=b.status==='moved'?'Moved to another lesson':b.status==='cancelled'?'Cancelled':b.status==='absent'?'Make-up pending':source?'Rescheduled from '+dateLabel(source.date):b.caseId?'Schedule adjustment make-up':'Regular lesson';
  const note=ui.scheduleRemarkDrafts?.[b.id]??b.note??'';
- return head+'<div class="schedule-student-identity">'+avatar(s)+'<div><h4>'+esc(s.name)+' ('+esc(s.level)+')</h4><p>'+esc(p.studentNumber)+(p.chineseName?' · '+esc(p.chineseName):'')+'</p></div></div><dl class="schedule-student-facts">'+fact('School',p.school)+fact('Parent',parent+(p.parentRelation?' · '+p.parentRelation:''))+fact('Phone',p.parentMobile||p.parentPhone)+'</dl>'+(p.remark?'<div class="schedule-profile-note"><h4>Student / parent remarks</h4><p>'+esc(p.remark)+'</p></div>':'')+'<div class="schedule-lesson-info"><h4>Selected lesson</h4><dl class="schedule-student-facts">'+fact('Date',dateLabel(b.date,{weekday:'short'}))+fact('Time',time(b.start)+'–'+time(b.start+b.duration))+fact('Teacher',tutorName(b.tutor))+fact('Attendance',attendance)+fact('Booking',booking)+'</dl></div>'+field('Lesson remark','<textarea id="schedule-booking-note" data-booking-id="'+esc(b.id)+'" rows="2" aria-label="Lesson remark" placeholder="Add a note for the teacher">'+esc(note)+'</textarea>')+'<div class="schedule-student-actions">'+action('save-schedule-remark','Save remark','btn small','id="schedule-save-remark" data-id="'+esc(b.id)+'"'+(note===(b.note||'')?' disabled':''))+(activeBooking(b)?action('begin-move',icon('move','sm')+' Move lesson','btn small primary','data-id="'+esc(b.id)+'"'):'')+'</div>'+action('change-regular-schedule','Change regular schedule','btn small w-full mt-16','data-id="'+esc(s.id)+'"')+action('student-profile','View profile','inline-link','data-id="'+esc(s.id)+'"')+'</div></section>';
+ return head+'<div class="schedule-student-identity">'+avatar(s)+'<div><h4>'+esc(s.name)+' ('+esc(s.level)+')</h4><p>'+esc(p.studentNumber)+(p.chineseName?' · '+esc(p.chineseName):'')+'</p></div></div><dl class="schedule-student-facts">'+fact('School',p.school)+fact('Parent',parent+(p.parentRelation?' · '+p.parentRelation:''))+fact('Phone',p.parentMobile||p.parentPhone)+'</dl>'+(p.remark?'<div class="schedule-profile-note"><h4>Student / parent remarks</h4><p>'+esc(p.remark)+'</p></div>':'')+'<div class="schedule-lesson-info"><h4>Selected lesson</h4><dl class="schedule-student-facts">'+fact('Date',dateLabel(b.date,{weekday:'short'}))+fact('Time',time(b.start)+'–'+time(b.start+b.duration))+fact('Teacher',tutorName(b.tutor))+fact('Attendance',attendance)+fact('Booking',booking)+'</dl></div>'+field('Lesson remark','<textarea id="schedule-booking-note" data-booking-id="'+esc(b.id)+'" rows="2" aria-label="Lesson remark" placeholder="Add a note for the teacher">'+esc(note)+'</textarea>')+'<div class="schedule-student-actions">'+action('save-schedule-remark','Save remark','btn small','id="schedule-save-remark" data-id="'+esc(b.id)+'"'+(note===(b.note||'')?' disabled':''))+(activeBooking(b)?action('begin-move',icon('move','sm')+' Move lesson','btn small primary','data-id="'+esc(b.id)+'"'):'')+(canParkScheduleBooking(b)?action('park-schedule-lesson','Record leave · arrange later','btn small','data-id="'+esc(b.id)+'"'):'')+'</div>'+action('change-regular-schedule','Change regular schedule','btn small w-full mt-16','data-id="'+esc(s.id)+'"')+action('student-profile','View profile','inline-link','data-id="'+esc(s.id)+'"')+'</div></section>';
 }
 function renderScheduleStudentInfo(){
  const panel=$('#schedule-student-info');if(!panel)return;
@@ -295,7 +312,7 @@ function saveScheduleRemark(id){
 function bookingDetail(id) {
   if(ui.role==='admin'&&ui.page==='schedule'){selectScheduleBooking(id);return;}
   const b = state.bookings.find(x=>x.id===id), s = studentById(b.studentId), source = state.bookings.find(x=>x.id===b.sourceId);
-  if(ui.role==='teacher'){modal(s.name,'<dl class="detail-grid"><div><dt>Date</dt><dd>'+dateLabel(b.date,{weekday:'long'})+'</dd></div><div><dt>Time</dt><dd>'+time(b.start)+'–'+time(b.start+b.duration)+'</dd></div><div><dt>Teacher</dt><dd>'+esc(tutorName(b.tutor))+'</dd></div><div><dt>Attendance</dt><dd>'+(b.attendance==='present'?'Attended':b.status==='moved'?'Rescheduled':b.status==='absent'?'Absent':'Not marked')+'</dd></div></dl>'+(b.note?'<p class="small">'+esc(b.note)+'</p>':''),action('close-modal','Close','btn')+(activeBooking(b)?action('open-calendar-class','Open classroom','btn primary','data-id="'+id+'"'):''));return;}
+  if(ui.role==='teacher'){modal(s.name,'<dl class="detail-grid"><div><dt>Date</dt><dd>'+dateLabel(b.date,{weekday:'long'})+'</dd></div><div><dt>Time</dt><dd>'+time(b.start)+'–'+time(b.start+b.duration)+'</dd></div><div><dt>Teacher</dt><dd>'+esc(tutorName(b.tutor))+'</dd></div><div><dt>Attendance</dt><dd>'+(b.attendance==='present'?'Attended':b.status==='moved'?'Rescheduled':b.status==='absent'?'Absent':'Not marked')+'</dd></div></dl>'+(b.note?'<p class="small">'+esc(b.note)+'</p>':''),action('close-modal','Close','btn')+(ui.page==='schedule'&&canParkScheduleBooking(b)?action('park-schedule-lesson','Record leave · arrange later','btn','data-id="'+id+'"'):'')+(activeBooking(b)?action('open-calendar-class','Open classroom','btn primary','data-id="'+id+'"'):''));return;}
   modal(s.name, '<div class="flex">' + avatar(s,'large') + '<div><h3>' + s.level + ' · Mathematics</h3><p class="small muted">' + s.focus + '</p></div></div><dl class="detail-grid"><div><dt>Date</dt><dd>' + dateLabel(b.date,{weekday:'long'}) + '</dd></div><div><dt>Time</dt><dd>' + time(b.start) + '–' + time(b.start+b.duration) + '</dd></div><div><dt>Teacher</dt><dd>' + tutors.find(t=>t.id===b.tutor).name + '</dd></div><div><dt>Booking</dt><dd>' + (source ? 'Rescheduled from ' + dateLabel(source.date) : b.status === 'moved' ? 'Rescheduled' : b.status === 'absent' ? 'Absent · make-up pending' : 'Regular lesson') + '</dd></div></dl>' + field('Remark','<input id="booking-note" aria-label="Booking remark" value="' + esc(b.note) + '" placeholder="Add a note for the teacher">') + (b.caseId ? '<p class="small muted mt-16">Linked to one reschedule case, including any split replacements.</p>' : ''), action('save-booking-note','Save remark','btn','data-id="'+id+'"') + (activeBooking(b) ? action('begin-move',icon('move')+' Move lesson','btn primary','data-id="'+id+'"') : ''));
 }
 function moveTo(id, slot) {
@@ -477,11 +494,11 @@ function makeupPreferencesSummary(m){
  return (dates.length?'<div class="makeup-preferences"><p class="small strong">'+t('Preferred dates (not booked)','意願日期（並非預約）')+'</p><p class="small">'+dates.map(d=>esc(dateLabel(d,{weekday:'short'}))).join('、')+'</p></div>':'')+(note?'<p class="small makeup-preference-note">'+esc(note)+'</p>':'');
 }
 function scheduleQueues(){
- const pending=state.makeups.filter(m=>m.minutes>m.used).sort((a,b)=>a.expiry.localeCompare(b.expiry));
+ const pending=state.makeups.filter(m=>m.minutes>m.used&&(ui.role==='admin'||ui.role==='teacher'&&(state.bookings.find(b=>b.id===m.sourceId)?.tutor||studentById(m.studentId).tutor)===centre.managerId)).sort((a,b)=>a.expiry.localeCompare(b.expiry));
  const filtered=pending.filter(m=>matchesStudent(m.studentId,collection('makeups').query)),makeupsPage=collectionPage('makeups',filtered,5);
- return '<section class="panel rail-card"><div class="rail-title"><h3>Pending make-ups</h3>'+tag(pending.length)+'</div>'+(pending.length>5?searchControl('makeups','Search make-ups','Student or ID'):'')+(pending.length?makeupsPage.items.map(m=>{
+ return '<section class="panel rail-card schedule-makeup-bin" aria-label="Pending make-ups"><div class="rail-title"><h3>Pending make-ups</h3>'+tag(pending.length)+'</div><div class="schedule-leave-dropzone" data-leave-dropzone role="region" aria-label="Leave bin">'+icon('inbox')+'<div><strong>Leave bin</strong><span>Drop lesson here · arrange later</span></div></div>'+(pending.length>5?searchControl('makeups','Search make-ups','Student or ID'):'')+(pending.length?makeupsPage.items.map(m=>{
   const student=studentById(m.studentId),source=state.bookings.find(b=>b.id===m.sourceId),adjustment=m.kind==='schedule-shortfall',leave=state.leaveRequests.find(r=>r.makeupId===m.id&&r.kind!=='makeup');
-  return '<div class="makeup-card" data-makeup-id="'+esc(m.id)+'"><div class="flex">'+avatar(student,'small')+'<div><div class="small strong">'+esc(student.name)+'</div><div class="user-caption">'+student.number+' · '+(m.minutes-m.used)+' min remaining</div></div></div><div class="makeup-meta">'+(adjustment?'Schedule adjustment: ':'Leave: ')+dateLabel(source?.date||m.sourceDate)+(source?' · '+time(source.start):'')+'<br>Use by '+dateLabel(m.expiry)+'</div>'+(leave?.reason?'<p class="small makeup-preference-note">'+esc(leave.reason)+'</p>':'')+makeupPreferencesSummary(m)+(m.policyReviewRequired?'<p class="small makeup-policy-note">Reschedule limit reached · staff review needed</p>':'')+'<div class="makeup-followup-actions">'+action('contact-makeup-parent','Contact parent','btn small','data-id="'+m.id+'"')+action('makeup-book','Arrange make-up','btn small primary','data-id="'+m.id+'"')+'</div></div>';
+  return '<div class="makeup-card" data-makeup-id="'+esc(m.id)+'"><div class="flex">'+avatar(student,'small')+'<div><div class="small strong">'+esc(student.name)+'</div><div class="user-caption">'+student.number+' · '+(m.minutes-m.used)+' min remaining</div></div></div><div class="makeup-meta">'+(adjustment?'Schedule adjustment: ':'Leave: ')+dateLabel(source?.date||m.sourceDate)+(source?' · '+time(source.start):'')+'<br>Use by '+dateLabel(m.expiry)+'</div>'+(leave?.reason?'<p class="small makeup-preference-note">'+esc(leave.reason)+'</p>':'')+makeupPreferencesSummary(m)+(m.policyReviewRequired?'<p class="small makeup-policy-note">Reschedule limit reached · staff review needed</p>':'')+(ui.role==='admin'?'<div class="makeup-followup-actions">'+action('contact-makeup-parent','Contact parent','btn small','data-id="'+m.id+'"')+action('makeup-book','Arrange make-up','btn small primary','data-id="'+m.id+'"')+'</div>':'<p class="small muted mt-8">Awaiting CS arrangement</p>')+'</div>';
  }).join(''):'<p class="small muted">All make-ups are arranged.</p>')+pager('makeups',makeupsPage,true)+'</section>';
 }
 
@@ -794,6 +811,7 @@ function downloadText(filename,content,type='text/csv'){
 function handleAction(a,id,button){
  if(a.startsWith('regular-')&&regularScheduleUI.handleAction(a,id,button))return;
  if(a==='change-regular-schedule'){if(ui.role==='admin')regularScheduleUI.open(id);return;}
+ if(a==='park-schedule-lesson'){if(parkScheduleBooking(id))closeModal();return;}
  if(a==='receipt-revision'){receiptDialog(id,button.dataset.revision);return;}
  if(a==='select-directory-student'){ui.directoryStudent=id;renderStudentWorkspace(true);$('[data-action="select-directory-student"][data-id="'+id+'"]').focus({preventScroll:true});return;}
  if(a==='profile-history-tab'){ui.profileHistoryTab=button.dataset.value;renderStudentWorkspace(true);$('[data-action="profile-history-tab"][data-value="'+ui.profileHistoryTab+'"]').focus({preventScroll:true});return;}
@@ -1044,44 +1062,60 @@ function finishScheduleDrag(refresh=true){
  scheduleEdgePager.stop();scheduleDrag=null;
  if(!drag)return;
  drag.scroll.classList.remove('lesson-dragging','drag-edge-left','drag-edge-right');
- $$('.calendar-cell.drag-over').forEach(slot=>slot.classList.remove('drag-over'));
+ $$('.calendar-cell.drag-over, .schedule-leave-dropzone.drag-over').forEach(slot=>slot.classList.remove('drag-over'));
+ $$('.schedule-leave-dropzone').forEach(bin=>bin.classList.remove('is-dragging'));
  if(drag.origin.classList.contains('drag-source-table'))drag.origin.remove();
- if(refresh&&drag.scroll.isConnected&&ui.role==='admin'&&ui.page==='schedule'){
+ if(refresh&&drag.scroll.isConnected&&['admin','teacher'].includes(ui.role)&&ui.page==='schedule'){
   const top=drag.scroll.scrollTop,left=drag.scroll.scrollLeft;
   const dates=ui.scheduleView==='week'?shiftedWeek():[ui.date];
-  const visible=$('.timetable',drag.scroll);if(visible)visible.outerHTML=timetable(dates,ui.scheduleTutor);
+  const visible=$('.timetable',drag.scroll);if(visible)visible.outerHTML=timetable(dates,drag.tutor);
   drag.scroll.scrollTop=top;drag.scroll.scrollLeft=left;
  }
 }
 document.addEventListener('dragstart',e=>{
  const chip=e.target.closest('.booking-chip[draggable=true]');
- if(!chip||ui.role!=='admin'||ui.page!=='schedule'||!e.dataTransfer)return;
- const booking=state.bookings.find(b=>b.id===chip.dataset.id);if(!booking||!activeBooking(booking))return;
+ if(!chip||!['admin','teacher'].includes(ui.role)||ui.page!=='schedule'||!e.dataTransfer)return;
+ const booking=state.bookings.find(b=>b.id===chip.dataset.id);if(!booking||!activeBooking(booking)||ui.role==='teacher'&&!canParkScheduleBooking(booking))return;
  finishScheduleDrag(false);closeScheduleColourMenu();
  const scroll=chip.closest('.calendar-scroll'),origin=chip.closest('.timetable');if(!scroll||!origin)return;
- scheduleDrag={id:booking.id,tutor:ui.scheduleTutor,scroll,origin,lastOver:performance.now(),x:e.clientX,y:e.clientY,rowHeights:Object.fromEntries($$('.timetable-time',origin).map(row=>[row.dataset.hour,row.getBoundingClientRect().height]))};
+ scheduleDrag={id:booking.id,tutor:booking.tutor,scroll,origin,lastOver:performance.now(),x:e.clientX,y:e.clientY,rowHeights:Object.fromEntries($$('.timetable-time',origin).map(row=>[row.dataset.hour,row.getBoundingClientRect().height]))};
  e.dataTransfer.setData('text/plain',booking.id);e.dataTransfer.effectAllowed='move';
- scroll.classList.add('lesson-dragging');scheduleEdgePager.start();
+ scroll.classList.add('lesson-dragging');
+ if(canParkScheduleBooking(booking))$$('.schedule-leave-dropzone').forEach(bin=>bin.classList.add('is-dragging'));
+ scheduleEdgePager.start();
+});
+document.addEventListener('dragenter',e=>{
+ const bin=e.target.closest('[data-leave-dropzone]');
+ if(!bin||!scheduleDrag||ui.page!=='schedule'||!canParkScheduleBooking(state.bookings.find(b=>b.id===scheduleDrag.id)))return;
+ e.preventDefault();scheduleEdgePager.pause();bin.classList.add('drag-over');
+ if(e.dataTransfer)e.dataTransfer.dropEffect='move';
 });
 document.addEventListener('dragover',e=>{
  if(!scheduleDrag)return;
- if(ui.role!=='admin'||ui.page!=='schedule'){finishScheduleDrag();return;}
+ if(!['admin','teacher'].includes(ui.role)||ui.page!=='schedule'){finishScheduleDrag();return;}
  Object.assign(scheduleDrag,{x:e.clientX,y:e.clientY,lastOver:performance.now()});
- const direction=scheduleDragEdge(e.clientX,e.clientY);scheduleEdgePager.update(direction);
- const slot=e.target.closest('.timetable:not(.drag-source-table) [data-slot]');
- $$('.calendar-cell.drag-over').forEach(cell=>{if(cell!==slot)cell.classList.remove('drag-over');});
- if(slot||direction){e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='move';if(slot)slot.classList.add('drag-over');}
+ const bin=e.target.closest('[data-leave-dropzone]'),booking=state.bookings.find(b=>b.id===scheduleDrag.id);
+ const park=bin&&canParkScheduleBooking(booking);
+ const direction=!bin&&ui.role==='admin'?scheduleDragEdge(e.clientX,e.clientY):0;scheduleEdgePager.update(direction);
+ const slot=ui.role==='admin'&&!bin?e.target.closest('.timetable:not(.drag-source-table) [data-slot]'):null;
+ $$('.calendar-cell.drag-over, .schedule-leave-dropzone.drag-over').forEach(cell=>{if(cell!==slot&&cell!==bin)cell.classList.remove('drag-over');});
+ if(slot||direction||park){e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='move';(park?bin:slot)?.classList.add('drag-over');}
+ else if(e.dataTransfer)e.dataTransfer.dropEffect='none';
 });
 document.addEventListener('dragleave',e=>{
- const slot=e.target.closest('[data-slot]');if(slot&&!slot.contains(e.relatedTarget))slot.classList.remove('drag-over');
+ const slot=e.target.closest('[data-slot]'),bin=e.target.closest('[data-leave-dropzone]');
+ if(slot&&!slot.contains(e.relatedTarget))slot.classList.remove('drag-over');
+ if(bin&&!bin.contains(e.relatedTarget))bin.classList.remove('drag-over');
  const r=scheduleDragBounds();
  if(r&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom||e.relatedTarget&&!scheduleDrag.scroll.contains(e.relatedTarget)||!e.relatedTarget&&(e.target===document.documentElement||e.target===document.body)))scheduleEdgePager.pause();
 });
 document.addEventListener('drop',e=>{
  if(!scheduleDrag)return;
- const id=scheduleDrag.id,slot=e.target.closest('.timetable:not(.drag-source-table) [data-slot]');
+ const id=scheduleDrag.id,bin=e.target.closest('[data-leave-dropzone]'),slot=e.target.closest('.timetable:not(.drag-source-table) [data-slot]');
  const destination=slot?{date:slot.dataset.date,start:Number(slot.dataset.start),tutor:slot.dataset.tutor}:null;
  e.preventDefault();finishScheduleDrag();
+ if(ui.page!=='schedule')return;
+ if(bin){parkScheduleBooking(id);return;}
  if(destination&&ui.role==='admin'&&state.bookings.some(b=>b.id===id&&activeBooking(b)))moveTo(id,destination);
 });
 document.addEventListener('dragend',()=>finishScheduleDrag());

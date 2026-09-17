@@ -48,7 +48,7 @@ function renderer() {
     $: selector => selector === '#schedule-booking-note' ? note : selector === '#schedule-student-info' ? panel : selector === '#schedule-save-remark' ? saveButton : null,
     $$: selector => selector === '.timetable .booking-chip' ? chips : []
   });
-  vm.runInContext(['scheduleStudentInfo', 'selectScheduleBooking', 'updateScheduleRemarkDraft', 'saveScheduleRemark', 'bookingDetail'].map(functionSource).join('\n'), context);
+  vm.runInContext(['canParkScheduleBooking', 'scheduleStudentInfo', 'selectScheduleBooking', 'updateScheduleRemarkDraft', 'saveScheduleRemark', 'bookingDetail'].map(functionSource).join('\n'), context);
   return { state, ui, calls, note, panel, saveButton, call: (name, ...args) => context[name](...args) };
 }
 

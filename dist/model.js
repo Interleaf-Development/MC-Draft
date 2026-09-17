@@ -577,18 +577,43 @@ function createAbsenceMakeup(state, source, reason) {
   state.makeups.push(makeup);
   return makeup;
 }
+function confirmAbsence(state, source, reason, actor, makeup = createAbsenceMakeup(state, source, reason), existingRequest = null) {
+  const request = existingRequest || { id: uid('request'), kind: 'absence', bookingId: source.id, studentId: source.studentId, reason, status: 'confirmed', makeupId: makeup.id };
+  request.status = 'confirmed';
+  request.makeupId = makeup.id;
+  source.status = 'absent';
+  source.attendance = 'absent';
+  if (!existingRequest) state.leaveRequests.push(request);
+  record(state, 'Leave confirmed for ' + studentById(source.studentId).name + ', ' + dateLabel(source.date) + '. Customer service to arrange the make-up.', actor);
+  return request;
+}
 export function requestAbsence(state, bookingId, reason = '') {
   const source = state.bookings.find(booking => booking.id === bookingId);
   if (state.leaveRequests.some(request => request.kind !== 'makeup' && request.bookingId === bookingId && ['pending', 'confirmed', 'approved'].includes(request.status))) throw new Error('Leave has already been recorded for this lesson.');
   if (!source || !activeBooking(source)) throw new Error('This lesson cannot be changed.');
   if (source.date < TODAY || source.attendance === 'present') throw new Error('Leave can only be recorded for an upcoming, unattended lesson.');
-  const makeup = createAbsenceMakeup(state, source, String(reason).trim());
-  const request = { id: uid('request'), kind: 'absence', bookingId, studentId: source.studentId, reason: String(reason).trim(), status: 'confirmed', makeupId: makeup.id };
-  source.status = 'absent';
-  source.attendance = 'absent';
-  state.leaveRequests.push(request);
-  record(state, 'Leave confirmed for ' + studentById(source.studentId).name + ', ' + dateLabel(source.date) + '. Customer service to arrange the make-up.', 'Parent');
-  return request;
+  return confirmAbsence(state, source, String(reason).trim(), 'Parent');
+}
+export function parkBookingForMakeup(state, bookingId, { actor = 'Staff' } = {}) {
+  const booking = state.bookings.find(item => item.id === bookingId);
+  if (!booking || ['moved', 'cancelled'].includes(booking.status)) throw new Error('Choose a lesson that has not already been moved or cancelled.');
+  if (booking.attendance === 'present') throw new Error('An attended lesson cannot be placed in awaiting make-up.');
+  const request = state.leaveRequests.find(item => item.kind !== 'makeup' && item.bookingId === bookingId && ['pending', 'confirmed', 'approved'].includes(item.status));
+  // Match the missed lesson itself, not its caseId: a replacement retains the
+  // case that booked it, so its later absence needs a separate linked follow-up.
+  const makeup = state.makeups.find(item => item.studentId === booking.studentId && item.sourceId === bookingId);
+  if (makeup) {
+    if (makeup.used >= makeup.minutes) throw new Error('This lesson’s make-up has already been arranged.');
+    if (booking.status === 'absent' && booking.attendance === 'absent') return { booking, request: request || null, makeup, alreadyParked: true };
+    const confirmed = confirmAbsence(state, booking, request?.reason || '', actor, makeup, request);
+    return { booking, request: confirmed, makeup, alreadyParked: true };
+  }
+  if (request) throw new Error('Leave has already been recorded for this lesson. Check its existing make-up record.');
+  if (!activeBooking(booking) && booking.status !== 'absent') throw new Error('This lesson cannot be changed.');
+  // Staff can record an already missed lesson. Its original paid period,
+  // deadline and replacement lineage still come from the shared leave logic.
+  const confirmed = confirmAbsence(state, booking, '', actor);
+  return { booking, request: confirmed, makeup: state.makeups.find(item => item.id === confirmed.makeupId), alreadyParked: false };
 }
 export function setMakeupPreferences(state, makeupId, dates, note = '') {
   const makeup = state.makeups.find(item => item.id === makeupId);
