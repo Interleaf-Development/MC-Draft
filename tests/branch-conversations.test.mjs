@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 // Each branch gets a fresh module graph, just as separate browser entries do.
 for (const branch of [
   { path: '/parent', name: 'Tsuen Wan', chinese: '荃灣', director: 'Koko Ko', teacher: 'Koko', colleague: 'Ming' },
-  { path: '/hh/parent', name: 'Hang Hau', chinese: '坑口', director: 'Ricco', teacher: 'Ricco', colleague: 'John' }
+  { path: '/hh/parent', name: 'Hang Hau', chinese: '坑口', director: 'Rico', teacher: 'Rico', colleague: 'John' }
 ]) {
   test(`${branch.name} chats use their branch identity and preserve saved message content`, () => {
     execFileSync(process.execPath, ['--input-type=module', '--eval', `
@@ -32,6 +32,15 @@ for (const branch of [
         }
       }
       const thread = state.messages.find(thread => thread.id === 'thread-chloe');
+      if (expected.name === 'Hang Hau') {
+        thread.assignedTo = 'Ricco';
+        group.messages[0].senderName = 'Ricco';
+        thread.messages[0].text = 'Please ask Ricco about the lesson.';
+        normalizeConversations(state);
+        assert.equal(thread.assignedTo, 'Rico');
+        assert.equal(group.messages[0].senderName, 'Rico');
+        assert.equal(thread.messages[0].text, 'Please ask Ricco about the lesson.');
+      }
       const userText = 'Please ask Koko and Ming about the Tsuen Wan lesson.';
       const sent = sendConversationMessage(state, thread.id, { viewer: { role: 'teacher' }, text: userText });
       assert.equal(sent.senderName, expected.teacher);

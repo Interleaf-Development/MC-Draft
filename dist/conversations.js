@@ -55,6 +55,7 @@ export function normalizeConversations(state) {
     state.chatSettings.demoGroupSeeded = true;
   }
   for (const thread of state.messages) {
+    if (centre.code === 'HH' && thread.assignedTo === 'Ricco') thread.assignedTo = director.name;
     thread.type ??= 'direct';
     const student = studentIndex.get(thread.studentId);
     for (const [index, message] of thread.messages.entries()) {
@@ -64,6 +65,7 @@ export function normalizeConversations(state) {
       message.reactions ??= [];
       message.senderKey ??= message.author === 'parent' ? 'parent:' + thread.studentId : 'centre';
       message.senderName ??= message.author === 'parent' ? student?.parent || 'Parent' : centre.manager;
+      if (centre.code === 'HH' && message.author === 'centre' && message.senderName === 'Ricco') message.senderName = centre.manager;
     }
   }
   return state;

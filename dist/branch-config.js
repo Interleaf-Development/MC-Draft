@@ -17,9 +17,9 @@ const configurations = {
   },
   hh: {
     id: 'hh', basePath: '/hh/', storageKey: 'mathconcept-demo-hh-v4',
-    centre: { name: 'MathConcept (Hang Hau)', branch: 'Hang Hau', branchZh: '坑口', code: 'HH', manager: 'Ricco', managerId: 'ricco', initials: 'R' },
+    centre: { name: 'MathConcept (Hang Hau)', branch: 'Hang Hau', branchZh: '坑口', code: 'HH', manager: 'Rico', managerId: 'ricco', initials: 'R' },
     tutors: [
-      { id: 'ricco', name: 'Ricco', initials: 'R' },
+      { id: 'ricco', name: 'Rico', initials: 'R' },
       { id: 'john', name: 'John', initials: 'J' },
       { id: 'leo', name: 'Leo', initials: 'L' },
       { id: 'amy', name: 'Amy', initials: 'A' },

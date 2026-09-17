@@ -1,6 +1,6 @@
 # MathConcept workflow demo — Tsuen Wan & Hang Hau
 
-A front-end-only prototype for reviewing paperless teaching and centre operations with MathConcept. Tsuen Wan's director is Koko Ko; Hang Hau's director is Ricco. All students, payment references, bank entries and learning records are fictional.
+A front-end-only prototype for reviewing paperless teaching and centre operations with MathConcept. Tsuen Wan's director is Koko Ko; Hang Hau's director is Rico. All students, payment references, bank entries and learning records are fictional.
 
 Both branches use the same application, styles and workflow code. `dist/branch-config.js` supplies the branch identity and teachers based on the URL. Future feature and UI changes apply to both branches; do not create a separate Hang Hau application fork.
 
@@ -60,7 +60,7 @@ The QR contains an opaque demo token, with no student name or contact details. T
 ## Teacher schedules
 
 - Tabs for **Koko, Ming, Oscar, Peter, Polly, Shileen, Tiffany and Winky**, with day and week views for **Monday–Sunday, 09:00–19:00**. The centre opens seven days a week; each teacher’s roster still controls their availability.
-- Hang Hau uses **Ricco, John, Leo, Amy, Melissa and Jason**. Its names, staffing, class bookings and parent-facing teacher labels all follow the branch configuration.
+- Hang Hau uses **Rico, John, Leo, Amy, Melissa and Jason**. Its names, staffing, class bookings and parent-facing teacher labels all follow the branch configuration.
 - Available classes from **16:00 to 19:00** contain five or six students in the sample week, with a few seats retained for the rescheduling walkthrough. Every seeded student stays with their assigned teacher. Older untouched cross-teacher examples are replaced on reload; saved moves, notes, attendance and linked bookings are preserved.
 - **Admin:** click a student card to update **Student info** below **Parent requests**, including parent contact, lesson details, remark editing, **Move lesson** and **View profile**. Switching cards keeps unsaved lesson remarks in this session.
 - **Admin:** right-click a student card (or press **Shift+F10** when focused) to set its cell colour. **Green = New student**; choose **Default** to clear it. Colours are saved per lesson in this browser and follow a dragged/moved booking.

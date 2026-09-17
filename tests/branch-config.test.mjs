@@ -10,8 +10,8 @@ test('Hang Hau is selected by a complete path segment and has the requested six 
   for (const path of ['/', '/parent/', '/student/', '/hh-other/', '/parent/hh/']) assert.equal(getCentreConfig(path).id, 'tw');
   assert.equal(hh.centre.branch, 'Hang Hau');
   assert.equal(hh.centre.branchZh, '坑口');
-  assert.equal(hh.centre.manager, 'Ricco');
-  assert.deepEqual(hh.tutors.map(t => t.name), ['Ricco', 'John', 'Leo', 'Amy', 'Melissa', 'Jason']);
+  assert.equal(hh.centre.manager, 'Rico');
+  assert.deepEqual(hh.tutors.map(t => t.name), ['Rico', 'John', 'Leo', 'Amy', 'Melissa', 'Jason']);
   assert.equal(getCentreConfig('/').centre.manager, 'Koko Ko');
 });
 

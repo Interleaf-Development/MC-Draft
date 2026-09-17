@@ -28,14 +28,14 @@ function inBranch(pathname, assertions) {
 test('Hang Hau uses its configured director and six teachers throughout clean fixtures', () => {
   inBranch('/hh/parent/', String.raw`
     const expectedIds = ['ricco', 'john', 'leo', 'amy', 'melissa', 'jason'];
-    const expectedNames = ['Ricco', 'John', 'Leo', 'Amy', 'Melissa', 'Jason'];
+    const expectedNames = ['Rico', 'John', 'Leo', 'Amy', 'Melissa', 'Jason'];
     assert.deepEqual(model.tutors.map(tutor => tutor.id), expectedIds);
     assert.deepEqual(model.tutors.map(tutor => tutor.name), expectedNames);
     assert.equal(model.centre.name, 'MathConcept (Hang Hau)');
-    assert.equal(model.centre.manager, 'Ricco');
+    assert.equal(model.centre.manager, 'Rico');
     assert.equal(model.centre.managerId, 'ricco');
     const clean = model.seed();
-    assert.equal(clean.messages.find(thread => thread.id === 'thread-chloe').assignedTo, 'Ricco');
+    assert.equal(clean.messages.find(thread => thread.id === 'thread-chloe').assignedTo, 'Rico');
     assert.equal(clean.staff[1].name, 'John');
     const state = normalize(clean), allowed = new Set(expectedIds);
     assert.deepEqual(state.staff.map(staff => staff.id), expectedIds);
@@ -92,10 +92,10 @@ test('Hang Hau preserves the move, split make-up and staff-leave demo workflows'
     assert.ok(split.every(booking => booking.tutor === 'ricco' && booking.caseId === 'makeup-chloe'));
     assert.equal(state.makeups.find(makeup => makeup.id === 'makeup-chloe').used, 60);
     const leave = model.setStaffLeave(state, { staffId: 'john', date: model.TODAY, unit: 'AM', reason: 'Saved local leave' });
-    assert.equal(leave.recordedBy, 'Ricco');
+    assert.equal(leave.recordedBy, 'Rico');
     assert.equal(leave.staffId, 'john');
     assert.match(model.validateSlot(state, { studentId: 'availability-probe', tutor: 'john', date: model.TODAY, start: 600, duration: 60 }), /on leave/);
-    assert.equal(model.cancelStaffLeave(state, leave.id).cancelledBy, 'Ricco');
+    assert.equal(model.cancelStaffLeave(state, leave.id).cancelledBy, 'Rico');
   `);
 });
 
@@ -111,7 +111,7 @@ test('Hang Hau normalizers preserve edited, moved and deleted bookings and saved
     const invoice = state.invoices.find(item => item.id === 'INV-1024');
     Object.assign(invoice, { proof: true, proofReference: 'LOCAL HH TRANSFER', proofDate: model.TODAY });
     const receipt = state.receipts.find(item => item.id === 'R-1028');
-    receipt.note = 'Bank checked by Ricco';
+    receipt.note = 'Bank checked by Rico';
     state.bankTransactions.push({ id: 'BANK-HH-MANUAL', date: model.TODAY, amount: 2000, reference: 'LOCAL HH TRANSFER', payer: 'Elaine Chan', direction: 'credit' });
     const before = model.clone(state);
     normalize(state);
