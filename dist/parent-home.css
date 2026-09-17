@@ -98,7 +98,7 @@
 }
 .role-parent .mobile-bottom-nav button.active { background: #f9e6e5; color: #a63138; }
 .role-parent .mobile-bottom-nav .icon { width: 23px; height: 23px; }
-.role-parent .mobile-bottom-nav .parent-qr-button { justify-content: flex-end; color: #a63138; }
+.role-parent .mobile-bottom-nav .parent-qr-button { justify-content: center; color: #a63138; }
 .role-parent .parent-qr-disc {
   display: flex;
   align-items: center;
@@ -106,7 +106,7 @@
   width: 68px;
   height: 68px;
   flex-shrink: 0;
-  margin-top: -29px;
+  margin-top: -18px;
   border: 4px solid var(--red);
   border-radius: 50%;
   background: white;
@@ -120,6 +120,64 @@
 @media (max-width: 360px) {
   .role-parent .parent-quick-actions { gap: 8px; }
   .role-parent .parent-quick-action { padding: 16px 11px 13px; min-height: 96px; font-size: 14px; }
-  .role-parent .parent-qr-disc { width: 60px; height: 60px; margin-top: -24px; }
+  .role-parent .parent-qr-disc { width: 60px; height: 60px; margin-top: -16px; }
   .role-parent .parent-day-card { padding: 0 15px; }
 }
+
+/* The QR opens as a floating card with its close control below the card. */
+.role-parent .checkin-backdrop {
+  align-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px calc(108px + env(safe-area-inset-bottom));
+  background: rgb(243 239 222 / 88%);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.role-parent .modal.checkin-modal {
+  position: relative;
+  display: block;
+  width: 350px;
+  max-width: 100%;
+  max-height: none;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  animation: checkin-in .2s ease-out;
+}
+.checkin-card {
+  padding: 28px 24px 16px;
+  background: #fff;
+  border: 1px solid #e5e7e9;
+  border-radius: 28px;
+  max-height: calc(100dvh - 148px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.checkin-card .checkin-pass > h3 { font-size: 24px; line-height: 1.4; overflow-wrap: anywhere; }
+.checkin-instruction { color: #67727d; font-size: 14px; margin-top: 10px; }
+.checkin-card .checkin-qr { width: 280px; margin: 20px auto 12px; }
+.checkin-lesson-date { font-size: 13px; color: #67727d; }
+.role-parent .checkin-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  top: calc(100% + 24px);
+  left: calc(50% - 32px);
+  background: #fff;
+  color: #263246;
+  border-radius: 50%;
+  box-shadow: 0 5px 20px #26324608;
+}
+.checkin-close .icon { width: 27px; height: 27px; stroke-width: 2; }
+.checkin-tools { margin-top: 20px; padding-top: 5px; border-top: 1px solid #ecece8; font-size: 13px; color: #8c6465; }
+.checkin-tools summary { cursor: pointer; min-height: 44px; line-height: 44px; list-style-position: inside; }
+.checkin-tools .btn { margin: 6px 0 8px; }
+.checkin-no-lesson { display: grid; justify-items: center; gap: 14px; padding: 36px 0; color: #67727d; }
+.checkin-no-lesson > .icon { width: 38px; height: 38px; }
+.checkin-no-lesson p { font-size: 14px; }
+@keyframes checkin-in { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .role-parent .modal.checkin-modal { animation: none; } }

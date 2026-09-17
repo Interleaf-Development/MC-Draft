@@ -84,7 +84,12 @@ function change(fn, message = '', undo = false) {
   try { fn(); previousState = undo ? before : null; persist(); render(); if (message) toast(message, undo); return true; }
   catch (err) { state=before; const area = $('#form-error'); if (area) { area.textContent = t(err.message); area.classList.add('visible'); } else toast(err.message, false, true); return false; }
 }
-function closeModal() { $('#overlay').innerHTML = ''; document.body.style.overflow = ''; if (returnFocus?.isConnected) returnFocus.focus(); }
+function closeModal() {
+ const wasCheckIn=!!$('.checkin-modal');
+ $('#overlay').innerHTML='';document.body.style.overflow='';$('#app').inert=false;
+ $('.parent-qr-button')?.setAttribute('aria-expanded','false');
+ if(returnFocus?.isConnected)returnFocus.focus();else if(wasCheckIn)$('.parent-qr-button')?.focus();
+}
 function modal(title, body, footer = '', wide = false) {
   returnFocus = document.activeElement;
   $('#overlay').innerHTML = '<div class="modal-backdrop" data-backdrop><section class="modal ' + (wide ? 'wide' : '') + '" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title" class="modal-title">' + t(title) + '</h2>' + action('close-modal', icon('x'), 'icon-btn', 'aria-label="'+t('Close dialog')+'"') + '</div><div class="modal-body"><div id="form-error" class="form-error" role="alert"></div>' + body + '</div>' + (footer ? '<div class="modal-footer">' + footer + '</div>' : '') + '</section></div>';
@@ -313,14 +318,21 @@ function bankResults(){
 }
 function renderCollection(key){if(key==='bank'){$('#bank-results').innerHTML=bankResults();return;}if((key==='students'||key.startsWith('profile-'))&&$('#student-workspace')){renderStudentWorkspace();return;}render();}
 function applyListSearch(key,input){const c=collection(key);c.query=input.value;c.page=1;const focus=input.getAttribute('data-list-query'),cursor=input.selectionStart;renderCollection(key);const next=$('[data-list-query="'+focus+'"]');if(next){next.focus();if(next.type==='search')next.setSelectionRange(cursor,cursor);}}
+function checkInOverlay(body){
+ if(!$('.checkin-modal'))returnFocus=document.activeElement;
+ $('#overlay').innerHTML='<div class="modal-backdrop checkin-backdrop"><section id="attendance-qr-dialog" class="modal checkin-modal" role="dialog" aria-modal="true" aria-labelledby="checkin-title"><h2 id="checkin-title" class="visually-hidden">出席二維碼</h2><div class="checkin-card">'+body+'</div>'+action('close-modal',icon('x'),'checkin-close','aria-label="關閉出席二維碼"')+'</section></div>';
+ document.body.style.overflow='hidden';$('.parent-qr-button')?.setAttribute('aria-expanded','true');
+ $('.checkin-close').focus();$('#app').inert=true;
+}
 function checkInDialog(){
  const s=studentById(ui.familyStudent);let pass;
- try{pass=makeCheckInPass(state,s.id,{bookingId:ui.checkInBooking||undefined});ui.checkInBooking=pass.booking.id;persist();}catch(err){modal('Attendance QR','<div class="empty">'+icon('calendar')+'<h3>'+t('No lesson to check in','沒有可登記的課堂')+'</h3><p>'+esc(t(err.message))+'</p></div>',action('close-modal','Close','btn'));return;}
+ ui.checkInPayload=null;
+ try{pass=makeCheckInPass(state,s.id,{bookingId:ui.checkInBooking||undefined});ui.checkInBooking=pass.booking.id;persist();}catch(err){checkInOverlay('<div class="checkin-pass"><h3>'+esc(s.name)+'</h3><div class="checkin-no-lesson">'+icon('calendar')+'<h4>沒有可登記的課堂</h4><p>'+esc(t(err.message))+'</p></div></div>');return;}
  ui.checkInPayload=pass.payload;
  const eligible=state.bookings.filter(b=>b.studentId===s.id&&b.date===TODAY&&['scheduled','makeup'].includes(b.status)).sort((a,b)=>a.start-b.start);
  const lessonChoice=eligible.length>1?'<div class="field mt-16"><label for="checkin-lesson">'+t('Lesson','課堂')+'</label><select id="checkin-lesson" data-change="checkin-lesson">'+eligible.map(b=>'<option value="'+b.id+'"'+(b.id===pass.booking.id?' selected':'')+'>'+time(b.start)+'–'+time(b.start+b.duration)+(b.sourceId?' · '+t('Make-up'):'')+(b.attendance==='present'?' · '+t('Checked in'):'')+'</option>').join('')+'</select></div>':'';
  const qr=qrSvg(pass.payload).replace('Lesson check-in QR code',t('Lesson check-in QR code','課堂出席二維碼')).replace('An opaque demo pass for today’s lesson.',t('An opaque demo pass for today’s lesson.','用於今天課堂的示範出席碼。'));
- modal('Attendance QR','<div class="checkin-pass"><div class="flex">'+avatar(s,'large')+'<div><h3>'+s.name+'</h3><p class="small muted">'+s.number+' · '+t(s.level)+'</p></div></div>'+lessonChoice+'<div class="checkin-qr">'+qr+'</div><h3>'+dateLabel(pass.booking.date,{weekday:'long'})+' · '+time(pass.booking.start)+'</h3><p class="small muted mt-8">'+t('Show this code at the centre to check in.','到達中心後，請出示此碼登記出席。')+'</p>'+(pass.checkedIn?'<div class="checkin-success mt-16">'+icon('circlecheck')+' '+t('Checked in')+'</div>':'')+'<p class="small muted mt-16">'+t('Valid for this lesson on '+dateLabel(pass.booking.date)+'.','只適用於 '+dateLabel(pass.booking.date)+' 的這節課堂。')+'</p></div>',action('close-modal','Close','btn')+action('simulate-checkin',pass.checkedIn?'Scan again (demo)':'Simulate centre scan','btn primary'));
+ checkInOverlay('<div class="checkin-pass"><h3>'+esc(s.name)+'</h3><p class="checkin-instruction">請向接待處出示二維碼</p>'+lessonChoice+'<div class="checkin-qr">'+qr+'</div><p class="checkin-lesson-date">'+dateLabel(pass.booking.date,{weekday:'short'})+' · '+time(pass.booking.start)+'–'+time(pass.booking.start+pass.booking.duration)+'</p>'+(pass.checkedIn?'<div class="checkin-success mt-16" role="status">'+icon('circlecheck')+' '+t('Checked in')+'</div>':'')+'<details class="checkin-tools"><summary>示範工具</summary>'+action('simulate-checkin',pass.checkedIn?'Scan again (demo)':'Simulate centre scan','btn small')+'</details></div>');
 }
 
 function studentsPage(){
@@ -440,7 +452,7 @@ function lessonRow(b,allowLeave=false){
 function parentBottomNav(){
  const selected=['handbook','homework','worksheet'].includes(ui.page)?'overview':ui.page;
  const item=(id,ic,label)=>action('navigate',icon(ic)+'<span>'+label+'</span>','parent-nav-item'+(selected===id?' active':''),'data-page="'+id+'"'+(selected===id?' aria-current="page"':''));
- return item('overview','home','主頁')+item('lessons','calendar','課堂')+action('show-checkin','<span class="parent-qr-disc"><img src="/icons/mathconcept-192.png" width="192" height="192" alt=""></span><span>二維碼</span>','parent-qr-button','aria-label="開啟出席二維碼" aria-haspopup="dialog"')+item('messages','message','訊息')+item('payments','wallet','繳費');
+ return item('overview','home','主頁')+item('lessons','calendar','課堂')+action('show-checkin','<span class="parent-qr-disc"><img src="/icons/mathconcept-192.png" width="192" height="192" alt=""></span>','parent-qr-button','aria-label="開啟出席二維碼" aria-haspopup="dialog" aria-expanded="false" aria-controls="attendance-qr-dialog"')+item('messages','message','訊息')+item('payments','wallet','繳費');
 }
 function parentLessonGroups(studentId){
  const end=new Date(TODAY+'T12:00:00Z');end.setUTCDate(end.getUTCDate()+6);
@@ -820,7 +832,7 @@ document.addEventListener('dragstart', e=>{const chip=e.target.closest('.booking
 document.addEventListener('dragover',e=>{const slot=e.target.closest('[data-slot]');if(slot){e.preventDefault();slot.classList.add('drag-over');}});
 document.addEventListener('dragleave',e=>{const slot=e.target.closest('[data-slot]');if(slot&&!slot.contains(e.relatedTarget))slot.classList.remove('drag-over');});
 document.addEventListener('drop',e=>{if(ui.role!=='admin')return;const slot=e.target.closest('[data-slot]');if(slot){e.preventDefault();slot.classList.remove('drag-over');const id=e.dataTransfer.getData('text/plain');if(state.bookings.some(b=>b.id===id))moveTo(id,{date:slot.dataset.date,start:Number(slot.dataset.start),tutor:slot.dataset.tutor});}});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('#overlay').children.length)closeModal();else if(ui.workNotes){ui.workNotes=false;document.body.classList.remove('work-notes-open');const trigger=$('.drawing-tools [data-action=toggle-work-notes]');trigger?.setAttribute('aria-expanded','false');trigger?.focus();}else if(ui.moveId){ui.moveId=null;render();}else $('.sidebar')?.classList.remove('open');}if(e.key==='Tab'&&$('.modal')){const focusables=$$('button,input,select,textarea,a[href]', $('.modal')).filter(el=>!el.disabled&&el.offsetParent!==null);const first=focusables[0],last=focusables.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('#overlay').children.length)closeModal();else if(ui.workNotes){ui.workNotes=false;document.body.classList.remove('work-notes-open');const trigger=$('.drawing-tools [data-action=toggle-work-notes]');trigger?.setAttribute('aria-expanded','false');trigger?.focus();}else if(ui.moveId){ui.moveId=null;render();}else $('.sidebar')?.classList.remove('open');}if(e.key==='Tab'&&$('.modal')){const focusables=$$('button,input,select,textarea,a[href],summary', $('.modal')).filter(el=>!el.disabled&&el.getClientRects().length>0);const first=focusables[0],last=focusables.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 render();
 if(document.modelContext?.registerTool){
  const lifecycle=new AbortController();
