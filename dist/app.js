@@ -7,6 +7,7 @@ import { normalizeBillingAutomation, analyzeStatement } from './billing-automati
 import { createProofUI } from './billing-proof-ui.js';
 import { createBankCheckUI } from './bank-check-ui.js';
 import { isFamilyRole, familyText, familyDate, familyContent } from './family-locale.js';
+import { roleFromUrl, syncEntryPoint } from './entry-points.js';
 const STORAGE = 'mathconcept-demo-v4';
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
@@ -95,7 +96,7 @@ const NAV = {
  parent: [['overview','home','Overview'],['lessons','calendar','Lessons'],['handbook','book','Handbook'],['payments','wallet','Payments'],['messages','message','Messages']],
  student: [['work','edit','My work'],['past','folder','Past work']]
 };
-const requestedRole = new URLSearchParams(location.search).get('role');
+const requestedRole = roleFromUrl(new URL(location.href));
 if (Object.hasOwn(NAV, requestedRole)) {
  ui.role = requestedRole;
  ui.page = NAV[requestedRole][0][0];
@@ -106,7 +107,7 @@ const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,s
 const bankCheckUI = createBankCheckUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,render:()=>render(),modal,closeModal,toast,openMatch:matchDialog});
 function render() {
   document.documentElement.lang = isFamilyRole(ui.role) ? 'zh-HK' : 'en';
-  document.title = isFamilyRole(ui.role) ? 'MathConcept（荃灣）· 示範' : 'MathConcept (Tsuen Wan) · Demo';
+  syncEntryPoint(ui.role);
   const nav = NAV[ui.role]; const user = identity();
   const pageKey=ui.role+'|'+ui.page+'|'+(ui.assignmentId||'');
   const oldPaper=$('.paper-wrap');

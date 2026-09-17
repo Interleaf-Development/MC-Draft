@@ -16,7 +16,9 @@ Open **http://127.0.0.1:4173**. Use the role switch at the top to change between
 
 The dedicated **mc-draft** project in **Oscar Lai's projects** hosts this client demo. Import `Interleaf-Development/MC-Draft` with the **Other** framework preset and repository root `./`. `vercel.json` publishes only `dist/`, skips dependency installation, and runs the syntax checks and tests before deployment. No environment variables or backend services are needed. Pushing to `main` updates the shared demo URL.
 
-Open the deployed URL with `/?role=parent` for the phone walkthrough or `/?role=student` for the tablet walkthrough. The root URL opens Admin. On iPhone/iPad, open the Parent link in Safari and choose **Share → Add to Home Screen**. On Android, use Chrome's **Install app** or **Add to Home screen** option. The installed app opens the Parent view without browser chrome.
+The root URL opens **Admin**. Open `/parent/` for the phone walkthrough or `/student/` for the tablet walkthrough (`/parent` and `/student` also work). Existing `?role=` links remain usable and update to the matching path.
+
+Parent and Student have separate install identities, launch URLs and names: **MathConcept 家長** and **MathConcept 學生**. Open each link separately in Safari and choose **Share → Add to Home Screen**, or use Chrome's **Install app** option on Android. Each icon starts in its own role. Admin and Teacher have no install manifest. The demo role switch also updates the current URL; it does not change the identity of an already installed app. Older installations can be removed and replaced with the new role-specific icons.
 
 The app shell and local artwork are cached after the first successful online visit, so the demo can reopen offline. Reopen while online to receive newer files; an already open screen is not forcibly reloaded. Demonstration records remain local to each browser/device and are not synchronised with another phone or desktop. Uploaded proofs and chat attachments are not sent to Vercel.
 
@@ -126,8 +128,10 @@ Automatic bank matches require an exact amount, strong reference/full-payer iden
 ## Project structure
 
 ~~~text
-dist/index.html       App entry point
-dist/manifest.webmanifest  Installable Parent app metadata
+dist/index.html       Admin / Teacher browser entry
+dist/parent/          Parent entry and install manifest
+dist/student/         Student entry and install manifest
+dist/entry-points.js  Role URLs and install metadata
 dist/pwa.js           Service worker registration
 dist/sw.js            Static app cache and offline fallback
 dist/icons/           App and Apple home-screen icons

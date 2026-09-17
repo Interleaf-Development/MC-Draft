@@ -14,7 +14,8 @@ function response(body, path, { type = 'basic', redirected = false, contentType,
 }
 async function assetResponse(request) {
   const path = new URL(typeof request === 'string' ? request : request.url, origin).pathname;
-  return response(await readFile(resolve(dist, '.' + decodeURIComponent(path === '/' ? '/index.html' : path))), path);
+  const file = path.endsWith('/') ? path + 'index.html' : path;
+  return response(await readFile(resolve(dist, '.' + decodeURIComponent(file))), path);
 }
 function harness() {
   const listeners = new Map(), stores = new Map();
@@ -40,18 +41,42 @@ function harness() {
   };
 }
 
-test('install manifest opens the parent app and supplies correctly sized PNG icons', async () => {
-  const manifest = JSON.parse(await readFile(resolve(dist, 'manifest.webmanifest'), 'utf8'));
-  assert.equal(manifest.name, 'MathConcept（荃灣）');
+for (const [role, label] of [['parent', '家長'], ['student', '學生']]) test(role + ' installs with its own identity, launch URL, scope and icons', async () => {
+  const manifest = JSON.parse(await readFile(resolve(dist, role + '/manifest.webmanifest'), 'utf8'));
+  const html = await readFile(resolve(dist, role + '/index.html'), 'utf8');
+  assert.equal(manifest.name, 'MathConcept（荃灣）' + label);
+  assert.equal(manifest.short_name, 'MathConcept ' + label);
   assert.equal(manifest.lang, 'zh-HK');
-  assert.equal(manifest.id, '/'); assert.equal(manifest.scope, '/'); assert.equal(manifest.display, 'standalone');
-  assert.equal(new URL(manifest.start_url, origin).searchParams.get('role'), 'parent');
+  assert.equal(manifest.id, '/' + role + '/'); assert.equal(manifest.scope, '/' + role + '/'); assert.equal(manifest.display, 'standalone');
+  assert.equal(manifest.start_url, '/' + role + '/');
+  assert.ok(html.includes('href="/' + role + '/manifest.webmanifest"'));
+  assert.ok(html.includes('name="apple-mobile-web-app-title" content="' + manifest.short_name + '"'));
   assert.deepEqual(manifest.icons.map(icon => icon.sizes).sort(), ['192x192', '512x512']);
   for (const [file, size] of [...manifest.icons.map(icon => [icon.src, Number(icon.sizes.split('x')[0])]), ['/icons/mathconcept-apple-touch.png', 180], ['/icons/mathconcept-favicon.png', 48]]) {
     const png = await readFile(resolve(dist, '.' + file));
     assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     assert.equal(png.readUInt32BE(16), size); assert.equal(png.readUInt32BE(20), size);
   }
+});
+
+test('staff entry does not advertise a family install', async () => {
+  const html = await readFile(resolve(dist, 'index.html'), 'utf8');
+  assert.ok(!html.includes('rel="manifest"'));
+  assert.ok(!html.includes('name="apple-mobile-web-app-capable"'));
+});
+
+test('offline parent and student launches retain the correct shell and install metadata', async () => {
+  const worker = harness(); await worker.lifecycle('install');
+  worker.network(async () => { throw new Error('Offline'); });
+  for (const role of ['parent', 'student']) {
+    for (const path of ['/' + role, '/' + role + '/', '/' + role + '/index.html']) {
+      const html = await (await worker.fetch(path, { mode: 'navigate' })).text();
+      assert.ok(html.includes('href="/' + role + '/manifest.webmanifest"'));
+    }
+    const manifest = await (await worker.fetch('/' + role + '/manifest.webmanifest')).json();
+    assert.equal(manifest.start_url, '/' + role + '/');
+  }
+  assert.ok(!(await (await worker.fetch('/', { mode: 'navigate' })).text()).includes('rel="manifest"'));
 });
 
 test('first install caches the complete local module and stylesheet graph for offline parent navigation', async () => {

@@ -5,7 +5,9 @@ const root = resolve('dist');
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer(async (req, res) => {
   try {
-    const path = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    const url = new URL(req.url, 'http://localhost');
+    const path = decodeURIComponent(url.pathname);
+    if (['/parent', '/student'].includes(path)) { res.writeHead(308, { Location: path + '/' + url.search }); res.end(); return; }
     let file = resolve(root, '.' + (path === '/' ? '/index.html' : path));
     if (file !== root && !file.startsWith(root + sep)) { res.writeHead(403); res.end(); return; }
     if ((await stat(file)).isDirectory()) file = resolve(file, 'index.html');
