@@ -47,7 +47,7 @@ test('install manifest opens the parent app and supplies correctly sized PNG ico
   assert.equal(manifest.id, '/'); assert.equal(manifest.scope, '/'); assert.equal(manifest.display, 'standalone');
   assert.equal(new URL(manifest.start_url, origin).searchParams.get('role'), 'parent');
   assert.deepEqual(manifest.icons.map(icon => icon.sizes).sort(), ['192x192', '512x512']);
-  for (const [file, size] of [...manifest.icons.map(icon => [icon.src, Number(icon.sizes.split('x')[0])]), ['/icons/apple-touch-icon.png', 180]]) {
+  for (const [file, size] of [...manifest.icons.map(icon => [icon.src, Number(icon.sizes.split('x')[0])]), ['/icons/mathconcept-apple-touch.png', 180], ['/icons/mathconcept-favicon.png', 48]]) {
     const png = await readFile(resolve(dist, '.' + file));
     assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     assert.equal(png.readUInt32BE(16), size); assert.equal(png.readUInt32BE(20), size);

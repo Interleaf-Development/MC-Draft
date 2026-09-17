@@ -1,6 +1,6 @@
 // Bump this version when changing the offline asset set or cache policy.
 const CACHE_PREFIX = 'mathconcept-static-';
-const CACHE_NAME = CACHE_PREFIX + 'v3-brand-logo';
+const CACHE_NAME = CACHE_PREFIX + 'v4-brand-icon';
 const PRECACHE = [
   '/index.html',
   '/app.js', '/model.js', '/checkin.js', '/student-profile.js', '/family-locale.js',
@@ -9,7 +9,7 @@ const PRECACHE = [
   '/vendor/qrcode.js', '/pwa.js',
   '/styles.css', '/scale.css', '/schedule.css', '/student-directory.css',
   '/conversations.css', '/billing-automation.css', '/conversation-wallpaper.svg',
-  '/brand/mathconcept-logo.png', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png',
+  '/brand/mathconcept-logo.png', '/manifest.webmanifest', '/icons/mathconcept-192.png', '/icons/mathconcept-512.png', '/icons/mathconcept-apple-touch.png', '/icons/mathconcept-favicon.png',
   ...Array.from({ length: 18 }, (_, index) => '/brand/Asset%20' + (index + 1) + '.svg')
 ];
 const staticPaths = new Set(PRECACHE);
