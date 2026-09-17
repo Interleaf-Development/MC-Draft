@@ -55,7 +55,7 @@ The QR contains an opaque demo token, with no student name or contact details. T
 - One time column at the left, compact student cards and a small green tick for attended lessons. Hover or open a card for exact lesson times and remarks. Longer lessons also appear in the following hour with a continuation arrow.
 - Drag within a teacher's schedule, or choose **Move lesson**, switch teacher tabs and select the destination. Half-hour starts keep their minute offset. Original bookings remain struck through, replacements show their source date, and Undo restores the move.
 - Capacity labels are hidden; the six-student overlap check still applies. Adding a lesson supports half-hour start times and 30/60/90-minute durations that end by 19:00.
-- The single-lesson make-up chooser filters by date and teacher, with available half-hour starts across the same opening hours. The split-extension flow remains linked to the student's existing lessons.
+- The single-lesson make-up chooser filters by date and teacher, with available half-hour starts across the same opening hours. Parents can request one full 60- or 90-minute lesson. Only staff can arrange 30-minute exceptions and split extensions, which remain linked to the student's existing lessons. Any remaining balance below 60 minutes is arranged by the centre.
 - Teachers can view their **My schedule** calendar and leave balance together. Managers retain the teacher tabs and editing controls.
 - The eight teacher names are provided by the user; rosters and bookings are illustrative. AM/PM uses a 14:00 boundary for the demo and requires confirmation with the centre.
 
@@ -70,13 +70,14 @@ The QR contains an opaque demo token, with no student name or contact details. T
 5. **Teacher → Lesson record:** write a summary and share it.
 6. **Parent → Handbook:** see the shared summary and marked work.
 
-### 2. One missed hour, two half-hour extensions
+### 2. Staff-arranged exception: two half-hour extensions
 
-1. **Parent → Lessons → Find a time:** select 30-minute extensions.
-2. Choose **2 October, 17:00** and **7 October, 17:00**, then request the times.
-3. **Admin → Schedule:** approve the request in the calendar's side panel.
-4. The replacement bookings appear in red and link to the missed 23 September lesson.
-5. **Parent → Lessons:** see zero unbooked minutes and **one reschedule used**.
+Parents request full lessons in the app. If a parent asks in person and the centre agrees to a split exception:
+
+1. **Admin → Schedule → Pending make-ups → Find a time:** select **30-minute extensions** for Chloe.
+2. Choose **2 October, 17:00** and **7 October, 17:00**, then **Confirm booking**.
+3. The replacement bookings appear in red and link to the missed 23 September lesson.
+4. **Parent → Lessons:** see the centre-arranged bookings, zero unbooked minutes and **one reschedule used**.
 
 An ordinary move can also be done by dragging a booking, or by opening it and choosing **Move lesson**. Original bookings stay struck through. Capacity is checked across overlapping time intervals. A move after expiry requires a reason and a manager-approved extension. Undo is available after an ordinary move.
 
