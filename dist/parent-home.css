@@ -1,0 +1,125 @@
+/* Parent phone shell: three shortcuts, the week's lessons, and a central QR. */
+.role-parent .app-shell,
+.role-parent .topbar { background: #faf9f6; }
+.role-parent .topbar { border-bottom-color: #e9e7e1; }
+.role-parent .main { padding-bottom: calc(118px + env(safe-area-inset-bottom)); }
+.role-parent .parent-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 30px;
+}
+.role-parent .parent-quick-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-height: 102px;
+  padding: 18px 14px 15px;
+  border-radius: 19px;
+  background: #f9e6e5;
+  color: #a63138;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background .15s;
+}
+.role-parent .parent-quick-action:hover { background: #f4dad9; }
+.role-parent .parent-quick-action .icon { width: 25px; height: 25px; }
+.role-parent .parent-week-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.role-parent .parent-week-heading h2 { font-size: 19px; letter-spacing: 0; }
+.role-parent .parent-week-heading [data-change="family-student"] {
+  width: auto;
+  max-width: 100%;
+  padding: 8px 28px 8px 0;
+  min-height: 44px;
+  border: 0;
+  box-shadow: none;
+  background-color: transparent;
+  border-radius: 6px;
+  color: #66717d;
+  font-size: 14px;
+}
+.role-parent .parent-lesson-days { display: grid; gap: 16px; }
+.role-parent .parent-day-card {
+  border: 1px solid #e5e7e9;
+  border-radius: 20px;
+  padding: 0 18px;
+  background: white;
+  overflow: hidden;
+}
+.role-parent .parent-day-card h3 { padding: 18px 0 15px; font-size: 16px; letter-spacing: 0; border-bottom: 1px solid #e9e9e7; }
+.role-parent .parent-home-lesson {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 18px 0;
+  text-align: left;
+  min-height: 94px;
+}
+.role-parent .parent-home-lesson + .parent-home-lesson { border-top: 1px solid #eeefed; }
+.role-parent .parent-home-lesson:focus-visible { outline-offset: -3px; border-radius: 8px; }
+.role-parent .parent-home-lesson > .icon { color: #9198a1; }
+.role-parent .parent-lesson-copy { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.role-parent .parent-lesson-copy strong { font-size: 21px; line-height: 1.25; font-weight: 700; letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
+.role-parent .parent-lesson-meta { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; color: #64707d; font-size: 14px; }
+.role-parent .parent-lesson-status { font-size: 12px; color: #a63138; }
+.role-parent .parent-attendance { display: inline-flex; align-items: center; gap: 5px; color: #278068; font-size: 13px; }
+.role-parent .parent-no-lessons { color: #727b86; font-size: 15px; padding: 8px 0; }
+
+.role-parent .mobile-bottom-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  padding: 7px 8px max(8px, env(safe-area-inset-bottom));
+  border: 1px solid #e5e7e9;
+  border-bottom: 0;
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -3px 18px #26324606;
+  overflow: visible;
+}
+.role-parent .mobile-bottom-nav button {
+  min-width: 0;
+  min-height: 58px;
+  font-size: 11px;
+  font-weight: 500;
+  gap: 5px;
+  color: #6f7b85;
+  border-radius: 16px;
+  padding: 6px 0;
+}
+.role-parent .mobile-bottom-nav button.active { background: #f9e6e5; color: #a63138; }
+.role-parent .mobile-bottom-nav .icon { width: 23px; height: 23px; }
+.role-parent .mobile-bottom-nav .parent-qr-button { justify-content: flex-end; color: #a63138; }
+.role-parent .parent-qr-disc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  flex-shrink: 0;
+  margin-top: -29px;
+  border: 4px solid var(--red);
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 0 4px #faf9f6;
+  overflow: hidden;
+}
+.role-parent .parent-qr-disc img { width: 100%; height: 100%; object-fit: contain; }
+.role-parent.messages-open:not(.wa-chat-open) .main { height: calc(100dvh - 64px - env(safe-area-inset-top) - 81px - env(safe-area-inset-bottom)); padding-bottom: 0; }
+.role-parent.messages-open.wa-chat-open .mobile-bottom-nav { display: none; }
+.role-parent #notifications { bottom: calc(106px + env(safe-area-inset-bottom)); }
+@media (max-width: 360px) {
+  .role-parent .parent-quick-actions { gap: 8px; }
+  .role-parent .parent-quick-action { padding: 16px 11px 13px; min-height: 96px; font-size: 14px; }
+  .role-parent .parent-qr-disc { width: 60px; height: 60px; margin-top: -24px; }
+  .role-parent .parent-day-card { padding: 0 15px; }
+}

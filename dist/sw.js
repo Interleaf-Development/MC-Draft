@@ -1,6 +1,6 @@
 // Bump this version when changing the offline asset set or cache policy.
 const CACHE_PREFIX = 'mathconcept-static-';
-const CACHE_NAME = CACHE_PREFIX + 'v5-family-entries';
+const CACHE_NAME = CACHE_PREFIX + 'v6-parent-home';
 const shells = { '/index.html': '/', '/parent/index.html': '/parent/', '/student/index.html': '/student/' };
 function shellPath(path) {
   if (path === '/' || path === '/index.html') return '/index.html';
@@ -14,7 +14,7 @@ const PRECACHE = [
   '/billing-automation.js', '/billing-proof-ui.js', '/bank-check-ui.js', '/statement-csv.js',
   '/vendor/qrcode.js', '/pwa.js',
   '/styles.css', '/scale.css', '/schedule.css', '/student-directory.css',
-  '/conversations.css', '/billing-automation.css', '/conversation-wallpaper.svg',
+  '/conversations.css', '/billing-automation.css', '/parent-home.css', '/conversation-wallpaper.svg',
   '/brand/mathconcept-logo.png', '/parent/manifest.webmanifest', '/student/manifest.webmanifest', '/icons/mathconcept-192.png', '/icons/mathconcept-512.png', '/icons/mathconcept-apple-touch.png', '/icons/mathconcept-favicon.png',
   ...Array.from({ length: 18 }, (_, index) => '/brand/Asset%20' + (index + 1) + '.svg')
 ];
