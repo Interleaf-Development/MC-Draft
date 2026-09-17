@@ -33,6 +33,7 @@ const EMOJIS = ['😀','😊','❤️','👍','🙏','🎉','👏','✅','📚',
 export function createConversationUI({getState,getViewer,persist,render:renderApp,modal,closeModal,toast,childSwitch}) {
   const views = new Map();
   let renderedKey='', renderedThread='', scrollTop=0, listTop=0, jumpBottom=true, focusAfter=null, pickerQuery='', pickerLimit=20;
+  let navigationMotion=null;
   const t = (english, chinese) => getViewer().role==='parent' ? chinese : english;
   const textLabel = value => familyText(value,getViewer().role);
   const contentLabel = value => familyContent(value,getViewer().role);
@@ -117,7 +118,7 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
   }
   function render() {
     const v=current(), key=viewerKey(getViewer()), old=document.querySelector('.wa-conversation-scroll'), oldList=document.querySelector('.wa-thread-scroll');
-    if(renderedKey===key){if(old)scrollTop=old.scrollTop;if(oldList)listTop=oldList.scrollTop;}
+    if(renderedKey===key){if(old?.getClientRects().length)scrollTop=old.scrollTop;if(oldList?.getClientRects().length)listTop=oldList.scrollTop;}
     else {scrollTop=0;listTop=0;jumpBottom=true;}
     let threads=visibleThreads();
     if(!selected())v.selected=threads.find(t=>t.id==='thread-chloe')?.id||threads[0]?.id||null;
@@ -134,10 +135,22 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
     const list=document.querySelector('.wa-thread-scroll');if(list)list.scrollTop=listTop;
     if(focusAfter){const input=document.getElementById(focusAfter.id);input?.focus();if(input&&focusAfter.position!==undefined)input.setSelectionRange(focusAfter.position,focusAfter.position);focusAfter=null;}
     resizeComposer();
+    // Consume once: message updates, search and composer redraws stay still.
+    const motion=navigationMotion;navigationMotion=null;
+    if(motion?.viewer===viewerKey(getViewer())){
+      const forward=motion.direction==='forward';
+      const focusTarget=document.querySelector(forward?'.wa-back':'.wa-thread[aria-current="true"]');
+      if(focusTarget?.getClientRects().length)focusTarget.focus({preventScroll:true});
+      if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.querySelector(forward?'.wa-chat-pane':'.wa-chat-list')?.animate?.([
+        {transform:'translateX('+(forward?32:-24)+'px)',opacity:.72},
+        {transform:'translateX(0)',opacity:1}
+      ],{duration:220,easing:'cubic-bezier(.22,.61,.36,1)'});
+    }
   }
   function redraw(focusId,position) {if(focusId)focusAfter={id:focusId,position};renderApp();}
+  function navigate(direction){navigationMotion={direction,viewer:viewerKey(getViewer())};redraw();}
   function resizeComposer() {const input=document.getElementById('chat-input');if(input){input.style.height='auto';input.style.height=Math.min(input.scrollHeight,120)+'px';}}
-  function openThread(id) {const t=threadById(id);if(!t)return;const v=current();v.selected=id;v.open=true;v.messageLimit=50;v.chatQuery='';v.searchOpen=false;v.menu=null;markConversationRead(getState(),id,getViewer());persist();jumpBottom=true;redraw();}
+  function openThread(id) {const t=threadById(id);if(!t)return;const v=current(),changed=!v.open||v.selected!==id;v.selected=id;v.open=true;v.messageLimit=50;v.chatQuery='';v.searchOpen=false;v.menu=null;markConversationRead(getState(),id,getViewer());persist();jumpBottom=true;if(changed)navigate('forward');else redraw();}
   function newChat() {
     if(getViewer().role==='parent'){startStudentChat(getViewer().studentId);return;}
     pickerQuery='';pickerLimit=20;
@@ -168,7 +181,7 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
     const a=action.replace(/^wa-/,''),v=current(),thread=selected();
     try {
       if(a==='thread'){openThread(id);return;}
-      if(a==='back'){v.open=false;v.menu=null;redraw();return;}
+      if(a==='back'){v.open=false;v.menu=null;navigate('back');return;}
       if(a==='filter'){v.filter=el.dataset.filter;v.limit=30;v.menu=null;listTop=0;redraw();return;}
       if(a==='more-chats'){v.limit+=30;redraw();return;}
       if(a==='clear-search'){v.query='';redraw('wa-list-search');return;}
@@ -216,5 +229,5 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
     if(!current().menu||e.target.closest('.wa-menu,.wa-emoji-picker,[data-action^="wa-"]'))return;
     current().menu=null;document.querySelectorAll('.wa-menu,.wa-emoji-picker').forEach(el=>el.remove());document.querySelectorAll('.wa-inbox [aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false'));
   }
-  return {render,afterRender,handleAction,onInput,onChange,onKeyDown,onDocumentClick,reset(){views.clear();renderedKey='';renderedThread='';jumpBottom=true;}};
+  return {render,afterRender,handleAction,onInput,onChange,onKeyDown,onDocumentClick,reset(){views.clear();renderedKey='';renderedThread='';jumpBottom=true;navigationMotion=null;}};
 }
