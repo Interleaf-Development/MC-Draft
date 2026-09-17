@@ -102,6 +102,8 @@ An ordinary move can also be done by dragging a booking, or by opening it and ch
 4. The sample includes **Ethan / R-1025** (receipt 1 August, bank 31 July → date back), **Lucas / R-1026** (receipt 31 July, bank 2 August → date forward), **Emma / R-1027** (HK$200 short), an ambiguous payment and an unidentified deposit. Chloe’s default proof reference matches her sample deposit.
 5. **HQ report:** choose a bank-credit month, inspect the matched ledger and export CSV. Receipt dates stay unchanged; unmatched receipts have no assumed reporting month. Open **Details** for the proof and bank dates; changing an existing match is a separate action.
 
+**Admin → Billing & reconciliation → Receipts:** browse receipts sent in a day or Monday–Sunday week, jump to a date, or search by student, parent, receipt or payment reference. Rows are grouped by date sent with pagination and direct **Receipt** / **Payment proof** actions. This demo issues and sends receipts together, so the register uses the original receipt issue date; bank date-forward/back adjustments do not move a receipt between groups. Saved uploads open as images/PDFs, while fixture evidence is explicitly labeled as fictional.
+
 The working screens show one toolbar and a compact ledger. Reconciliation defaults to **Needs review**; routine matches remain in the status filter. **Unmatched deposits** and **Statement history** open on demand. Invoice details hold proof/receipt actions instead of repeating those controls and descriptions on every row.
 
 Billing fixtures represent 700 enrolled students, with current October–November invoices for active students and historical invoices for paused students. Ethan and Lucas also have separate current invoices alongside their historical date-adjustment examples. Most received proofs already have receipts and bank matches; a small number deliberately illustrate an unreadable proof, missing deposits, an amount difference and ambiguous deposits. Adult payer names, receipt/proof amounts and invoice dates are consistent. Completed payment events do not occur after the fixed demo date (30 September); future due dates remain valid. Existing saved interactions survive a guarded, versioned fixture upgrade.
@@ -159,6 +161,8 @@ dist/conversations-ui.js     Chat list, messages and composer interactions
 dist/conversations.css       WhatsApp-style desktop and mobile chat layout
 dist/billing-automation.js   Proof screening, receipt automation and statement matching
 dist/billing-proof-ui.js     Parent proof upload and review flow
+dist/receipts-ui.js          Receipt register with day/week browsing and proof access
+dist/receipts.css            Shared receipt register layout
 dist/bank-check-ui.js        Statement preview, exception review and import history
 dist/statement-csv.js        Validated local CSV statement parser
 dist/billing-automation.css  Mobile proof and desktop reconciliation layouts

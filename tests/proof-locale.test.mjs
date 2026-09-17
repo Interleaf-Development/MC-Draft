@@ -46,6 +46,7 @@ test('Parent proof preview is Traditional Chinese and leaves billing records unc
   assert.match(current.body, /證明金額：HK\$2000；應付金額：HK\$2000。/);
   assert.match(current.body, /有效付款證明/);
   assert.match(current.body, /MathConcept（荃灣）/);
+  assert.match(current.body, /<dt>付款人<\/dt><dd>Elaine Chan<\/dd>/);
   assert.match(current.body, /FPS 910277/);
   assert.doesNotMatch(current.body, />Valid payment proof<|>Payment date<|shown; HK\$/);
   assert.deepEqual(state, before);
@@ -58,6 +59,7 @@ test('staff sees the same English proof labels and preview', t => {
   assert.match(current.body, /Valid payment proof/);
   assert.match(current.body, /HK\$2000 shown; HK\$2000 expected\./);
   assert.match(current.body, /MathConcept \(Tsuen Wan\)/);
+  assert.match(current.body, /<dt>Payer<\/dt><dd>Elaine Chan<\/dd>/);
   assert.doesNotMatch(current.body, /付款證明|示範核對/);
   assert.deepEqual(state, before);
 });
@@ -86,6 +88,7 @@ test('every simulated Parent result is translated without rewriting stored proof
     ui.openProof(invoice.id);
     assert.equal(current.title, '付款證明');
     assert.match(current.body, /以上結果均為模擬/);
+    assert.doesNotMatch(current.body, /<details|proof-record-admin/);
     assert.doesNotMatch(current.body, /The example is not|cannot be read|could not be read|already been used|Other Learning Centre|shown; HK\$/);
     assert.deepEqual(state, before, scenario);
   }
@@ -110,4 +113,32 @@ test('Parent submission keeps references and uploaded names intact, and exposes 
   assert.match(current.body, /<span>Payment proof<\/span>/);
   assert.match(current.body, /aria-label="已選擇的付款證明 PDF"/);
   assert.deepEqual(state, before);
+});
+
+test('staff saved proof keeps original evidence and consequential results outside closed check details', t => {
+  const { state, current, ui } = setup(t, 'admin');
+  const invoice = state.invoices.find(item => item.id === 'INV-1024');
+  const image = { name: 'Parent transfer.png', mimeType: 'image/png', size: 3, dataUrl: 'data:image/png;base64,YWJj' };
+  for (const { id: scenario } of PROOF_SCENARIOS) {
+    invoice.proof = false; invoice.receiptId = null; delete invoice.proofReview;
+    state.receipts = state.receipts.filter(receipt => receipt.invoiceId !== invoice.id);
+    submitPaymentProof(state, invoice.id, { scenario, reference: 'PARENT 555777', paymentDate: TODAY, file: image });
+    const before = clone(state);
+    ui.openProof(invoice.id);
+    const disclosure = current.body.match(/<details\b[^>]*>[\s\S]*?<\/details>/)?.[0];
+    assert.ok(disclosure, scenario);
+    assert.doesNotMatch(disclosure.match(/^<details[^>]*>/)[0], /\bopen(?:\s|=|>)/);
+    assert.match(disclosure, /<summary>Proof check details<\/summary>/);
+    assert.match(disclosure, /These are simulated results\. No AI read the uploaded file\./);
+    assert.match(disclosure, /class="proof-extracted|class="detail-grid proof-extracted/);
+    assert.match(disclosure, /aria-label="Demo proof checks"/);
+    const visible = current.body.replace(disclosure, '');
+    assert.match(visible, /src="data:image\/png;base64,YWJj"/);
+    assert.match(visible, /Parent transfer\.png/);
+    assert.match(visible, new RegExp(scenario === 'pass' ? 'Receipt issued' : scenario === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review'));
+    assert.deepEqual(state, before, scenario);
+  }
+  invoice.proofReview.file = { name: 'Parent transfer.pdf', mimeType: 'application/pdf', size: 3, dataUrl: 'data:application/pdf;base64,YWJj' };
+  ui.openProof(invoice.id);
+  assert.match(current.body.split('<details')[0], /<object[^>]+data="data:application\/pdf;base64,YWJj"/);
 });

@@ -46,7 +46,7 @@ const COPY = {
   'Recipient': '收款人', 'Amount': '金額', 'Reference': '參考編號', 'Payment date': '付款日期',
   'Demo proof checks': '示範付款證明核對', 'Passed': '已通過', 'Failed': '未通過', 'Needs review': '待中心覆核',
   'Fictional sample': '虛構示範', 'Shopping list': '購物清單', 'Notebooks': '筆記簿', 'Pencils': '鉛筆', 'School bag': '書包',
-  'Fictional transfer confirmation': '虛構轉賬確認', 'Transfer submitted': '已提交轉賬', 'To': '收款人', 'Date': '日期',
+  'Fictional transfer confirmation': '虛構轉賬確認', 'Transfer submitted': '已提交轉賬', 'To': '收款人', 'Payer': '付款人', 'Date': '日期',
   'Selected payment proof': '已選擇的付款證明', 'Selected payment proof PDF': '已選擇的付款證明 PDF',
   'PDF preview is unavailable in this browser.': '此瀏覽器未能預覽 PDF。', 'Download PDF': '下載 PDF',
   'Choose payment proof image or PDF': '選擇付款證明圖片或 PDF', 'Upload payment proof': '上載付款證明',
@@ -131,7 +131,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
       return `<div class="proof-sample proof-not-payment"><span class="proof-sample-label">${t('Fictional sample')}</span><h3>${t('Shopping list')}</h3><p>${t('Notebooks')}<br>${t('Pencils')}<br>${t('School bag')}</p></div>`;
     }
     const extracted = review.extracted || {};
-    return `<div class="proof-sample${review.scenario === 'unreadable' ? ' proof-unreadable' : ''}"><span class="proof-sample-label">${t('Fictional transfer confirmation')}</span><div class="proof-sample-content">${icons.pass}<h3>${Number.isFinite(extracted.amount) ? money(extracted.amount) : money(invoice.amount)}</h3><p>${t('Transfer submitted')}</p><dl class="detail-grid"><div><dt>${t('To')}</dt><dd>${esc(detailText(extracted.recipient || centre.name))}</dd></div><div><dt>${t('Reference')}</dt><dd>${esc(extracted.reference || t('Not readable'))}</dd></div><div><dt>${t('Date')}</dt><dd>${safeDate(extracted.paymentDate)}</dd></div></dl></div></div>`;
+    return `<div class="proof-sample${review.scenario === 'unreadable' ? ' proof-unreadable' : ''}"><span class="proof-sample-label">${t('Fictional transfer confirmation')}</span><div class="proof-sample-content">${icons.pass}<h3>${Number.isFinite(extracted.amount) ? money(extracted.amount) : money(invoice.amount)}</h3><p>${t('Transfer submitted')}</p><dl class="detail-grid"><div><dt>${t('To')}</dt><dd>${esc(detailText(extracted.recipient || centre.name))}</dd></div><div><dt>${t('Reference')}</dt><dd>${esc(extracted.reference || t('Not readable'))}</dd></div><div><dt>${t('Date')}</dt><dd>${safeDate(extracted.paymentDate)}</dd></div>${extracted.payer ? `<div><dt>${t('Payer')}</dt><dd>${esc(extracted.payer)}</dd></div>` : ''}</dl></div></div>`;
   }
 
   function attachmentPreview(file, review, invoice, isSample = false) {
@@ -195,7 +195,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
 
   function openProof(invoiceId) {
     return safely(() => {
-      const invoice = invoiceFor(invoiceId), review = invoice.proofReview;
+      const invoice = invoiceFor(invoiceId), review = invoice.proofReview, admin = getViewer().role === 'admin';
       if (!invoice.proof && !review) return openSubmit(invoiceId);
       draft = null;
       let body = invoiceSummary(invoice);
@@ -205,11 +205,14 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
         const passed = review.status === 'passed';
         body += `<div class="proof-result ${passed ? 'pass' : 'uncertain'}"><span class="proof-result-icon">${icons[passed ? 'pass' : 'uncertain']}</span><div><h3>${t(passed && invoice.receiptId ? 'Receipt issued' : passed ? 'Proof accepted' : review.status === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review')}</h3><p>${passed && invoice.receiptId ? esc(t(`${invoice.receiptId} is available below.`, `可在下方查看收據 ${invoice.receiptId}。`)) : t('The centre needs to review this proof. You can submit a clearer or corrected copy.')}</p></div></div>`;
         body += attachmentPreview(review.file, review, invoice, !review.file);
-        body += `<section class="proof-demo-controls"><h3 class="proof-section-title">${t('Demo check')}</h3><p class="small muted">${t('These are simulated results. No AI read the uploaded file.')}</p>${detailFields(review.extracted)}${checks(review)}</section>`;
-        if (passed) body += `<p class="proof-footer-note small muted">${t('A receipt is issued after the proof checks pass. Bank reconciliation is a separate step.')}</p>`;
+        const checkDetails = `<p class="small muted">${t('These are simulated results. No AI read the uploaded file.')}</p>${detailFields(review.extracted)}${checks(review)}`;
+        const bankNote = passed ? `<p class="proof-footer-note small muted">${t('A receipt is issued after the proof checks pass. Bank reconciliation is a separate step.')}</p>` : '';
+        body += admin
+          ? `<details class="proof-demo-controls proof-check-details"><summary>Proof check details</summary><div class="proof-check-details-content">${checkDetails}${bankNote}</div></details>`
+          : `<section class="proof-demo-controls"><h3 class="proof-section-title">${t('Demo check')}</h3>${checkDetails}</section>${bankNote}`;
       }
       const receiptAction = invoice.receiptId ? button('receipt', icons.receipt + ' ' + t('Open receipt'), 'btn primary', `data-id="${esc(invoice.id)}"`) : button('replace', t('Upload another proof'), 'btn primary', `data-id="${esc(invoice.id)}"`);
-      modal(t('Payment proof'), `<div class="proof-flow" data-proof-record="${esc(invoice.id)}">${body}</div>`, button('close', t('Close')) + receiptAction);
+      modal(t('Payment proof'), `<div class="proof-flow${admin ? ' proof-record-admin' : ''}" data-proof-record="${esc(invoice.id)}">${body}</div>`, button('close', t('Close')) + receiptAction);
       document.querySelector('.modal')?.classList.add('proof-modal');
       return true;
     });

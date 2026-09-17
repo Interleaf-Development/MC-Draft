@@ -204,3 +204,11 @@ object.proof-pdf-preview { display: block; min-height: 0; height: 230px; padding
   .billing-workspace .collection-footer > .flex { margin-left: auto; }
   .billing-workspace .collection-footer .btn { min-height: 36px; }
 }
+
+/* Staff open saved evidence first; automated check details remain available on demand. */
+.proof-record-admin .proof-preview-image { max-height: 380px; }
+.proof-record-admin .proof-preview object { height: 360px; }
+.proof-record-admin .proof-sample { max-height: none; }
+.proof-record-admin .proof-check-details > summary { width: fit-content; padding: 4px 0; color: #647084; }
+.proof-record-admin .proof-check-details-content > p:first-child { margin-bottom: 14px; line-height: 1.5; }
+.proof-record-admin .proof-check-details-content > .proof-footer-note { margin-top: 10px; }

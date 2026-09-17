@@ -6,6 +6,7 @@ import { createConversationUI } from './conversations-ui.js';
 import { normalizeBillingAutomation, analyzeStatement } from './billing-automation.js';
 import { createProofUI } from './billing-proof-ui.js';
 import { createBankCheckUI } from './bank-check-ui.js';
+import { createReceiptsUI } from './receipts-ui.js';
 import { isFamilyRole, familyText, familyDate, familyContent } from './family-locale.js';
 import { roleFromUrl, syncEntryPoint } from './entry-points.js';
 import { createEdgePager } from './schedule-drag.js';
@@ -111,6 +112,7 @@ if (Object.hasOwn(NAV, requestedRole)) {
 const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre director', initials: centre.initials, colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: centre.initials, colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
 const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),persist:()=>{previousState=null;persist();},render:()=>render(),modal,closeModal,toast,childSwitch:()=>childSwitch()});
 const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),change,modal,closeModal,toast,openReceipt:receiptDialog});
+const receiptsUI = createReceiptsUI({getState:()=>state,render:()=>render(),openReceipt:receiptDialog,openProof});
 const bankCheckUI = createBankCheckUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,render:()=>render(),modal,closeModal,toast,openMatch:matchDialog});
 function render() {
   finishScheduleDrag(false);
@@ -442,7 +444,8 @@ function invoiceStatus(invoice){
 }
 function billingPage(){
  const key='invoices',c=collection(key);
- const shell=heading('Billing & reconciliation')+tabs(['Invoices','Reconciliation','HQ report'],ui.billingTab,'billing-tab');
+ const shell=heading('Billing & reconciliation')+tabs(['Invoices','Receipts','Reconciliation','HQ report'],ui.billingTab,'billing-tab');
+ if(ui.billingTab==='Receipts')return shell+receiptsUI.render();
  if(ui.billingTab==='Reconciliation')return shell+bankCheckUI.render();
  if(ui.billingTab==='HQ report')return shell+directorReview();
  const labels={issued:'Receipt issued',review:'Proof needs review',proof:'Needs screening',awaiting:'Awaiting payment',overdue:'Overdue'};
@@ -660,7 +663,7 @@ document.addEventListener('click', e => {
   const a=button.dataset.action, id=button.dataset.id;
   if (a.startsWith('wa-')) {conversationUI.handleAction(a,id,button);return;}
   if (a==='schedule-colour') {setScheduleColour(id,button.dataset.colour);return;}
-  if (proofUI.handleAction(a,id,button)||bankCheckUI.handleAction(a,id,button))return;
+  if (proofUI.handleAction(a,id,button)||bankCheckUI.handleAction(a,id,button)||(ui.role==='admin'&&receiptsUI.handleAction(a,id,button)))return;
   if (a==='navigate') { ui.page=button.dataset.page;if(ui.page==='classroom')ui.standaloneFolder=false; ui.assignmentId=null; ui.search=''; render(); }
   else if (a==='role') { closeModal(); ui.standaloneFolder=false;ui.role=button.dataset.role; ui.page=NAV[ui.role][0][0]; ui.moveId=null; ui.assignmentId=null; render(); }
   else if (a==='close-modal') closeModal();
@@ -679,7 +682,7 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>'+t('This is a front-end prototype with fictional students and payments. Changes stay in this browser. No messages, payments or reports are sent to an external service.','這是使用虛構學生及付款資料的介面示範。修改只儲存在此瀏覽器，不會向外傳送訊息、付款或報告。')+'</p><p class="mt-16 muted">'+t('The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.','示範課堂日期為 2026 年 9 月 30 日。銀行交易樣本包含跨月例子，可試用入賬日期調整及對賬流程。')+'</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>'+t('Restore the original fictional students, lessons and payments. Your demo edits and handwriting in this browser will be cleared.','還原最初的虛構學生、課堂及付款資料。你在此瀏覽器的示範修改及手寫內容將被清除。')+'</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);conversationUI.reset();bankCheckUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);conversationUI.reset();bankCheckUI.reset();receiptsUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeup(id,mode='single'){
@@ -721,7 +724,7 @@ function openProof(invoiceId){
 }
 function receiptDialog(receiptId){
  const r=state.receipts.find(r=>r.id===receiptId),i=state.invoices.find(i=>i.id===r.invoiceId);
- modal(t('Receipt','收據')+' '+r.id,'<div class="receipt-paper"><div class="between"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><span class="eyebrow">'+t('Receipt','收據')+'</span></div><p class="small muted mt-16">'+esc(content(centre.name))+'</p><dl class="detail-grid"><div><dt>'+t('Receipt no.','收據編號')+'</dt><dd>'+r.id+'</dd></div><div><dt>'+t('Issued','發出日期')+'</dt><dd>'+familyDate(r.issuedDate,ui.role)+'</dd></div><div><dt>'+t('Parent / guardian','家長／監護人')+'</dt><dd>'+esc(studentById(r.studentId).parent)+'</dd></div><div><dt>'+t('Student','學生')+'</dt><dd>'+esc(studentById(r.studentId).name)+'</dd></div></dl><p class="strong small">'+esc(i?.description?content(i.description):t('Regular programme','常規課程'))+'</p><p class="small muted mt-8">'+esc(content(i?.period||''))+' · '+r.invoiceId+'</p><div class="receipt-total"><span>'+t('Payment amount','付款金額')+'</span><span>'+money(r.amount)+'</span></div><p class="small muted">'+t('Issued from payment proof · bank reconciliation is separate.','根據付款證明發出 · 銀行對賬另行處理。')+'<br>'+t('Demonstration receipt · no actual payment','示範收據 · 不涉及實際付款')+'</p></div>',action('close-modal',t('Close','關閉'),'btn')+action('print-receipt',icon('download')+' '+t('Print / save PDF','列印／儲存 PDF'),'btn primary'));
+ modal(t('Receipt','收據')+' '+r.id,'<div class="receipt-paper"><div class="between"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><span class="eyebrow">'+t('Receipt','收據')+'</span></div><p class="small muted mt-16">'+esc(content(centre.name))+'</p><dl class="detail-grid"><div><dt>'+t('Receipt no.','收據編號')+'</dt><dd>'+r.id+'</dd></div><div><dt>'+t('Issued','發出日期')+'</dt><dd>'+familyDate(r.issuedDate,ui.role)+'</dd></div><div><dt>'+t('Parent / guardian','家長／監護人')+'</dt><dd>'+esc(studentById(r.studentId).parent)+'</dd></div><div><dt>'+t('Student','學生')+'</dt><dd>'+esc(studentById(r.studentId).name)+'</dd></div></dl><p class="strong small">'+esc(i?.description?content(i.description):t('Regular programme','常規課程'))+'</p><p class="small muted mt-8">'+esc(content(i?.period||''))+' · '+r.invoiceId+'</p><div class="receipt-total"><span>'+t('Payment amount','付款金額')+'</span><span>'+money(r.amount)+'</span></div><p class="small muted">'+t('Issued from payment proof · bank reconciliation is separate.','根據付款證明發出 · 銀行對賬另行處理。')+'<br>'+t('Demonstration receipt · no actual payment','示範收據 · 不涉及實際付款')+'</p></div>',action('close-modal',t('Close','關閉'),'btn')+(ui.role==='admin'&&i?.proof?action('view-proof','Payment proof','btn','data-id="'+esc(i.id)+'"'):'')+action('print-receipt',icon('download')+' '+t('Print / save PDF','列印／儲存 PDF'),'btn primary'));
 }
 function matchDialog(receiptId,editing=false){
  const r=state.receipts.find(r=>r.id===receiptId),invoice=state.invoices.find(i=>i.id===r.invoiceId),analysis=analyzeStatement(state).receipts.find(row=>row.receiptId===receiptId);
@@ -898,7 +901,7 @@ function handleAction(a,id,button){
 
 }
 document.addEventListener('change',e=>{
- if(conversationUI.onChange(e)||proofUI.onChange(e)||bankCheckUI.onChange(e))return;
+ if(conversationUI.onChange(e)||proofUI.onChange(e)||bankCheckUI.onChange(e)||(ui.role==='admin'&&receiptsUI.onChange(e)))return;
  const target=e.target,type=target.dataset.change;
  if(target.id==='al-date'){refreshStaffLeaveUnits();return;}
  if(target.id==='al-unit'){refreshStaffLeaveImpact();return;}
@@ -922,7 +925,7 @@ document.addEventListener('keydown',e=>{if(conversationUI.onKeyDown(e))return;if
 document.addEventListener('submit',e=>{if(e.target.id==='student-profile-form'){e.preventDefault();handleAction('save-profile-edit',e.target.dataset.studentId);}});
 let searchTimer;
 document.addEventListener('input',e=>{
- if(conversationUI.onInput(e)||bankCheckUI.onInput(e))return;
+ if(conversationUI.onInput(e)||bankCheckUI.onInput(e)||(ui.role==='admin'&&receiptsUI.onInput(e)))return;
  if(updateScheduleRemarkDraft(e.target))return;
  if(e.target.dataset.profileField){updateProfileDraft(e.target);return;}
  if(e.target.id==='picker-query'){ui.picker.query=e.target.value;ui.picker.page=1;updatePicker();return;}
