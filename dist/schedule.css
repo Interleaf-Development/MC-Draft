@@ -155,7 +155,9 @@
 }
 .timetable .booking-chip:last-child { margin-bottom: 0; }
 .timetable .booking-chip:hover { transform: none; }
-.timetable .booking-chip .chip-name { min-width: 0; line-height: 19px; }
+.timetable .booking-chip .chip-name { display: flex; align-items: center; gap: 3px; min-width: 0; line-height: 19px; }
+.timetable .booking-chip .chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: inherit; }
+.timetable .booking-chip .chip-grade { flex-shrink: 0; text-decoration: inherit; }
 .timetable .booking-chip .chip-from {
   display: inline;
   margin-left: 3px;
