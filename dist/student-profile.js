@@ -35,7 +35,8 @@ export function getStudentProfile(state, id) {
   const phone = student.id === 'mia' && enrolled ? state.assessment.phone || student.phone : student.phone;
   const birthYears = { K3: 2020, P1: 2019, P2: 2018, P3: 2017, P4: 2016, P5: 2015, P6: 2014, S1: 2013, S2: 2012 };
   const dateOfBirth = `${birthYears[student.level] || 2017}-${String(number % 12 + 1).padStart(2, '0')}-${String(number % 27 + 1).padStart(2, '0')}`;
-  const day = firstLesson ? new Date(firstLesson.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' }) : student.day;
+  const schedule = state.regularSchedules?.[id];
+  const day = schedule ? ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][schedule.weekday - 1] : firstLesson ? new Date(firstLesson.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' }) : student.day;
   const enrolmentInvoice = student.id === 'mia' && enrolled ? state.invoices?.find(invoice => invoice.studentId === id) : null;
   return {
     studentId: id, branch: centre.name, studentNumber: student.number,
@@ -47,10 +48,11 @@ export function getStudentProfile(state, id) {
     parentSurname: parent.replace(/^(?:Mrs|Mr|Ms)\s+/, ''), parentGivenName: '', parentLanguage: 'Cantonese',
     parentEmail: student.number.toLowerCase() + '@example.com', parentMobile: phone, parentPhone: '',
     region: '', area: '', address: '', paymentReminder: true, remark: '', fpsRemark: '',
-    instructor: enrolled ? tutors.find(tutor => tutor.id === (firstLesson?.tutor || student.tutor))?.name || '' : '',
+    instructor: enrolled ? tutors.find(tutor => tutor.id === (schedule?.tutor || firstLesson?.tutor || student.tutor))?.name || '' : '',
     course: enrolled ? 'Mathematics' : 'Entrance assessment',
-    lessonTime: enrolled ? firstLesson ? time(firstLesson.start) : student.regular.split(' · ')[1] || '' : '',
-    lessonDuration: enrolled ? firstLesson?.duration || 60 : 0,
+    lessonTime: enrolled ? schedule ? time(schedule.start) : firstLesson ? time(firstLesson.start) : student.regular.split(' · ')[1] || '' : '',
+    lessonDuration: enrolled ? schedule?.duration || firstLesson?.duration || 60 : 0,
+    regularEffectiveDate: schedule?.effectiveDate || '',
     lessonDays: enrolled && day ? [day] : [],
     enrolledSince: !enrolled ? '' : student.id === 'mia' ? state.assessment.enrolledDate || enrolmentInvoice?.issued || TODAY : `${2024 + number % 3}-${String(number % 6 + 1).padStart(2, '0')}-01`,
     status: enrolled && student.id === 'mia' ? 'active' : student.status,

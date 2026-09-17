@@ -292,3 +292,16 @@ test('Admin can still arrange a single 30-minute remainder as an exception', () 
   assert.equal(app.state.bookings.at(-1).duration, 30);
   assert.equal(app.dialog.closed, 1);
 });
+
+test('schedule shortfall appears as an adjustment and can be arranged without a fictional absence', () => {
+  const app = renderer();
+  app.state.makeups = [{ id: 'schedule-credit', kind: 'schedule-shortfall', studentId: 'chloe', sourceDate: '2026-11-25', minutes: 60, duration: 60, used: 0, expiry: '2026-11-30', originalExpiry: '2026-11-30', period: 'Oct–Nov 2026', preferredDates: [], preferencesNote: '' }];
+  const html = app.call('parentLessons');
+  assert.match(html, /課表調整補堂/);
+  assert.doesNotMatch(html, /Invalid Date|請假已確認/);
+  app.act('makeup-preferences', 'schedule-credit');
+  assert.match(app.dialog.body, /客服會聯絡/);
+  model.bookMakeup(app.state, 'schedule-credit', [{ date: '2026-10-01', start: 840, duration: 60, tutor: 'chan' }]);
+  const booking = app.state.bookings.at(-1);
+  assert.match(app.call('lessonRow', booking), /補堂/);
+});

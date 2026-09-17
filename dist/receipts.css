@@ -38,3 +38,11 @@
   .receipts-date-controls { width: 100%; margin-left: 0; }
   .receipts-date-controls > input[type=search] { flex: 1; }
 }
+
+.receipt-lesson-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.receipt-lesson-list li { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; flex-wrap: wrap; }
+.receipt-amendment { padding: 12px; background: #f6f8fa; border-radius: 8px; }
+.receipt-amendment-reason { white-space: pre-wrap; overflow-wrap: anywhere; }
+.receipt-revision-history summary { cursor: pointer; }
+.receipt-revision-history .btn { justify-content: flex-start; text-align: left; white-space: normal; }
+@media print { .receipt-revision-history { display: none !important; } }

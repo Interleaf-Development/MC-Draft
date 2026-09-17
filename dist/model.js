@@ -80,6 +80,8 @@ export const studentById = id => studentsById.get(id) || students[0];
 
 export function enrolledStudents(state) {
   return students.filter(student => student.id !== 'mia' || state?.assessment?.enrolled).map(student => {
+    const schedule = state?.regularSchedules?.[student.id];
+    if (schedule) { const day = weekdays[schedule.weekday - 1]; return { ...student, ...(student.id === 'mia' ? { status: 'active', parent: state.assessment.parent || student.parent, phone: state.assessment.phone || student.phone } : {}), tutor: schedule.tutor, day, regular: day + ' · ' + time(schedule.start) }; }
     if (student.id !== 'mia') return student;
     const booking = state.bookings?.find(item => item.studentId === 'mia' && activeBooking(item));
     const day = booking ? new Date(booking.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' }) : student.day;
@@ -495,7 +497,7 @@ export function validateSlot(state, booking, ignoreIds = []) {
   return null;
 }
 export function record(state, text, actor = 'Centre manager') { state.audit.unshift({ id: uid('audit'), text, actor, at: '30 Sep, '+new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) }); }
-export function usedReschedules(state, studentId, period = 'Aug–Sep 2026') { return state.makeups.filter(m => m.studentId === studentId && m.period === period).length; }
+export function usedReschedules(state, studentId, period = 'Aug–Sep 2026') { return state.makeups.filter(m => m.studentId === studentId && m.period === period && m.kind !== 'schedule-shortfall').length; }
 export function cycleForDate(date) {
   let year = Number(date.slice(0,4)), month = Number(date.slice(5,7));
   let start = month % 2 === 0 ? month : month - 1;
@@ -543,10 +545,12 @@ function pendingMakeupFields(makeup) {
   return makeup;
 }
 function originatingMakeup(state, source, excludeId) {
+  // A schedule-shortfall credit has no original absent booking. Its replacement
+  // still belongs to its case, and a later absence must retain that paid period.
+  const byCase = source.caseId && state.makeups.find(item => item.id !== excludeId && item.studentId === source.studentId && item.id === source.caseId && item.sourceId !== source.id);
+  if (byCase) return byCase;
   if (!source.sourceId) return null;
-  return state.makeups.find(item => item.id !== excludeId && item.studentId === source.studentId && item.id === source.caseId)
-    || state.makeups.find(item => item.id !== excludeId && item.studentId === source.studentId && item.sourceId === source.sourceId)
-    || null;
+  return state.makeups.find(item => item.id !== excludeId && item.studentId === source.studentId && item.sourceId === source.sourceId && item.sourceId !== source.id) || null;
 }
 function inheritMakeupCycle(makeup, parent) {
   makeup.parentCaseId = parent.id;

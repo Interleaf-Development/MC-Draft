@@ -49,7 +49,7 @@ export function receiptRegister(state, { date = TODAY, query = '', status = 'all
     const parent = billingPayerName(state, receipt.studentId) || student.parent;
     const bankResult = bankResults.get(receipt.id);
     return { receipt, invoice, student, parent, proofAvailable: hasReceiptProof(invoice), bankResult, bankStatus: receiptBankStatus(bankResult) };
-  }).filter(row => (status === 'all' || (status === 'review' ? !['matched', 'ready'].includes(row.bankStatus) : row.bankStatus === status)) && (!needle || [row.student.name, row.student.number, row.student.parent, row.parent, row.invoice?.proofPayer, row.invoice?.proofReview?.extracted?.payer, row.receipt.id, row.receipt.invoiceId, row.invoice?.proofReference, row.invoice?.proofReview?.extracted?.reference].join(' ').toLocaleLowerCase().includes(needle)))
+  }).filter(row => (status === 'all' || (status === 'review' ? !['matched', 'ready'].includes(row.bankStatus) : row.bankStatus === status)) && (!needle || [row.student.name, row.student.number, row.student.parent, row.parent, row.invoice?.proofPayer, row.invoice?.proofReview?.extracted?.payer, row.receipt.id, row.receipt.activeRevisionId, ...(row.receipt.revisions||[]).map(revision=>revision.id), row.receipt.invoiceId, row.invoice?.proofReference, row.invoice?.proofReview?.extracted?.reference].join(' ').toLocaleLowerCase().includes(needle)))
     .sort((a, b) => b.receipt.issuedDate.localeCompare(a.receipt.issuedDate) || reviewPriority(a) - reviewPriority(b) || b.receipt.id.localeCompare(a.receipt.id, 'en', { numeric: true }));
   const groups = Array.from({ length: 7 }, (_, index) => ({ date: addDays(period.start, index), rows: [] }));
   const byDate = new Map(groups.map(group => [group.date, group]));

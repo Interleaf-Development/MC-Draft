@@ -462,3 +462,35 @@
 @media print {
   .schedule-main .calendar-scroll { max-height: none; }
 }
+
+/* Permanent timetable changes: count first, then the exact dates. */
+.regular-change-form, .regular-review { display: grid; gap: 20px; }
+.regular-rule-summary { display: grid; gap: 8px; font-size: 13px; }
+.regular-rule-summary p { display: flex; gap: 12px; }
+.regular-rule-summary p > span { color: var(--muted); width: 40px; flex-shrink: 0; }
+.regular-count { font-size: 27px; font-weight: 700; white-space: nowrap; }
+.regular-count > span { color: var(--muted); font-size: 22px; margin: 0 6px; }
+.regular-count small { display: block; text-align: right; color: var(--muted); font-size: 12px; font-weight: 400; }
+.regular-decision { margin: 0; padding: 0; border: 0; display: grid; gap: 10px; min-width: 0; }
+.regular-decision legend { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.regular-decision .check-option { align-items: flex-start; }
+.regular-decision strong { font-size: 13px; display: block; }
+.regular-decision small { color: var(--muted); display: block; margin-top: 5px; font-size: 12px; line-height: 1.6; }
+.regular-dates summary { font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
+.regular-date-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.regular-date-columns section { min-width: 0; }
+.regular-date-columns h4 { padding-bottom: 9px; font-size: 12px; color: var(--muted); }
+.regular-date-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.regular-date-list li { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding: 9px 7px; font-size: 12px; }
+.regular-date-list li > span:first-child { font-size: 10px; color: var(--muted); }
+.regular-date-list li > div { display: grid; gap: 4px; flex: 1; }
+.regular-date-list li > div > span { color: var(--muted); }
+.regular-date-list .is-added { background: #f2f8f4; }
+.regular-date-list .is-removed { color: #74818d; background: #f8f9fa; }
+.regular-date-change { color: var(--muted); font-size: 10px; }
+.regular-review .notice ul { margin: 8px 0 0; padding-left: 18px; line-height: 1.7; }
+@media (max-width: 560px) {
+ .regular-date-columns { gap: 8px; }
+ .regular-date-change { display: none; }
+ .regular-rule-summary p { flex-wrap: wrap; }
+}

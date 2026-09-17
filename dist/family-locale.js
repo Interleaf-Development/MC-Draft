@@ -116,5 +116,7 @@ const fixtureContent = {
   '1 introductory lesson (HK$250) + 8-lesson block':'1 堂單堂課程（HK$250）+ 8 堂課程'
 };
 export function familyContent(value, role) {
+  const programme = /^Regular programme · (\d+) lessons?$/.exec(value || '');
+  if (isFamilyRole(role) && programme) return '常規課程 · ' + programme[1] + ' 堂';
   return isFamilyRole(role) ? fixtureContent[value] ?? familyText(value, role) : value;
 }

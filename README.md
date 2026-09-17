@@ -131,6 +131,17 @@ Automatic bank matches require an exact amount, strong reference/full-payer iden
 - Drafts stay with each chat while navigating. Read indicators and sent messages persist locally. Enter sends; Shift+Enter adds a line.
 - Calls, voice recording, three-dot menus and filter chips are omitted. Previously archived chats remain accessible when present. Attachments remain in this browser; no external upload occurs.
 
+## Permanent regular schedule changes
+
+- **Admin → Schedule → select a student → Change regular schedule**, or use the same action under **Students → Student information**.
+- Select an issued receipt / tuition period, the effective date and the new weekly day, time and teacher. **Review lesson count** compares the actual dated plan before saving: e.g. **8 → 9** or **8 → 7**.
+- More lessons: explicitly allow the extra lesson at the same fee, or retain the original count and exclude the final surplus date(s). Recorded attendance and leave are never selected for exclusion.
+- Fewer lessons: explicitly grant the missing lesson(s) as a make-up entitlement for CS to arrange, or accept the lower count. Schedule-adjustment make-ups do not use the parent's three voluntary reschedules.
+- Applying updates the regular rule and dated timetable. Existing attendance, leave and one-off make-ups remain linked. Capacity, teacher availability and any configured closures are checked again when saving.
+- The receipt receives a new document version such as **R-1028-A1**, with exact lesson dates and any make-up entitlement. It retains the original receipt date and payment amount and shows the actual amendment date. Original and previous versions remain available under **Receipt versions**. The bank link and single payment ledger entry are preserved.
+- Walkthrough: **Oliver Ho → Oct–Nov 2026 → 1 October → Thursday 14:00**, keeping Koko (Tsuen Wan) or Rico (Hang Hau), gives **8 Wednesdays → 9 Thursdays**. To demonstrate a shortfall from an unchanged fixture, choose **7 October → Tuesday 16:00 with Ming / John** for **8 → 7**.
+- This demo reviews one paid period per change. Another overlapping/future paid period or an unclassified separate booking is flagged for joint review instead of being silently overwritten. A receipt/calendar mismatch needs an explicit dated plan; no annual holiday calendar is assumed.
+
 ## Deliberate prototype boundaries
 
 - No real authentication, authorisation, WhatsApp connection, bank integration, messages, payments or external HQ submissions.
