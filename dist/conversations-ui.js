@@ -67,7 +67,7 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
   const threadById = id => getState().messages.find(t=>t.id===id && canViewConversation(getState(),t,getViewer()));
   const selected = () => threadById(current().selected);
   const title = thread => thread.type==='group' ? thread.title : getViewer().role==='parent' ? textLabel(centre.name) : studentById(thread.studentId).name+' · '+studentById(thread.studentId).parent;
-  const avatar = thread => thread.type==='group' ? '<span class="wa-avatar wa-group-avatar">'+icon('group')+'</span>' : getViewer().role==='parent' ? '<span class="wa-avatar wa-brand-avatar">M<span>C</span></span>' : '<span class="wa-avatar '+studentById(thread.studentId).colour+'">'+esc(studentById(thread.studentId).initials)+'</span>';
+  const avatar = thread => thread.type==='group' ? '<span class="wa-avatar wa-group-avatar">'+icon('group')+'</span>' : getViewer().role==='parent' ? '<span class="wa-avatar wa-brand-avatar"><img src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></span>' : '<span class="wa-avatar '+studentById(thread.studentId).colour+'">'+esc(studentById(thread.studentId).initials)+'</span>';
   function visibleThreads() {
     const v=current(),viewer=getViewer();
     if(viewer.role!=='parent')return conversationThreads(getState(),{...viewer,query:v.query,filter:v.filter});

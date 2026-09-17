@@ -73,8 +73,8 @@
 .wa-avatar.teal { background: #e5f1ef; color: #548f88; }
 .wa-avatar.pink { background: #f7e7ed; color: #b9758e; }
 .wa-avatar.slate { background: #e8edf2; color: #7c8995; }
-.wa-brand-avatar { background: #fff1f2; color: #cf373e; font-size: 20px; font-weight: 750; letter-spacing: -2px; padding-right: 2px; }
-.wa-brand-avatar > span { color: #33414a; }
+.wa-brand-avatar { position: relative; width: 76px; height: 38px; overflow: hidden; border-radius: 7px; background: #fff; border: 1px solid #e9edef; }
+.wa-brand-avatar img { display: block; position: absolute; top: 50%; left: 3px; width: calc(100% - 6px); height: auto; transform: translateY(-50%); object-fit: contain; }
 .wa-group-avatar { background: #edf0f2; color: #89969e; }
 .wa-group-avatar .icon { width: 25px; height: 25px; }
 .wa-chat-list,
@@ -505,3 +505,7 @@
   .wa-list-header { gap: 5px; }
   .role-parent .wa-list-header [data-change="family-student"] { max-width: 146px; padding-left: 7px; padding-right: 7px; }
 }
+
+/* The supplied wordmark stays legible in the compact parent chat header. */
+.wa-chat-header .wa-brand-avatar,
+.role-parent .wa-chat-header .wa-brand-avatar { width: 76px; height: 38px; }
