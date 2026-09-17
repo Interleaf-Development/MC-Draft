@@ -1,6 +1,6 @@
 // Bump this version when changing the offline asset set or cache policy.
 const CACHE_PREFIX = 'mathconcept-static-';
-const CACHE_NAME = CACHE_PREFIX + 'v9-chat-navigation';
+const CACHE_NAME = CACHE_PREFIX + 'v10-schedule-colours';
 const shells = { '/index.html': '/', '/parent/index.html': '/parent/', '/student/index.html': '/student/' };
 function shellPath(path) {
   if (path === '/' || path === '/index.html') return '/index.html';

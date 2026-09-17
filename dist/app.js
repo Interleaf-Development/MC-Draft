@@ -111,6 +111,7 @@ const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({
 const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),change,modal,closeModal,toast,openReceipt:receiptDialog});
 const bankCheckUI = createBankCheckUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,render:()=>render(),modal,closeModal,toast,openMatch:matchDialog});
 function render() {
+  closeScheduleColourMenu();
   document.documentElement.lang = isFamilyRole(ui.role) ? 'zh-HK' : 'en';
   syncEntryPoint(ui.role);
   const nav = NAV[ui.role]; const user = identity();
@@ -145,6 +146,58 @@ function page() {
 function shiftedWeek() { return WEEK.map(date => { const d = new Date(date + 'T12:00:00'); d.setDate(d.getDate() + ui.weekOffset * 7); return d.toISOString().slice(0,10); }); }
 const tutorName = id => tutors.find(t=>t.id===id)?.name || 'Unassigned';
 const SCHEDULE_HOURS = Array.from({length:(CENTRE_CLOSE-CENTRE_OPEN)/60},(_,i)=>CENTRE_OPEN+i*60);
+const SCHEDULE_COLOURS=[['default','Default'],['green','Green · New student'],['blue','Blue'],['yellow','Yellow'],['purple','Purple'],['pink','Pink']];
+let scheduleColourOrigin=null;
+function closeScheduleColourMenu(restoreFocus=false){
+ const origin=scheduleColourOrigin;
+ $('#schedule-colour-menu')?.remove();scheduleColourOrigin=null;
+ if(restoreFocus&&origin?.isConnected)origin.focus({preventScroll:true});
+}
+function openScheduleColourMenu(chip,x,y){
+ if(ui.role!=='admin'||ui.page!=='schedule')return;
+ const b=state.bookings.find(b=>b.id===chip.dataset.id);if(!b)return;
+ closeScheduleColourMenu();scheduleColourOrigin=chip;
+ const selected=SCHEDULE_COLOURS.some(([value])=>value===b.scheduleColour)?b.scheduleColour:'default';
+ const menu=document.createElement('div');menu.id='schedule-colour-menu';menu.className='schedule-colour-menu';
+ menu.setAttribute('role','menu');menu.setAttribute('aria-label','Student cell colour');menu.dataset.bookingId=b.id;
+ menu.innerHTML='<div class="schedule-colour-title">'+esc(studentById(b.studentId).name)+'</div>'+SCHEDULE_COLOURS.map(([value,label])=>action('schedule-colour','<span class="schedule-colour-swatch swatch-'+value+'" aria-hidden="true"></span><span>'+label+'</span>'+(selected===value?icon('check','sm'):''),'schedule-colour-option','role="menuitemradio" aria-checked="'+(selected===value)+'" tabindex="-1" data-id="'+esc(b.id)+'" data-colour="'+value+'"')).join('');
+ document.body.append(menu);
+ const rect=menu.getBoundingClientRect();
+ menu.style.left=Math.max(8,Math.min(x,window.innerWidth-rect.width-8))+'px';
+ menu.style.top=Math.max(8,Math.min(y,window.innerHeight-rect.height-8))+'px';
+ $('[aria-checked="true"]',menu)?.focus({preventScroll:true});
+}
+function setScheduleColour(id,colour){
+ if(ui.role!=='admin'||ui.page!=='schedule'||$('#schedule-colour-menu')?.dataset.bookingId!==id||!SCHEDULE_COLOURS.some(([value])=>value===colour))return;
+ const b=state.bookings.find(b=>b.id===id);if(!b)return;
+ const rowStart=Number(scheduleColourOrigin?.closest('[data-slot]')?.dataset.start);
+ if(colour==='default')delete b.scheduleColour;else b.scheduleColour=colour;
+ previousState=null;persist();closeScheduleColourMenu();
+ // Update both portions of a longer lesson without moving the calendar scroll.
+ $$('.booking-chip').filter(chip=>chip.dataset.id===id).forEach(chip=>{chip.outerHTML=bookingChip(b,Number(chip.closest('[data-slot]').dataset.start));});
+ $$('.booking-chip').find(chip=>chip.dataset.id===id&&Number(chip.closest('[data-slot]').dataset.start)===rowStart)?.focus({preventScroll:true});
+}
+document.addEventListener('contextmenu',e=>{
+ const chip=e.target.closest('.timetable .booking-chip');
+ if(!chip||ui.role!=='admin'||ui.page!=='schedule')return;
+ e.preventDefault();const rect=chip.getBoundingClientRect();
+ openScheduleColourMenu(chip,e.clientX||rect.left+12,e.clientY||rect.bottom);
+});
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('#schedule-colour-menu'))closeScheduleColourMenu();});
+document.addEventListener('scroll',e=>{if(!$('#schedule-colour-menu')?.contains(e.target))closeScheduleColourMenu();},true);
+window.addEventListener('resize',()=>closeScheduleColourMenu());
+document.addEventListener('keydown',e=>{
+ const chip=e.target.closest('.timetable .booking-chip');
+ if(chip&&ui.role==='admin'&&ui.page==='schedule'&&(e.key==='ContextMenu'||e.key==='F10'&&e.shiftKey)){
+  e.preventDefault();e.stopPropagation();const rect=chip.getBoundingClientRect();openScheduleColourMenu(chip,rect.left+12,rect.bottom);return;
+ }
+ const menu=$('#schedule-colour-menu');if(!menu)return;
+ if(e.key==='Escape'||e.key==='Tab'){closeScheduleColourMenu(true);if(e.key==='Escape'){e.preventDefault();e.stopPropagation();}return;}
+ if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){
+  e.preventDefault();e.stopPropagation();const items=$$('[role="menuitemradio"]',menu),index=items.indexOf(document.activeElement);
+  items[e.key==='Home'?0:e.key==='End'?items.length-1:(index+(e.key==='ArrowDown'?1:-1)+items.length)%items.length]?.focus({preventScroll:true});
+ }
+},true);
 function lessonTimeOptions(duration=60,selected=CENTRE_OPEN){
  return Array.from({length:Math.floor((CENTRE_CLOSE-duration-CENTRE_OPEN)/30)+1},(_,i)=>CENTRE_OPEN+i*30).map(start=>'<option value="'+start+'"'+(start===selected?' selected':'')+'>'+time(start)+'</option>').join('');
 }
@@ -153,8 +206,9 @@ function slotBookings(date,start,tutor){
 }
 function bookingChip(b,rowStart=b.start){
  const student=studentById(b.studentId),source=state.bookings.find(x=>x.id===b.sourceId),continued=b.start<rowStart;
- const detail=[student.name,tutorName(b.tutor),dateLabel(b.date),time(b.start)+'–'+time(b.start+b.duration),source?'Rescheduled from '+dateLabel(source.date):'',continued?'Continues from previous hour':'',b.attendance==='present'?'Attended':'',b.note].filter(Boolean).join(' · ');
- return '<button class="booking-chip '+b.status+(b.sourceId?' makeup':'')+(continued?' continuation':'')+'" draggable="'+(ui.role==='admin'&&activeBooking(b))+'" data-action="booking-detail" data-id="'+b.id+'" title="'+esc(detail)+'" aria-label="'+esc(detail)+'">'+(b.attendance==='present'?icon('check','attendance-tick'):'')+(continued?'<span class="continuation-mark" aria-hidden="true">↳</span>':'')+'<span class="chip-name">'+esc(student.name)+'</span>'+(source?'<span class="chip-from">'+dateLabel(source.date)+'</span>':b.duration!==60?'<span class="chip-duration">'+(b.duration===90?'1½h':'½h')+'</span>':'')+(b.start%60&&!continued?'<span class="chip-offset">:'+String(b.start%60).padStart(2,'0')+'</span>':'')+'</button>';
+ const colour=SCHEDULE_COLOURS.find(([value])=>value===b.scheduleColour&&value!=='default');
+ const detail=[student.name,tutorName(b.tutor),dateLabel(b.date),time(b.start)+'–'+time(b.start+b.duration),source?'Rescheduled from '+dateLabel(source.date):'',continued?'Continues from previous hour':'',b.attendance==='present'?'Attended':'',colour?.[1],b.note].filter(Boolean).join(' · ');
+ return '<button class="booking-chip '+b.status+(b.sourceId?' makeup':'')+(continued?' continuation':'')+(colour?' cell-colour-'+colour[0]:'')+'" draggable="'+(ui.role==='admin'&&activeBooking(b))+'" data-action="booking-detail" data-id="'+b.id+'" title="'+esc(detail)+'" aria-label="'+esc(detail)+'"'+(ui.role==='admin'?' aria-keyshortcuts="Shift+F10"':'')+'>'+ (b.attendance==='present'?icon('check','attendance-tick'):'')+(continued?'<span class="continuation-mark" aria-hidden="true">↳</span>':'')+'<span class="chip-name">'+esc(student.name)+'</span>'+(source?'<span class="chip-from">'+dateLabel(source.date)+'</span>':b.duration!==60?'<span class="chip-duration">'+(b.duration===90?'1½h':'½h')+'</span>':'')+(b.start%60&&!continued?'<span class="chip-offset">:'+String(b.start%60).padStart(2,'0')+'</span>':'')+'</button>';
 }
 function calendarCell(date,start,tutor,rowHeight){
  const bookings=slotBookings(date,start,tutor);
@@ -183,7 +237,7 @@ function schedulePage(){
  const dates=ui.scheduleView==='week'?shiftedWeek():[ui.date],moving=admin&&state.bookings.find(b=>b.id===ui.moveId);
  const teacherTabs=admin?'<div class="teacher-tabs" role="tablist" aria-label="Teacher schedules">'+tutors.map(t=>action('teacher-tab',t.name,'teacher-tab'+(tutor===t.id?' active':''),'id="teacher-tab-'+t.id+'" role="tab" aria-selected="'+(tutor===t.id)+'" aria-controls="teacher-schedule" tabindex="'+(tutor===t.id?'0':'-1')+'" data-tutor="'+t.id+'"')).join('')+'</div>':'';
  const dateTitle=ui.scheduleView==='week'?dateLabel(dates[0])+' – '+dateLabel(dates.at(-1),{year:'numeric'}):dateLabel(ui.date,{weekday:'long',year:'numeric'});
- const calendar='<section class="panel" id="teacher-schedule" '+(admin?'role="tabpanel" aria-labelledby="teacher-tab-'+tutor+'"':'aria-label="My schedule"')+'><div class="calendar-toolbar"><div class="calendar-controls">'+action('prev-week',icon('left'),'icon-btn border','aria-label="Previous '+ui.scheduleView+'"')+action('next-week',icon('right'),'icon-btn border','aria-label="Next '+ui.scheduleView+'"')+'<span class="calendar-title">'+dateTitle+'</span>'+action('today','Today','btn small')+'</div><div class="calendar-tools"><div class="segmented">'+action('calendar-view','Day',ui.scheduleView==='day'?'active':'','data-view="day"')+action('calendar-view','Week',ui.scheduleView==='week'?'active':'','data-view="week"')+'</div>'+(admin?action('find-schedule-student',icon('search')+' Find student','btn small')+action('new-booking',icon('plus')+' Add lesson','btn primary small'):'')+'</div></div><div class="calendar-scroll">'+timetable(dates,tutor)+'</div><div class="calendar-legend"><span><i class="legend-line"></i>Regular lesson</span><span><i class="legend-line red"></i>Rescheduled</span><span><i class="legend-line gray"></i>Original booking</span><span>'+icon('check','attendance-tick')+' Attended</span></div></section>';
+ const calendar='<section class="panel" id="teacher-schedule" '+(admin?'role="tabpanel" aria-labelledby="teacher-tab-'+tutor+'"':'aria-label="My schedule"')+'><div class="calendar-toolbar"><div class="calendar-controls">'+action('prev-week',icon('left'),'icon-btn border','aria-label="Previous '+ui.scheduleView+'"')+action('next-week',icon('right'),'icon-btn border','aria-label="Next '+ui.scheduleView+'"')+'<span class="calendar-title">'+dateTitle+'</span>'+action('today','Today','btn small')+'</div><div class="calendar-tools"><div class="segmented">'+action('calendar-view','Day',ui.scheduleView==='day'?'active':'','data-view="day"')+action('calendar-view','Week',ui.scheduleView==='week'?'active':'','data-view="week"')+'</div>'+(admin?action('find-schedule-student',icon('search')+' Find student','btn small')+action('new-booking',icon('plus')+' Add lesson','btn primary small'):'')+'</div></div><div class="calendar-scroll">'+timetable(dates,tutor)+'</div><div class="calendar-legend"><span><i class="legend-line"></i>Regular lesson</span><span><i class="legend-colour green"></i>New student</span><span><i class="legend-line red"></i>Rescheduled</span><span><i class="legend-line gray"></i>Original booking</span><span>'+icon('check','attendance-tick')+' Attended</span></div></section>';
  return heading(admin?'Schedule':'My schedule')+teacherTabs+(moving?'<div class="move-banner"><span>Choose a new time for <strong>'+studentById(moving.studentId).name+'</strong>.</span>'+action('cancel-move','Cancel','btn ghost small')+'</div>':'')+'<div class="schedule-layout'+(admin?'':' teacher-schedule-layout')+'"><div class="schedule-main">'+calendar+scheduleLeaveStrip(tutor)+'</div>'+(admin?'<aside class="schedule-rail stack">'+scheduleQueues()+'</aside>':'')+'</div>';
 }
 function bookingDetail(id) {
@@ -562,6 +616,7 @@ document.addEventListener('click', e => {
   }
   const a=button.dataset.action, id=button.dataset.id;
   if (a.startsWith('wa-')) {conversationUI.handleAction(a,id,button);return;}
+  if (a==='schedule-colour') {setScheduleColour(id,button.dataset.colour);return;}
   if (proofUI.handleAction(a,id,button)||bankCheckUI.handleAction(a,id,button))return;
   if (a==='navigate') { ui.page=button.dataset.page;if(ui.page==='classroom')ui.standaloneFolder=false; ui.assignmentId=null; ui.search=''; render(); }
   else if (a==='role') { closeModal(); ui.standaloneFolder=false;ui.role=button.dataset.role; ui.page=NAV[ui.role][0][0]; ui.moveId=null; ui.assignmentId=null; render(); }
