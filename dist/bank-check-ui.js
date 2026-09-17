@@ -1,4 +1,4 @@
-import { money, studentById, dateLabel, reconciliation } from './model.js';
+import { centre, tutors, money, studentById, dateLabel, reconciliation } from './model.js';
 import { analyzeStatement, importBankStatement, demoStatementRows } from './billing-automation.js';
 import { parseStatementCSV } from './statement-csv.js';
 
@@ -11,7 +11,7 @@ const rowStatus = row => row.status === 'matched' && !row.linked ? 'ready' : row
 export function createBankCheckUI({getState, getViewer, change, render, modal, closeModal, toast, openMatch}) {
   let query = '', filter = 'review', page = 1, depositPage = 1, historyPage = 1, draft = null, searchTimer;
   const canUse = () => getViewer().role === 'admin';
-  const requireAdmin = () => { if (!canUse()) throw new Error('Bank reconciliation is available to Koko in the Admin view.'); };
+  const requireAdmin = () => { if (!canUse()) throw new Error('Bank reconciliation is available to ' + (tutors.find(tutor => tutor.id === centre.managerId)?.name || centre.manager) + ' in the Admin view.'); };
   const showError = error => { const area = document.querySelector('#form-error'); if (area) {area.textContent = error.message; area.classList.add('visible');} else toast(error.message,false,true); };
   const safely = fn => {try {return fn();} catch(error) {showError(error);return false;}};
   const paginate = (items, current, size = 25) => {const pages = Math.max(1,Math.ceil(items.length/size));current = Math.max(1,Math.min(current,pages));return {items:items.slice((current-1)*size,current*size),page:current,pages,total:items.length,start:items.length?(current-1)*size+1:0,end:Math.min(current*size,items.length)};};

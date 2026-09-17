@@ -1,5 +1,7 @@
+import { centreConfig } from './branch-config.js';
+
 export const TODAY = '2026-09-30';
-export const centre = { name: 'MathConcept (Tsuen Wan)', branch: 'Tsuen Wan', manager: 'Koko Ko', managerId: 'chan' };
+export const centre = { ...centreConfig.centre };
 export const WEEK = ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'];
 export const uid = (prefix = 'id') => prefix + '-' + Math.random().toString(36).slice(2, 10);
 export const clone = value => structuredClone(value);
@@ -10,23 +12,15 @@ export const CENTRE_OPEN = 540;
 export const CENTRE_CLOSE = 1140;
 // Demo assumption until the centre confirms its AM/PM working-day boundary.
 export const HALF_DAY_BOUNDARY = 840;
-export const tutors = [
-  { id: 'chan', name: 'Koko', initials: 'K' },
-  { id: 'wong', name: 'Ming', initials: 'M' },
-  { id: 'oscar', name: 'Oscar', initials: 'O' },
-  { id: 'peter', name: 'Peter', initials: 'P' },
-  { id: 'polly', name: 'Polly', initials: 'P' },
-  { id: 'shileen', name: 'Shileen', initials: 'S' },
-  { id: 'tiffany', name: 'Tiffany', initials: 'T' },
-  { id: 'winky', name: 'Winky', initials: 'W' }
-];
+export const tutors = centreConfig.tutors.map(tutor => ({ ...tutor }));
+const firstTutorId = tutors[0].id, secondTutorId = tutors[1].id;
 const legacyTutorRosters = {
-  chan: ['Full', 'Off', 'Full', 'Full', 'Full', 'Full', 'Off'],
-  wong: ['PM', 'Full', 'Full', 'AM', 'Full', 'Full', 'Off']
+  [firstTutorId]: ['Full', 'Off', 'Full', 'Full', 'Full', 'Full', 'Off'],
+  [secondTutorId]: ['PM', 'Full', 'Full', 'AM', 'Full', 'Full', 'Off']
 };
 const demoTutorRosters = {
-  chan: ['Full', 'Off', 'Full', 'PM', 'Full', 'Full', 'AM'],
-  wong: ['PM', 'PM', 'Full', 'AM', 'Full', 'Full', 'PM'],
+  [firstTutorId]: ['Full', 'Off', 'Full', 'PM', 'Full', 'Full', 'AM'],
+  [secondTutorId]: ['PM', 'PM', 'Full', 'AM', 'Full', 'Full', 'PM'],
   ...Object.fromEntries(tutors.slice(2).map((tutor, index) => [tutor.id, Array.from({ length: 7 }, (_, day) => day === index || day === 6 ? 'Off' : 'Full')]))
 };
 export const students = [
@@ -45,7 +39,7 @@ const directoryFocus = ['Number sense', 'Addition and subtraction', 'Multiplicat
 students.forEach((student, index) => Object.assign(student, {
   number: 'MC-' + String(index + 1).padStart(4, '0'),
   phone: '0000 ' + String(index + 1).padStart(4, '0'),
-  tutor: student.id === 'ryan' ? 'wong' : 'chan',
+  tutor: student.id === 'ryan' ? secondTutorId : firstTutorId,
   day: student.id === 'mia' ? '' : student.id === 'ryan' ? 'Friday' : 'Wednesday',
   status: student.id === 'mia' ? 'assessment' : 'active'
 }));
@@ -63,7 +57,7 @@ for (let candidate = 0; students.length < 701; candidate++) {
   let tutorIndex = Math.floor(index / 6) % tutors.length;
   while (demoTutorRosters[tutors[tutorIndex].id][index % 6] === 'Off') tutorIndex = (tutorIndex + 1) % tutors.length;
   const tutor = tutors[tutorIndex].id, roster = demoTutorRosters[tutor][index % 6];
-  let regularStart = CENTRE_OPEN + (Math.floor(index / 48) % 10) * 60;
+  let regularStart = CENTRE_OPEN + (Math.floor(index / (tutors.length * 6)) % 10) * 60;
   if (roster === 'AM') regularStart = Math.min(regularStart, HALF_DAY_BOUNDARY - 60);
   if (roster === 'PM') regularStart = Math.max(regularStart, HALF_DAY_BOUNDARY);
   students.push({
@@ -76,8 +70,8 @@ for (let candidate = 0; students.length < 701; candidate++) {
   });
   directoryNames.add(name);
 }
-const sundayExamples = ['chan', 'wong'].flatMap(tutor => students.slice(8).filter(student => student.tutor === tutor && student.status === 'active').slice(0, 3).map((student, index) => {
-  const start = (tutor === 'chan' ? CENTRE_OPEN : HALF_DAY_BOUNDARY) + index * 120;
+const sundayExamples = [firstTutorId, secondTutorId].flatMap(tutor => students.slice(8).filter(student => student.tutor === tutor && student.status === 'active').slice(0, 3).map((student, index) => {
+  const start = (tutor === firstTutorId ? CENTRE_OPEN : HALF_DAY_BOUNDARY) + index * 120;
   Object.assign(student, { day: 'Sunday', regular: 'Sunday · ' + time(start) });
   return { studentId: student.id, tutor, start };
 }));
@@ -305,29 +299,29 @@ export const worksheetById = id => worksheets.find(w => w.id === id) || workshee
 // Keep these original session examples recognizable when upgrading saved demos.
 function coreWeekExamples() {
   const examples = [];
-  const add = (studentId, date, start, tutor = 'chan') => examples.push({ studentId, date, start, tutor });
+  const add = (studentId, date, start, tutor = firstTutorId) => examples.push({ studentId, date, start, tutor });
   WEEK.slice(0, 6).forEach((date, day) => {
     if (day === 2) {
       students.slice(0, 6).forEach(s => add(s.id, date, 960));
-      ['ryan', 'ethan'].forEach(s => add(s, date, 900, 'wong'));
+      ['ryan', 'ethan'].forEach(s => add(s, date, 900, secondTutorId));
       ['ryan', 'oliver'].forEach(s => add(s, date, 1020));
     } else {
       const group = day % 2 === 0 ? ['chloe', 'emma', 'lucas'] : ['ethan', 'sophie', 'oliver'];
-      group.forEach(s => add(s, date, 960, day === 1 ? 'wong' : 'chan'));
-      ['ryan', day % 2 ? 'lucas' : 'sophie'].forEach(s => add(s, date, 900, day === 3 ? 'chan' : 'wong'));
-      [day % 2 ? 'emma' : 'ethan'].forEach(s => add(s, date, 1020, day === 1 ? 'wong' : 'chan'));
+      group.forEach(s => add(s, date, 960, day === 1 ? secondTutorId : firstTutorId));
+      ['ryan', day % 2 ? 'lucas' : 'sophie'].forEach(s => add(s, date, 900, day === 3 ? firstTutorId : secondTutorId));
+      [day % 2 ? 'emma' : 'ethan'].forEach(s => add(s, date, 1020, day === 1 ? secondTutorId : firstTutorId));
     }
   });
   return examples;
 }
 export function seed() {
   const bookings = [];
-  const add = (studentId, date, start, tutor = 'chan', extra = {}) => bookings.push({ id: uid('lesson'), studentId, date, start, duration: 60, tutor, status: 'scheduled', attendance: 'unmarked', note: '', ...extra });
+  const add = (studentId, date, start, tutor = firstTutorId, extra = {}) => bookings.push({ id: uid('lesson'), studentId, date, start, duration: 60, tutor, status: 'scheduled', attendance: 'unmarked', note: '', ...extra });
   for (const example of coreWeekExamples()) {
     if (studentById(example.studentId).tutor === example.tutor) add(example.studentId, example.date, example.start, example.tutor);
   }
   const missedId = 'missed-sep23';
-  add('chloe', '2026-09-23', 960, 'chan', { id: missedId, status: 'absent', attendance: 'absent', note: 'School activity', caseId: 'makeup-chloe' });
+  add('chloe', '2026-09-23', 960, firstTutorId, { id: missedId, status: 'absent', attendance: 'absent', note: 'School activity', caseId: 'makeup-chloe' });
   add('chloe', '2026-10-07', 960);
   add('chloe', '2026-10-14', 960);
   const assignments = [
@@ -347,13 +341,13 @@ export function seed() {
     bankTransactions: coreBillingBundles().flatMap(bundle => bundle.bank ? [bundle.bank] : []),
     assessment: { studentId: 'mia', bookedDate: '2026-09-26', assessmentDate: '2026-09-26', paid: true, status: 'report-ready', enrolled: false, creditDays: 7, report: 'Strong number sense. Further support with word problems and explaining mathematical reasoning would be useful.' },
     messages: [
-      { id: 'thread-chloe', studentId: 'chloe', assignedTo: 'Ms Chan', followUp: true, messages: [{ author: 'parent', text: 'Could Chloe make up her missed lesson as two half-hour extensions?', time: '09:12' }, { author: 'centre', text: 'Yes, we can arrange that. I will check the available times for you.', time: '09:18' }] },
+      { id: 'thread-chloe', studentId: 'chloe', assignedTo: tutors[0].name, followUp: true, messages: [{ author: 'parent', text: 'Could Chloe make up her missed lesson as two half-hour extensions?', time: '09:12' }, { author: 'centre', text: 'Yes, we can arrange that. I will check the available times for you.', time: '09:18' }] },
       { id: 'thread-ethan', studentId: 'ethan', assignedTo: 'Reception', followUp: false, messages: [{ author: 'parent', text: 'Thank you. I can see the receipt for August and September in Payments.', time: 'Yesterday' }] },
-      { id: 'thread-mia', studentId: 'mia', assignedTo: 'Ms Chan', followUp: true, messages: [{ author: 'parent', text: 'Thank you for the assessment. Can we discuss a Wednesday lesson?', time: '10:04' }] }
+      { id: 'thread-mia', studentId: 'mia', assignedTo: tutors[0].name, followUp: true, messages: [{ author: 'parent', text: 'Thank you for the assessment. Can we discuss a Wednesday lesson?', time: '10:04' }] }
     ],
     staff: [
-      { id: 'chan', name: centre.manager, role: 'Centre manager', tenure: 3, allowance: 14, taken: 4, holidayCredit: 1, daysOff: 'Tuesday · Thursday AM · Sunday PM', roster: [...demoTutorRosters.chan] },
-      { id: 'wong', name: 'Mr Alex Wong', role: 'Teacher', tenure: 2, allowance: 10, taken: 2, holidayCredit: 0.5, daysOff: 'Monday AM · Tuesday AM · Thursday PM · Sunday AM', roster: [...demoTutorRosters.wong] }
+      { id: firstTutorId, name: centre.manager, role: 'Centre director', tenure: 3, allowance: 14, taken: 4, holidayCredit: 1, daysOff: 'Tuesday · Thursday AM · Sunday PM', roster: [...demoTutorRosters[firstTutorId]] },
+      { id: secondTutorId, name: tutors[1].name, role: 'Teacher', tenure: 2, allowance: 10, taken: 2, holidayCredit: 0.5, daysOff: 'Monday AM · Tuesday AM · Thursday PM · Sunday AM', roster: [...demoTutorRosters[secondTutorId]] }
     ],
     staffLeave: [],
     audit: [{ id: 'audit-seed', text: 'R-1028 matched to BANK-104', actor: 'Accounts administrator', at: '28 Sep, 16:40' }],
@@ -362,9 +356,9 @@ export function seed() {
 }
 export function seedTeacherSchedules(state) {
   const manager = state.staff.find(staff => staff.id === centre.managerId);
-  if (manager) Object.assign(manager, { name: centre.manager, role: 'Centre manager' });
+  if (manager) Object.assign(manager, { name: centre.manager, role: 'Centre director' });
   if (state.teacherSchedulesVersion === 1) return seedSundaySchedules(state);
-  const legacyNames = new Map([['Ms Chan', 'Koko'], ['Ms Jenny Chan', 'Koko'], ['Mr Wong', 'Ming'], ['Mr Alex Wong', 'Ming']]);
+  const legacyNames = new Map([['Ms Chan', tutors[0].name], ['Ms Jenny Chan', tutors[0].name], ['Mr Wong', tutors[1].name], ['Mr Alex Wong', tutors[1].name]]);
   for (const tutor of tutors) {
     const existing = state.staff.find(staff => staff.id === tutor.id);
     if (existing) existing.name = tutor.id === centre.managerId ? centre.manager : tutor.name;
@@ -381,7 +375,7 @@ export function seedTeacherSchedules(state) {
   }
   const existingIds = new Set(state.bookings.map(booking => booking.id));
   students.slice(8).forEach((student, index) => {
-    if (['chan', 'wong'].includes(student.tutor) || student.status !== 'active') return;
+    if ([firstTutorId, secondTutorId].includes(student.tutor) || student.status !== 'active') return;
     const date = WEEK[weekdays.indexOf(student.day)], [hour, minute] = student.regular.split(' · ')[1].split(':').map(Number);
     const booking = { id: 'schedule-v1-' + student.id, studentId: student.id, date, start: hour * 60 + minute, duration: 60, tutor: student.tutor, status: 'scheduled', attendance: date < TODAY || date === TODAY && index % 3 === 0 ? 'present' : 'unmarked', note: '' };
     if (existingIds.has(booking.id) || validateSlot(state, booking)) return;
@@ -451,7 +445,7 @@ export function seedBusyAfternoons(state) {
     const slot = { date, tutor: tutor.id, start, duration: 60 };
     if (validateSlot(state, { ...slot, studentId: 'fixture-availability-probe' })) return;
     // Leave a seat for Chloe's move and split-extension walkthroughs.
-    const walkthroughSlot = tutor.id === 'chan' && start === 1020 && [TODAY, '2026-10-02'].includes(date);
+    const walkthroughSlot = tutor.id === firstTutorId && start === 1020 && [TODAY, '2026-10-02'].includes(date);
     const target = walkthroughSlot || (dayIndex + tutorIndex + hourIndex) % 2 === 0 ? 5 : 6;
     const overlapping = state.bookings.filter(booking => activeBooking(booking) && booking.tutor === tutor.id && overlaps(booking, slot));
     const points = [start, ...overlapping.map(booking => Math.max(start, booking.start))];

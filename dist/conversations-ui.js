@@ -1,4 +1,4 @@
-import { TODAY, centre, students, studentById, worksheets, uid } from './model.js';
+import { TODAY, centre, tutors, students, studentById, worksheets, uid } from './model.js';
 import { conversationThreads, markConversationRead, sendConversationMessage, toggleConversationReaction, canViewConversation, viewerKey } from './conversations.js';
 import { familyText, familyDate, familyContent } from './family-locale.js';
 import { familyChatMessage } from './chat-seed-locale.js';
@@ -108,7 +108,7 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
   function conversation(thread) {
     if(!thread)return '<div class="wa-chat-pane wa-empty-chat"><span class="wa-empty-icon">'+icon('new')+'</span><h2>'+t('Your conversations','你的對話')+'</h2><p>'+t('Select a chat to start messaging.','選擇對話以傳送訊息。')+'</p></div>';
     const v=current(), parent=getViewer().role==='parent', s=thread.type==='direct'?studentById(thread.studentId):null;
-    const subtitle=s?(parent?s.name+' · 接待處及教學團隊':s.name+' · '+s.number):'Koko Ko, Ming, Reception';
+    const subtitle=s?(parent?s.name+' · 接待處及教學團隊':s.name+' · '+s.number):[centre.manager,(tutors.find(tutor=>tutor.id!==centre.managerId)||tutors[0]).name,'Reception'].join(', ');
     const matches=thread.messages.filter(m=>!v.chatQuery||messageSearchText(thread,m).includes(v.chatQuery.toLowerCase()));
     const visible=matches.slice(-v.messageLimit); let prev;
     const bubbles=visible.map(m=>{let html='';if(!prev||prev.date!==m.date)html='<div class="wa-day-label">'+esc(dayLabel(m.date))+'</div>';html+=messageRow(thread,m,prev);prev=m;return html;}).join('');

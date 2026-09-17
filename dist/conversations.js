@@ -1,8 +1,10 @@
-import { TODAY, centre, students, worksheets, uid } from './model.js';
+import { TODAY, centre, tutors, students, worksheets, uid } from './model.js';
 
 const studentIndex = new Map(students.map(student => [student.id, student]));
 const staffRoles = new Set(['admin', 'teacher']);
 const preferenceNames = { archive: 'archived', favourite: 'favourite', unread: 'unread' };
+const director = tutors.find(tutor => tutor.id === centre.managerId) || tutors[0];
+const teamTutor = tutors.find(tutor => tutor.id !== centre.managerId) || director;
 
 export function viewerKey(viewer) {
   if (staffRoles.has(viewer?.role)) return viewer.role;
@@ -42,10 +44,10 @@ export function normalizeConversations(state) {
   if (!state.chatSettings.demoGroupSeeded) {
     if (!state.messages.some(thread => thread.id === 'thread-staff-team')) {
       state.messages.push({
-        id: 'thread-staff-team', type: 'group', audience: 'staff', title: 'Tsuen Wan team', assignedTo: 'Reception', followUp: false,
+        id: 'thread-staff-team', type: 'group', audience: 'staff', title: centre.branch + ' team', assignedTo: 'Reception', followUp: false,
         messages: [
           { author: 'centre', senderKey: 'admin', senderName: centre.manager, text: 'Please check today’s lesson changes before the afternoon classes.', time: '09:00', date: TODAY },
-          { author: 'centre', senderKey: 'staff:ming', senderName: 'Ming', text: 'I have checked my timetable. The classroom is ready.', time: '09:04', date: TODAY },
+          { author: 'centre', senderKey: 'staff:' + teamTutor.name.toLowerCase(), senderName: teamTutor.name, text: 'I have checked my timetable. The classroom is ready.', time: '09:04', date: TODAY },
           { author: 'centre', senderKey: 'staff:reception', senderName: 'Reception', text: 'Parent enquiries are in the shared inbox for follow-up.', time: '09:06', date: TODAY }
         ]
       });
@@ -142,7 +144,7 @@ export function sendConversationMessage(state, threadId, { viewer, text = '', re
   if (replyToId !== undefined && !thread.messages.some(message => message.id === replyToId)) throw new Error('The message you are replying to is not in this conversation.');
   const message = {
     id: uid('message'), author: viewer.role === 'parent' ? 'parent' : 'centre', senderKey: key,
-    senderName: viewer.role === 'parent' ? studentIndex.get(viewer.studentId).parent : viewer.role === 'teacher' ? 'Koko' : centre.manager,
+    senderName: viewer.role === 'parent' ? studentIndex.get(viewer.studentId).parent : viewer.role === 'teacher' ? director.name : centre.manager,
     text: content, date: TODAY, time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Hong_Kong' }), readBy: [key], reactions: [],
     ...(replyToId !== undefined ? { replyToId } : {}), ...(attached ? { attachment: attached } : {})
   };

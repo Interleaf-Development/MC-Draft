@@ -1,6 +1,15 @@
-# MathConcept (Tsuen Wan) workflow demo
+# MathConcept workflow demo — Tsuen Wan & Hang Hau
 
-A front-end-only prototype for reviewing paperless teaching and centre operations with MathConcept (Tsuen Wan), with Koko Ko as centre manager. All students, payment references, bank entries and learning records are fictional.
+A front-end-only prototype for reviewing paperless teaching and centre operations with MathConcept. Tsuen Wan's director is Koko Ko; Hang Hau's director is Ricco. All students, payment references, bank entries and learning records are fictional.
+
+Both branches use the same application, styles and workflow code. `dist/branch-config.js` supplies the branch identity and teachers based on the URL. Future feature and UI changes apply to both branches; do not create a separate Hang Hau application fork.
+
+| Branch | Admin | Parent | Student |
+| --- | --- | --- | --- |
+| Tsuen Wan / 荃灣 | `/` | `/parent/` | `/student/` |
+| Hang Hau / 坑口 | `/hh/` | `/hh/parent/` | `/hh/student/` |
+
+Teacher view is available through the role switch or `?role=teacher` at either admin URL. Each branch has its own saved browser demo state and Reset affects only that branch. Tsuen Wan keeps its existing storage key and saved edits. Hang Hau starts with separate fictional data, using the same illustrative 700-student workflows and policies.
 
 ## Run locally
 
@@ -16,7 +25,7 @@ Open **http://127.0.0.1:4173**. Use the role switch at the top to change between
 
 The dedicated **mc-draft** project in **Oscar Lai's projects** hosts this client demo. Import `Interleaf-Development/MC-Draft` with the **Other** framework preset and repository root `./`. `vercel.json` publishes only `dist/`, skips dependency installation, and runs the syntax checks and tests before deployment. No environment variables or backend services are needed. Pushing to `main` updates the shared demo URL.
 
-The root URL opens **Admin**. Open `/parent/` for the phone walkthrough or `/student/` for the tablet walkthrough (`/parent` and `/student` also work). Existing `?role=` links remain usable and update to the matching path.
+The root URL opens Tsuen Wan **Admin**; `/hh/` opens Hang Hau **Admin**. Open the matching parent link for the phone walkthrough or student link for the tablet walkthrough. Paths with or without a trailing slash work. Existing `?role=` links remain usable and update to the matching path within the same branch.
 
 Parent and Student have separate install identities, launch URLs and names: **MathConcept 家長** and **MathConcept 學生**. Open each link separately in Safari and choose **Share → Add to Home Screen**, or use Chrome's **Install app** option on Android. Each icon starts in its own role. Admin and Teacher have no install manifest. The demo role switch also updates the current URL; it does not change the identity of an already installed app. Older installations can be removed and replaced with the new role-specific icons.
 
@@ -51,6 +60,7 @@ The QR contains an opaque demo token, with no student name or contact details. T
 ## Teacher schedules
 
 - Tabs for **Koko, Ming, Oscar, Peter, Polly, Shileen, Tiffany and Winky**, with day and week views for **Monday–Sunday, 09:00–19:00**. The centre opens seven days a week; each teacher’s roster still controls their availability.
+- Hang Hau uses **Ricco, John, Leo, Amy, Melissa and Jason**. Its names, staffing, class bookings and parent-facing teacher labels all follow the branch configuration.
 - Available classes from **16:00 to 19:00** contain five or six students in the sample week, with a few seats retained for the rescheduling walkthrough. Every seeded student stays with their assigned teacher. Older untouched cross-teacher examples are replaced on reload; saved moves, notes, attendance and linked bookings are preserved.
 - **Admin:** click a student card to update **Student info** below **Parent requests**, including parent contact, lesson details, remark editing, **Move lesson** and **View profile**. Switching cards keeps unsaved lesson remarks in this session.
 - **Admin:** right-click a student card (or press **Shift+F10** when focused) to set its cell colour. **Green = New student**; choose **Default** to clear it. Colours are saved per lesson in this browser and follow a dragged/moved booking.

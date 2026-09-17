@@ -41,15 +41,16 @@ function harness() {
   };
 }
 
-for (const [role, label] of [['parent', '家長'], ['student', '學生']]) test(role + ' installs with its own identity, launch URL, scope and icons', async () => {
-  const manifest = JSON.parse(await readFile(resolve(dist, role + '/manifest.webmanifest'), 'utf8'));
-  const html = await readFile(resolve(dist, role + '/index.html'), 'utf8');
-  assert.equal(manifest.name, 'MathConcept（荃灣）' + label);
-  assert.equal(manifest.short_name, 'MathConcept ' + label);
+for (const [base, branch] of [['/', '荃灣'], ['/hh/', '坑口']]) for (const [role, label] of [['parent', '家長'], ['student', '學生']]) test(base + role + ' installs with its own identity, launch URL, scope and icons', async () => {
+  const path = base + role + '/';
+  const manifest = JSON.parse(await readFile(resolve(dist, '.' + path + 'manifest.webmanifest'), 'utf8'));
+  const html = await readFile(resolve(dist, '.' + path + 'index.html'), 'utf8');
+  assert.equal(manifest.name, 'MathConcept（' + branch + '）' + label);
+  assert.equal(manifest.short_name, 'MathConcept ' + (base === '/' ? '' : branch) + label);
   assert.equal(manifest.lang, 'zh-HK');
-  assert.equal(manifest.id, '/' + role + '/'); assert.equal(manifest.scope, '/' + role + '/'); assert.equal(manifest.display, 'standalone');
-  assert.equal(manifest.start_url, '/' + role + '/');
-  assert.ok(html.includes('href="/' + role + '/manifest.webmanifest"'));
+  assert.equal(manifest.id, path); assert.equal(manifest.scope, path); assert.equal(manifest.display, 'standalone');
+  assert.equal(manifest.start_url, path);
+  assert.ok(html.includes('href="' + path + 'manifest.webmanifest"'));
   assert.ok(html.includes('name="apple-mobile-web-app-title" content="' + manifest.short_name + '"'));
   assert.deepEqual(manifest.icons.map(icon => icon.sizes).sort(), ['192x192', '512x512']);
   for (const [file, size] of [...manifest.icons.map(icon => [icon.src, Number(icon.sizes.split('x')[0])]), ['/icons/mathconcept-apple-touch.png', 180], ['/icons/mathconcept-favicon.png', 48]]) {
@@ -60,23 +61,48 @@ for (const [role, label] of [['parent', '家長'], ['student', '學生']]) test(
 });
 
 test('staff entry does not advertise a family install', async () => {
-  const html = await readFile(resolve(dist, 'index.html'), 'utf8');
-  assert.ok(!html.includes('rel="manifest"'));
-  assert.ok(!html.includes('name="apple-mobile-web-app-capable"'));
+  for (const path of ['index.html', 'hh/index.html']) {
+    const html = await readFile(resolve(dist, path), 'utf8');
+    assert.ok(!html.includes('rel="manifest"'));
+    assert.ok(!html.includes('name="apple-mobile-web-app-capable"'));
+  }
 });
 
-test('offline parent and student launches retain the correct shell and install metadata', async () => {
+test('offline launches isolate all six branch/role shells and their four installed identities', async () => {
   const worker = harness(); await worker.lifecycle('install');
   worker.network(async () => { throw new Error('Offline'); });
-  for (const role of ['parent', 'student']) {
-    for (const path of ['/' + role, '/' + role + '/', '/' + role + '/index.html']) {
-      const html = await (await worker.fetch(path, { mode: 'navigate' })).text();
-      assert.ok(html.includes('href="/' + role + '/manifest.webmanifest"'));
+  const identities = new Set();
+  for (const [base, branch] of [['/', '荃灣'], ['/hh/', '坑口']]) {
+    for (const role of ['parent', 'student']) {
+      for (const suffix of ['', '/', '/index.html']) {
+        const html = await (await worker.fetch(base + role + suffix + '?role=teacher', { mode: 'navigate' })).text();
+        assert.ok(html.includes('href="' + base + role + '/manifest.webmanifest"'));
+        assert.ok(html.includes('MathConcept（' + branch + '）'));
+      }
+      const manifest = await (await worker.fetch(base + role + '/manifest.webmanifest')).json();
+      assert.equal(manifest.start_url, base + role + '/'); identities.add(manifest.id);
     }
-    const manifest = await (await worker.fetch('/' + role + '/manifest.webmanifest')).json();
-    assert.equal(manifest.start_url, '/' + role + '/');
+    const html = await (await worker.fetch(base + '?role=teacher', { mode: 'navigate' })).text();
+    assert.ok(!html.includes('rel="manifest"')); assert.ok(html.includes(base === '/' ? 'Tsuen Wan' : 'Hang Hau'));
   }
-  assert.ok(!(await (await worker.fetch('/', { mode: 'navigate' })).text()).includes('rel="manifest"'));
+  assert.equal(identities.size, 4);
+});
+
+test('both branches load exactly the same app scripts and styles instead of maintaining a code fork', async () => {
+  const assets = html => [...html.matchAll(/(?:href|src)="(\/[^"?]+\.(?:js|css))"/g)].map(match => match[1]).sort();
+  const shared = assets(await readFile(resolve(dist, 'index.html'), 'utf8'));
+  assert.ok(shared.includes('/app.js')); assert.ok(shared.includes('/pwa.js'));
+  for (const path of ['parent/index.html', 'student/index.html', 'hh/index.html', 'hh/parent/index.html', 'hh/student/index.html']) assert.deepEqual(assets(await readFile(resolve(dist, path), 'utf8')), shared, path);
+});
+
+test('a wrong branch family shell cannot overwrite the existing offline install metadata', async () => {
+  const worker = harness(); await worker.lifecycle('install');
+  const wrongShell = await readFile(resolve(dist, 'hh/parent/index.html'), 'utf8');
+  worker.network(async () => response(wrongShell, '/parent/'));
+  await worker.fetch('/parent/', { mode: 'navigate' });
+  worker.network(async () => { throw new Error('Offline'); });
+  const html = await (await worker.fetch('/parent/', { mode: 'navigate' })).text();
+  assert.ok(html.includes('href="/parent/manifest.webmanifest"')); assert.ok(html.includes('MathConcept（荃灣）'));
 });
 
 test('first install caches the complete local module and stylesheet graph for offline parent navigation', async () => {
@@ -91,7 +117,7 @@ test('first install caches the complete local module and stylesheet graph for of
       await checkModule(new URL(match[1], origin + path).pathname);
     }
   }
-  await checkModule('/app.js'); await checkModule('/pwa.js');
+  await checkModule('/app.js'); await checkModule('/pwa.js'); await checkModule('/branch-config.js');
   const html = await readFile(resolve(dist, 'index.html'), 'utf8');
   for (const match of html.matchAll(/href="(\/[^"?]+\.css)"/g)) assert.ok(cached.has(origin + match[1]), 'Offline stylesheet: ' + match[1]);
   for (const path of [...Array.from({ length: 18 }, (_, index) => '/brand/Asset%20' + (index + 1) + '.svg'), '/conversation-wallpaper.svg']) assert.ok(cached.has(origin + path));

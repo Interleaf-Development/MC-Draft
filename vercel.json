@@ -31,6 +31,24 @@
           "value": "application/manifest+json"
         }
       ]
+    },
+    {
+      "source": "/hh/parent/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
+    },
+    {
+      "source": "/hh/student/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
     }
   ],
   "trailingSlash": true

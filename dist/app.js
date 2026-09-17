@@ -9,11 +9,12 @@ import { createBankCheckUI } from './bank-check-ui.js';
 import { isFamilyRole, familyText, familyDate, familyContent } from './family-locale.js';
 import { roleFromUrl, syncEntryPoint } from './entry-points.js';
 import { createEdgePager } from './schedule-drag.js';
-const STORAGE = 'mathconcept-demo-v4';
+import { centreConfig } from './branch-config.js';
+const STORAGE = centreConfig.storageKey;
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
 seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);
-const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:'chan', scheduleBookingId:null, scheduleRemarkDrafts:{}, date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Invoices', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:'chan' };
+const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:centre.managerId, scheduleBookingId:null, scheduleRemarkDrafts:{}, date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Invoices', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:centre.managerId };
 const t = (en, zh) => isFamilyRole(ui.role) ? (zh ?? familyText(en, ui.role)) : en;
 const content = value => familyContent(value, ui.role);
 const dateLabel = (value, options = {}) => familyDate(value, ui.role, options);
@@ -107,7 +108,7 @@ if (Object.hasOwn(NAV, requestedRole)) {
  ui.role = requestedRole;
  ui.page = NAV[requestedRole][0][0];
 }
-const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre director', initials: 'KK', colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: 'KK', colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
+const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre director', initials: centre.initials, colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: centre.initials, colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
 const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),persist:()=>{previousState=null;persist();},render:()=>render(),modal,closeModal,toast,childSwitch:()=>childSwitch()});
 const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),change,modal,closeModal,toast,openReceipt:receiptDialog});
 const bankCheckUI = createBankCheckUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,render:()=>render(),modal,closeModal,toast,openMatch:matchDialog});
@@ -231,11 +232,11 @@ function timetable(dates,tutor,minimumHeights={}){
 }
 function teachingBookings(){return state.bookings.filter(b=>b.date===ui.classDate&&b.start<=ui.classStart&&b.start+b.duration>ui.classStart&&b.tutor===ui.classTutor&&activeBooking(b));}
 function classSelector(){
- const keys=[...new Set(state.bookings.filter(b=>activeBooking(b)&&b.tutor==='chan'&&(b.date>=TODAY||b.date===ui.classDate&&b.start===ui.classStart)).map(b=>b.date+'|'+b.start+'|'+b.tutor))].sort((a,b)=>{const [ad,at]=a.split('|'),[bd,bt]=b.split('|');return ad.localeCompare(bd)||Number(at)-Number(bt);});
+ const keys=[...new Set(state.bookings.filter(b=>activeBooking(b)&&b.tutor===centre.managerId&&(b.date>=TODAY||b.date===ui.classDate&&b.start===ui.classStart)).map(b=>b.date+'|'+b.start+'|'+b.tutor))].sort((a,b)=>{const [ad,at]=a.split('|'),[bd,bt]=b.split('|');return ad.localeCompare(bd)||Number(at)-Number(bt);});
  return '<select class="btn" data-change="class-session" aria-label="Teaching session">'+keys.map(key=>{const [date,start]=key.split('|');return '<option value="'+key+'"'+(key===ui.classDate+'|'+ui.classStart+'|'+ui.classTutor?' selected':'')+'>'+dateLabel(date)+' · '+time(Number(start))+'</option>';}).join('')+'</select>';
 }
 function schedulePage(){
- const admin=ui.role==='admin',tutor=admin&&tutors.some(t=>t.id===ui.scheduleTutor)?ui.scheduleTutor:'chan';
+ const admin=ui.role==='admin',tutor=admin&&tutors.some(t=>t.id===ui.scheduleTutor)?ui.scheduleTutor:centre.managerId;
  const dates=ui.scheduleView==='week'?shiftedWeek():[ui.date],moving=admin&&state.bookings.find(b=>b.id===ui.moveId);
  if(admin&&!state.bookings.some(b=>b.id===ui.scheduleBookingId&&b.tutor===tutor&&dates.includes(b.date)))ui.scheduleBookingId=null;
  const teacherTabs=admin?'<div class="teacher-tabs" role="tablist" aria-label="Teacher schedules">'+tutors.map(t=>action('teacher-tab',t.name,'teacher-tab'+(tutor===t.id?' active':''),'id="teacher-tab-'+t.id+'" role="tab" aria-selected="'+(tutor===t.id)+'" aria-controls="teacher-schedule" tabindex="'+(tutor===t.id?'0':'-1')+'" data-tutor="'+t.id+'"')).join('')+'</div>':'';
@@ -335,7 +336,7 @@ function studentDirectory(){
 }
 function studentProfilePanel(id){
  const s=studentById(id),p=getStudentProfile(state,id),draft=ui.profileDrafts?.[id];
- const studentFacts=profileFact('Branch',p.branch+' · TWN',true)+profileFact('Student ID',p.studentNumber)+profileFact('Chinese name',p.chineseName)+profileFact('Given name',p.givenName)+profileFact('Surname',p.surname)+profileFact('Date of birth',profileDate(p.dateOfBirth))+profileFact('Grade',p.grade)+profileFact('School',p.school,true)+profileFact('Enrolled since',profileDate(p.enrolledSince));
+ const studentFacts=profileFact('Branch',p.branch+' · '+centre.code,true)+profileFact('Student ID',p.studentNumber)+profileFact('Chinese name',p.chineseName)+profileFact('Given name',p.givenName)+profileFact('Surname',p.surname)+profileFact('Date of birth',profileDate(p.dateOfBirth))+profileFact('Grade',p.grade)+profileFact('School',p.school,true)+profileFact('Enrolled since',profileDate(p.enrolledSince));
  const parentFacts=profileFact('Relationship',p.parentRelation)+profileFact('Language',p.parentLanguage)+profileFact('Given name',p.parentGivenName)+profileFact('Surname',p.parentSurname)+profileFact('Mobile',p.parentMobile)+profileFact('Phone',p.parentPhone)+profileFact('Email',p.parentEmail,true)+profileFact('Region',p.region)+profileFact('Area',p.area)+profileFact('Address',p.address,true);
  const notes='<div class="student-notes-grid">'+profileNote('Student / parent remarks',p.remark)+profileNote('FPS remark',p.fpsRemark)+'</div>';
  const regular='<div class="student-regular-row"><dl class="student-facts">'+profileFact('Regular lesson',p.lessonDays.join(', ')+(p.lessonTime?' · '+p.lessonTime:''))+profileFact('Teacher',p.instructor)+profileFact('Course / duration',p.course+(p.lessonDuration?' · '+p.lessonDuration+' min':''))+profileFact('Payment reminders',p.paymentReminder?'Enabled':'Off')+'</dl></div>';
@@ -474,7 +475,7 @@ function leaveAffectedBookings(leave){
 }
 function staffLeaveDialog(staffId,more=false){
  if(!['admin','teacher'].includes(ui.role))return;
- if(ui.role==='teacher')staffId='chan';
+ if(ui.role==='teacher')staffId=centre.managerId;
  const staff=state.staff.find(s=>s.id===staffId);if(!staff)return;
  ui.leaveDialogStaff=staffId;ui.leaveHistoryLimit=more?(ui.leaveHistoryLimit||20)+20:20;
  const balance=staffBalance(state,staffId);
@@ -571,7 +572,7 @@ function parentHomework(){
 function parentLessonDialog(id){
  const b=state.bookings.find(b=>b.id===id&&b.studentId===ui.familyStudent&&activeBooking(b));if(!b)return;
  const source=state.bookings.find(item=>item.id===b.sourceId),pending=state.leaveRequests.some(r=>r.bookingId===id&&r.status==='pending');
- modal('課堂詳情','<p class="strong">'+esc(studentById(b.studentId).name)+' · 數學</p><dl class="detail-grid"><div><dt>日期</dt><dd>'+dateLabel(b.date,{weekday:'long'})+'</dd></div><div><dt>時間</dt><dd>'+time(b.start)+'–'+time(b.start+b.duration)+'</dd></div><div><dt>老師</dt><dd>'+esc(tutorName(b.tutor))+'</dd></div><div><dt>中心</dt><dd>MathConcept（荃灣）</dd></div></dl>'+(source?'<p class="small muted">補回 '+dateLabel(source.date)+' 的課堂</p>':'')+(b.attendance==='present'?'<p class="parent-attendance">'+icon('check','sm')+'已登記出席</p>':pending?'<p class="small muted">請假待中心確認</p>':''),action('close-modal','關閉','btn')+(b.attendance!=='present'&&!pending?action('request-leave','申請請假','btn','data-id="'+b.id+'"'):'')+(b.date===TODAY?action('show-lesson-checkin','出席二維碼','btn primary','data-id="'+b.id+'"'):''));
+ modal('課堂詳情','<p class="strong">'+esc(studentById(b.studentId).name)+' · 數學</p><dl class="detail-grid"><div><dt>日期</dt><dd>'+dateLabel(b.date,{weekday:'long'})+'</dd></div><div><dt>時間</dt><dd>'+time(b.start)+'–'+time(b.start+b.duration)+'</dd></div><div><dt>老師</dt><dd>'+esc(tutorName(b.tutor))+'</dd></div><div><dt>中心</dt><dd>'+esc(t(centre.name))+'</dd></div></dl>'+(source?'<p class="small muted">補回 '+dateLabel(source.date)+' 的課堂</p>':'')+(b.attendance==='present'?'<p class="parent-attendance">'+icon('check','sm')+'已登記出席</p>':pending?'<p class="small muted">請假待中心確認</p>':''),action('close-modal','關閉','btn')+(b.attendance!=='present'&&!pending?action('request-leave','申請請假','btn','data-id="'+b.id+'"'):'')+(b.date===TODAY?action('show-lesson-checkin','出席二維碼','btn primary','data-id="'+b.id+'"'):''));
 }
 
 function parentLessons(){
@@ -678,7 +679,7 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>'+t('This is a front-end prototype with fictional students and payments. Changes stay in this browser. No messages, payments or reports are sent to an external service.','這是使用虛構學生及付款資料的介面示範。修改只儲存在此瀏覽器，不會向外傳送訊息、付款或報告。')+'</p><p class="mt-16 muted">'+t('The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.','示範課堂日期為 2026 年 9 月 30 日。銀行交易樣本包含跨月例子，可試用入賬日期調整及對賬流程。')+'</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>'+t('Restore the original fictional students, lessons and payments. Your demo edits and handwriting in this browser will be cleared.','還原最初的虛構學生、課堂及付款資料。你在此瀏覽器的示範修改及手寫內容將被清除。')+'</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);conversationUI.reset();bankCheckUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor='chan';previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:'chan',moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);conversationUI.reset();bankCheckUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeup(id,mode='single'){
@@ -853,7 +854,7 @@ function handleAction(a,id,button){
  }else if(a==='enrol-mia')enrolDialog();
  else if(a==='confirm-enrol'){
   const parent=$('#enrol-parent').value.trim(),phone=$('#enrol-phone').value.trim(),date=$('#enrol-date').value,start=Number($('#enrol-time').value),plan=$('#enrol-plan').value;
-  if(change(()=>{if(!parent||!phone)throw new Error('Add the parent’s name and contact number.');if(state.assessment.enrolled)throw new Error('Mia is already enrolled.');if(plan==='block'&&(date<'2026-10-01'||date>'2026-11-30'))throw new Error('For block-only enrolment, choose a first lesson in October or November.');const b={id:uid('lesson'),studentId:'mia',date,start,duration:60,tutor:'chan',status:'scheduled',attendance:'unmarked',note:'New student'};const error=validateSlot(state,b);if(error)throw new Error(error);const credit=assessmentCredit(state.assessment,TODAY);state.assessment.enrolled=true;state.assessment.parent=parent;state.assessment.phone=phone;state.assessment.status='enrolled';state.bookings.push(b);state.invoices.push({id:'INV-1029',studentId:'mia',amount:2000+(plan==='intro'?250:0)-credit,period:plan==='intro'?'Introductory lesson + Oct–Nov 2026':'Oct–Nov 2026',issued:TODAY,due:'2026-10-20',description:(plan==='intro'?'1 introductory lesson (HK$250) + ':'')+'8-lesson block'+(credit?' − HK$200 assessment deduction':''),receiptId:null,proof:false});record(state,'Enrolled Mia Cheung with '+money(credit)+' assessment deduction');},'Enrolment and first invoice created.'))closeModal();
+  if(change(()=>{if(!parent||!phone)throw new Error('Add the parent’s name and contact number.');if(state.assessment.enrolled)throw new Error('Mia is already enrolled.');if(plan==='block'&&(date<'2026-10-01'||date>'2026-11-30'))throw new Error('For block-only enrolment, choose a first lesson in October or November.');const b={id:uid('lesson'),studentId:'mia',date,start,duration:60,tutor:centre.managerId,status:'scheduled',attendance:'unmarked',note:'New student'};const error=validateSlot(state,b);if(error)throw new Error(error);const credit=assessmentCredit(state.assessment,TODAY);state.assessment.enrolled=true;state.assessment.parent=parent;state.assessment.phone=phone;state.assessment.status='enrolled';state.bookings.push(b);state.invoices.push({id:'INV-1029',studentId:'mia',amount:2000+(plan==='intro'?250:0)-credit,period:plan==='intro'?'Introductory lesson + Oct–Nov 2026':'Oct–Nov 2026',issued:TODAY,due:'2026-10-20',description:(plan==='intro'?'1 introductory lesson (HK$250) + ':'')+'8-lesson block'+(credit?' − HK$200 assessment deduction':''),receiptId:null,proof:false});record(state,'Enrolled Mia Cheung with '+money(credit)+' assessment deduction');},'Enrolment and first invoice created.'))closeModal();
  }else if(a==='billing-tab'){ui.billingTab=button.dataset.value;render();}
  else if(a==='report-exceptions'){ui.billingTab='Reconciliation';bankCheckUI.reset();render();}
  else if(a==='view-invoice'){
@@ -875,11 +876,11 @@ function handleAction(a,id,button){
   const rows=[['Section','Receipt / bank ID','Student / bank reference','Receipt amount','Bank amount','Receipt issued','Bank credited','HQ month','Match','Date adjustment','Note']];
   state.receipts.forEach(r=>{const match=reconciliation(state,r);if(match.month===ui.reportMonth||match.status!=='Matched')rows.push(['Receipt',r.id,studentById(r.studentId).name,r.amount,match.bank?.amount||'',r.issuedDate,match.bank?.date||'',match.month||'Unallocated',match.status,match.adjustment||'',r.note]);});
   reportingTotals(state,ui.reportMonth).unmatchedBank.forEach(b=>rows.push(['Unmatched bank entry',b.id,b.reference,'',b.amount,'',b.date,b.date.slice(0,7),'Unmatched','','']));
-  downloadText('MathConcept-Tsuen-Wan-'+ui.reportMonth+'-demo-report.csv','\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'));toast('Report exported with unmatched items and exceptions.');
+  downloadText('MathConcept-'+centre.branch.replaceAll(' ','-')+'-'+ui.reportMonth+'-demo-report.csv','\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n'));toast('Report exported with unmatched items and exceptions.');
  }else if(a==='leave-details')staffLeaveDialog(id);
  else if(a==='more-leave-history')staffLeaveDialog(ui.leaveDialogStaff,true);
- else if(a==='leave-affected-lessons'){const leave=state.staffLeave.find(l=>l.id===id);if(!leave||!['admin','teacher'].includes(ui.role)||ui.role==='teacher'&&leave.staffId!=='chan')return;ui.page='schedule';ui.scheduleTutor=leave.staffId;ui.date=leave.date;ui.weekOffset=Math.floor((Date.parse(leave.date+'T12:00:00Z')-Date.parse(WEEK[0]+'T12:00:00Z'))/(7*86400000));ui.scheduleView='day';ui.moveId=null;closeModal();render();}
- else if(a==='open-calendar-class'){const b=state.bookings.find(b=>b.id===id);if(ui.role!=='teacher'||!b||b.tutor!=='chan')return;ui.classDate=b.date;ui.classStart=b.start;ui.classTutor=b.tutor;ui.selectedStudent=b.studentId;ui.standaloneFolder=false;ui.page='classroom';closeModal();render();}
+ else if(a==='leave-affected-lessons'){const leave=state.staffLeave.find(l=>l.id===id);if(!leave||!['admin','teacher'].includes(ui.role)||ui.role==='teacher'&&leave.staffId!==centre.managerId)return;ui.page='schedule';ui.scheduleTutor=leave.staffId;ui.date=leave.date;ui.weekOffset=Math.floor((Date.parse(leave.date+'T12:00:00Z')-Date.parse(WEEK[0]+'T12:00:00Z'))/(7*86400000));ui.scheduleView='day';ui.moveId=null;closeModal();render();}
+ else if(a==='open-calendar-class'){const b=state.bookings.find(b=>b.id===id);if(ui.role!=='teacher'||!b||b.tutor!==centre.managerId)return;ui.classDate=b.date;ui.classStart=b.start;ui.classTutor=b.tutor;ui.selectedStudent=b.studentId;ui.standaloneFolder=false;ui.page='classroom';closeModal();render();}
  else if(a==='set-staff-leave'){
   if(ui.role!=='admin'||!state.staff.some(s=>s.id===id))return;
   ui.leaveEditingStaff=id;

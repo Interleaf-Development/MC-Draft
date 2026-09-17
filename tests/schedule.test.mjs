@@ -165,7 +165,7 @@ test('teacher migration preserves original lessons and make-ups while renaming s
   assert.deepEqual(state.makeups, originalMakeups);
   assert.equal(state.staff.length, 8);
   for (const tutor of tutors) assert.equal(state.staff.find(staff => staff.id === tutor.id).name, tutor.id === 'chan' ? 'Koko Ko' : tutor.name);
-  assert.equal(state.staff.find(staff => staff.id === 'chan').role, 'Centre manager');
+  assert.equal(state.staff.find(staff => staff.id === 'chan').role, 'Centre director');
   assert.equal(state.staff.find(staff => staff.id === 'chan').allowance, 14);
   assert.equal(state.staff.find(staff => staff.id === 'chan').taken, 4);
   assert.equal(state.messages.find(thread => thread.id === 'thread-chloe').assignedTo, 'Koko');

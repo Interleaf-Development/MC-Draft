@@ -1,0 +1,26 @@
+{
+  "id": "/hh/parent/",
+  "name": "MathConcept（坑口）家長",
+  "short_name": "MathConcept 坑口家長",
+  "description": "MathConcept（坑口）家長應用程式示範。",
+  "lang": "zh-HK",
+  "start_url": "/hh/parent/",
+  "scope": "/hh/parent/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#cf373e",
+  "icons": [
+    {
+      "src": "/icons/mathconcept-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/mathconcept-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

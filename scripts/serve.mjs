@@ -7,7 +7,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
     const path = decodeURIComponent(url.pathname);
-    if (['/parent', '/student'].includes(path)) { res.writeHead(308, { Location: path + '/' + url.search }); res.end(); return; }
+    if (['/parent', '/student', '/hh', '/hh/parent', '/hh/student'].includes(path)) { res.writeHead(308, { Location: path + '/' + url.search }); res.end(); return; }
     let file = resolve(root, '.' + (path === '/' ? '/index.html' : path));
     if (file !== root && !file.startsWith(root + sep)) { res.writeHead(403); res.end(); return; }
     if ((await stat(file)).isDirectory()) file = resolve(file, 'index.html');
@@ -15,4 +15,4 @@ const server = http.createServer(async (req, res) => {
     res.end(await readFile(file));
   } catch { res.writeHead(404); res.end('Not found'); }
 });
-server.listen(4173, '127.0.0.1', () => console.log('Local: http://127.0.0.1:4173'));
+server.listen(Number(process.env.PORT || 4173), '127.0.0.1', () => console.log('Local: http://127.0.0.1:' + server.address().port));

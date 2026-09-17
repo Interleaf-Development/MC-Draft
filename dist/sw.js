@@ -1,21 +1,22 @@
 // Bump this version when changing the offline asset set or cache policy.
 const CACHE_PREFIX = 'mathconcept-static-';
-const CACHE_NAME = CACHE_PREFIX + 'v15-drag-between-weeks';
-const shells = { '/index.html': '/', '/parent/index.html': '/parent/', '/student/index.html': '/student/' };
+const CACHE_NAME = CACHE_PREFIX + 'v16-hang-hau';
+const shells = { '/index.html': '/', '/parent/index.html': '/parent/', '/student/index.html': '/student/', '/hh/index.html': '/hh/', '/hh/parent/index.html': '/hh/parent/', '/hh/student/index.html': '/hh/student/' };
 function shellPath(path) {
   if (path === '/' || path === '/index.html') return '/index.html';
-  const role = /^\/(parent|student)(?:\/|\/index\.html)?$/.exec(path)?.[1];
-  return role ? '/' + role + '/index.html' : null;
+  if (path === '/hh' || path === '/hh/' || path === '/hh/index.html') return '/hh/index.html';
+  const family = /^\/(hh\/)?(parent|student)(?:\/|\/index\.html)?$/.exec(path);
+  return family ? '/' + (family[1] || '') + family[2] + '/index.html' : null;
 }
 const PRECACHE = [
-  ...Object.keys(shells), '/entry-points.js',
+  ...Object.keys(shells), '/entry-points.js', '/branch-config.js',
   '/app.js', '/model.js', '/checkin.js', '/student-profile.js', '/family-locale.js', '/schedule-drag.js',
   '/conversations.js', '/conversations-ui.js', '/chat-seed-locale.js',
   '/billing-automation.js', '/billing-proof-ui.js', '/bank-check-ui.js', '/statement-csv.js',
   '/vendor/qrcode.js', '/pwa.js',
   '/styles.css', '/scale.css', '/schedule.css', '/student-directory.css',
   '/conversations.css', '/billing-automation.css', '/parent-home.css', '/conversation-wallpaper.svg',
-  '/brand/mathconcept-logo.png', '/parent/manifest.webmanifest', '/student/manifest.webmanifest', '/icons/mathconcept-192.png', '/icons/mathconcept-512.png', '/icons/mathconcept-apple-touch.png', '/icons/mathconcept-favicon.png',
+  '/brand/mathconcept-logo.png', '/parent/manifest.webmanifest', '/student/manifest.webmanifest', '/hh/parent/manifest.webmanifest', '/hh/student/manifest.webmanifest', '/icons/mathconcept-192.png', '/icons/mathconcept-512.png', '/icons/mathconcept-apple-touch.png', '/icons/mathconcept-favicon.png',
   ...Array.from({ length: 18 }, (_, index) => '/brand/Asset%20' + (index + 1) + '.svg')
 ];
 const staticPaths = new Set(PRECACHE);
@@ -41,7 +42,7 @@ async function safeToCache(response, path) {
   if (shells[path] && contentType === 'text/html') {
     // A protection page can return 200 HTML. Cache only the known app shell.
     const html = await response.clone().text();
-    const expectedManifest = path === '/index.html' ? null : shells[path] + 'manifest.webmanifest';
+    const expectedManifest = /\/(parent|student)\/index\.html$/.test(path) ? shells[path] + 'manifest.webmanifest' : null;
     return html.includes('<div id="app"></div>') && html.includes('src="/app.js"') && (expectedManifest ? html.includes('href="' + expectedManifest + '"') : !html.includes('rel="manifest"'));
   }
   return false;
