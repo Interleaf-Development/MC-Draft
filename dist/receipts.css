@@ -8,7 +8,7 @@
 .receipts-date-controls > input,
 .receipts-date-controls > select { min-height: 34px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font: inherit; font-size: 12px; }
 .receipts-date-controls > input[type=search] { width: 185px; }
-.receipts-board { overflow: auto; max-height: max(300px, calc(100dvh - 315px)); }
+.receipts-board { overflow: auto; max-height: max(300px, calc(100dvh - 315px + var(--staff-header-reclaimed, 0px))); }
 .receipts-week-grid { display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); min-width: 840px; min-height: 360px; }
 .receipts-day-column { min-width: 0; border-right: 1px solid var(--line); }
 .receipts-day-column:last-child { border-right: 0; }

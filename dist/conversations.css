@@ -2,8 +2,8 @@
 .messages-open:not(.role-parent) .main {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 72px);
-  height: calc(100dvh - 72px);
+  height: calc(100vh - 72px + var(--staff-header-reclaimed, 0px));
+  height: calc(100dvh - 72px + var(--staff-header-reclaimed, 0px));
   min-height: 0;
   max-width: none;
   margin: 0;
@@ -472,7 +472,7 @@
 
 @media (max-width: 760px) {
   .messages-open:not(.role-parent) .main {
-    height: calc(100dvh - 115px - 72px - env(safe-area-inset-bottom));
+    height: calc(100dvh - 115px + var(--staff-header-reclaimed, 0px) - 72px - env(safe-area-inset-bottom));
     padding: 0;
   }
   .wa-inbox { grid-template-columns: minmax(0, 1fr); border: 0; border-radius: 0; }

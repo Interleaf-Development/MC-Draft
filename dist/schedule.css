@@ -41,8 +41,8 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  max-height: max(440px, calc(100vh - 310px));
-  max-height: max(440px, calc(100dvh - 310px));
+  max-height: max(440px, calc(100vh - 310px + var(--staff-header-reclaimed, 0px)));
+  max-height: max(440px, calc(100dvh - 310px + var(--staff-header-reclaimed, 0px)));
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -338,14 +338,14 @@
 .timetable-end-fill { grid-column: 2 / -1; min-height: 28px; background: #fff; }
 
 @media (min-width: 1450px) {
-  .schedule-layout .calendar-scroll { max-height: max(440px, calc(100dvh - 260px)); }
+  .schedule-layout .calendar-scroll { max-height: max(440px, calc(100dvh - 260px + var(--staff-header-reclaimed, 0px))); }
 }
 
 @media (max-width: 760px) {
   .teacher-tabs { margin-bottom: 12px; }
   .teacher-tab { min-height: 44px; padding: 10px 12px; }
   .schedule-layout .calendar-scroll {
-    max-height: max(440px, calc(100dvh - 300px));
+    max-height: max(440px, calc(100dvh - 300px + var(--staff-header-reclaimed, 0px)));
   }
   .schedule-layout .calendar-controls { flex-wrap: wrap; }
   .timetable-corner, .timetable-dayhead { min-height: 61px; padding-top: 7px; padding-bottom: 7px; }
@@ -422,11 +422,11 @@
 }
 
 /* Keep the compact leave row in view while the lesson grid scrolls. */
-.schedule-main .calendar-scroll { max-height: max(360px, calc(100dvh - 410px)); }
+.schedule-main .calendar-scroll { max-height: max(360px, calc(100dvh - 410px + var(--staff-header-reclaimed, 0px))); }
 @media (min-width: 1450px) {
-  .schedule-main .calendar-scroll { max-height: max(360px, calc(100dvh - 360px)); }
+  .schedule-main .calendar-scroll { max-height: max(360px, calc(100dvh - 360px + var(--staff-header-reclaimed, 0px))); }
 }
-.teacher-schedule-layout .calendar-scroll { max-height: max(360px, calc(100dvh - 340px)); }
+.teacher-schedule-layout .calendar-scroll { max-height: max(360px, calc(100dvh - 340px + var(--staff-header-reclaimed, 0px))); }
 
 /* Selected student details stay in the rail without adding another scroll area. */
 .schedule-student-info { align-self: start; width: 100%; min-width: 0; }

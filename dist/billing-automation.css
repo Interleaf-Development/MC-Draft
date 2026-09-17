@@ -158,7 +158,7 @@ object.proof-pdf-preview { display: block; min-height: 0; height: 230px; padding
 .billing-status:is(.blue, .ready) { color: #597fa7; }
 .billing-workspace > p.billing-status { white-space: normal; overflow-wrap: anywhere; }
 .billing-workspace :is(.billing-table, .bank-results-table) { min-width: 0; max-width: 100%; border-radius: 10px; }
-.billing-workspace :is(.billing-table, .bank-results-table) > .table-scroll { min-width: 0; max-width: 100%; max-height: max(300px, calc(100vh - 320px)); max-height: max(300px, calc(100dvh - 320px)); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.billing-workspace :is(.billing-table, .bank-results-table) > .table-scroll { min-width: 0; max-width: 100%; max-height: max(300px, calc(100vh - 320px + var(--staff-header-reclaimed, 0px))); max-height: max(300px, calc(100dvh - 320px + var(--staff-header-reclaimed, 0px))); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .billing-workspace :is(.billing-table, .bank-results-table) table { min-width: 620px; font-size: 13px; }
 .billing-workspace :is(.billing-table, .bank-results-table) .table-scroll th { position: sticky; top: 0; z-index: 1; padding: 11px 14px; background: #fafbfc; color: #7c8797; font-size: 11px; font-weight: 550; letter-spacing: 0; text-transform: none; box-shadow: 0 1px 0 var(--line); }
 .billing-workspace :is(.billing-table, .bank-results-table) .table-scroll td { padding: 11px 14px; vertical-align: middle; }

@@ -19,7 +19,7 @@ Requires Node.js 18 or newer. No package installation, database, credentials or 
 npm start
 ~~~
 
-Open **http://127.0.0.1:4173**. Use the role switch at the top to change between Admin, Teacher, Parent and Student. Changes are saved in this browser's local storage; **Reset** restores the demonstration data.
+Open **http://127.0.0.1:4173**. Use the role switch in the staff sidebar to change between Admin, Teacher, Parent and Student. Demo information and Reset are alongside it, leaving the staff workbench at full height. Changes are saved in this browser's local storage; **Reset** restores the demonstration data.
 
 ## Vercel staging and phone installation
 

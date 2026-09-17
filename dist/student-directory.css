@@ -18,8 +18,8 @@
   align-items: stretch;
   width: 100%;
   min-width: 0;
-  height: clamp(480px, calc(100vh - 200px), 960px);
-  height: clamp(480px, calc(100dvh - 200px), 960px);
+  height: clamp(480px, calc(100vh - 200px + var(--staff-header-reclaimed, 0px)), 960px);
+  height: clamp(480px, calc(100dvh - 200px + var(--staff-header-reclaimed, 0px)), 960px);
 }
 .student-selector,
 .student-detail {

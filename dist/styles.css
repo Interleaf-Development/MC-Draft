@@ -91,3 +91,30 @@ body{font-size:16px}.booking-chip{font-size:14px}.note-card .note-comment{font-s
 .role-student .mobile-brand .wordmark:has(.brand-logo){width:200px;height:36px}
 .receipt-paper .wordmark:has(.brand-logo){width:220px;height:40px;flex-shrink:1}
 .brand-branch{font-size:11px;font-weight:400;line-height:1.2;color:#8991a0;margin-top:2px}
+
+/* Staff demo controls live with navigation, leaving the workbench its full height. */
+:is(.role-admin, .role-teacher) { --staff-header-reclaimed: 72px; }
+:is(.role-admin, .role-teacher) .sidebar { overflow-y: auto; overscroll-behavior-y: contain; }
+:is(.role-admin, .role-teacher) .sidebar > * { flex-shrink: 0; }
+:is(.role-admin, .role-teacher) .sidebar-bottom { padding: 16px 0 0; }
+.sidebar-demo { display: flex; flex-direction: column; gap: 9px; }
+.sidebar-demo .role-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-column: auto; grid-row: auto; width: 100%; }
+.sidebar-demo .role-switch button { min-width: 0; min-height: 32px; padding: 6px 4px; font-size: 12px; }
+.sidebar-demo-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; }
+.sidebar-demo-actions .btn { min-height: 32px; padding: 5px 7px; font-size: 12px; }
+.sidebar-demo-actions .demo-label { font-size: 11px; }
+.sidebar-demo-date { padding: 0 8px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.sidebar-demo + .sidebar-identity { margin-top: 15px; padding: 14px 8px 0; border-top: 1px solid var(--line); }
+@media (min-width: 761px) {
+  :is(.role-admin, .role-teacher) .app-shell { grid-template-rows: minmax(100vh, auto); grid-template-rows: minmax(100dvh, auto); }
+  :is(.role-admin, .role-teacher) .topbar { display: none; }
+  :is(.role-admin, .role-teacher) .sidebar { grid-row: 1; }
+  :is(.role-admin, .role-teacher) .main { grid-row: 1; align-self: start; margin: 0 auto; }
+}
+@media (max-width: 760px) {
+  :is(.role-admin, .role-teacher) { --staff-header-reclaimed: 51px; }
+  :is(.role-admin, .role-teacher) .app-shell { padding-top: 64px; }
+  :is(.role-admin, .role-teacher) .topbar { display: flex; height: 64px; padding: 10px 16px; }
+  :is(.role-admin, .role-teacher) .sidebar { z-index: 40; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+  .sidebar-demo .role-switch button, .sidebar-demo-actions .btn, .sidebar-demo-actions .demo-label { min-height: 40px; }
+}
