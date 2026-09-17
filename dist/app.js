@@ -99,7 +99,7 @@ function modal(title, body, footer = '', wide = false) {
   document.body.style.overflow = 'hidden'; setTimeout(() => { if(!$('.modal')?.contains(document.activeElement))$('.modal input:not([type=hidden]), .modal select, .modal button')?.focus(); }, 30);
 }
 const NAV = {
- admin: [['schedule','calendar','Schedule'],['students','users','Students'],['billing','wallet','Billing & reconciliation'],['messages','message','Conversations'],['calendar','settings','Centre calendar']],
+ admin: [['schedule','calendar','Schedule'],['students','users','Students'],['billing','wallet','Billing & reconciliation'],['messages','message','Conversations']],
  teacher: [['classroom','users','My classroom'],['schedule','calendar','My schedule'],['library','book','Worksheet library'],['notes','file','Lesson records'],['messages','message','Conversations']],
  parent: [['overview','home','Overview'],['lessons','calendar','Lessons'],['handbook','file','課堂報告'],['homework','book','功課'],['payments','wallet','Payments'],['messages','message','Messages']],
  student: [['work','edit','My work'],['past','folder','Past work']]
@@ -134,7 +134,6 @@ function page() {
   if (['admin','teacher'].includes(ui.role) && ui.page === 'schedule') return schedulePage();
   if (ui.role === 'admin' && ui.page === 'students') return studentsPage();
   if (ui.role === 'admin' && ui.page === 'billing') return billingPage();
-  if (ui.role === 'admin' && ui.page === 'calendar') return centreCalendarPage();
   if (ui.page === 'messages') return messagesPage();
   if (ui.role === 'teacher' && ui.page === 'classroom') return classroomPage();
   if (ui.role === 'teacher' && ui.page === 'library') return libraryPage();
@@ -500,10 +499,6 @@ function refreshStaffLeaveImpact(){
  const date=$('#al-date')?.value,unit=$('#al-unit')?.value,notice=$('#al-affected');if(!notice)return;
  const count=unit?leaveAffectedBookings({staffId:ui.leaveEditingStaff,date,unit}).length:0;
  notice.hidden=!count;notice.textContent=count?count+' student booking'+(count===1?' overlaps':'s overlap')+' this leave.':'';
-}
-function centreCalendarPage(){
- const periods=['Jan–Feb','Mar–Apr','May–Jun','Jul–Aug','Sep–Oct','Nov–Dec'];
- return heading('Centre calendar',tag('2026'),'Annual teaching plan')+'<div class="two-columns"><section class="panel"><div class="panel-head"><h3>Lesson allocation by day</h3><span class="small muted">Annual target: 48</span></div><div class="table-scroll"><table><thead><tr><th>Period</th>'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<th>'+d+'</th>').join('')+'</tr></thead><tbody>'+periods.map((p,i)=>'<tr><td class="strong">'+p+'</td>'+[0,1,2,3,4,5,6].map(d=>'<td>'+(d===2&&i===2?tag('7','amber'):d===2&&i===3?tag('9','blue'):'8')+'</td>').join('')+'</tr>').join('')+'<tr><td class="strong">Annual total</td>'+Array(7).fill('<td class="strong green-text">48</td>').join('')+'</tr></tbody></table></div><div class="panel-footer"><p class="small muted">Illustrative allocation for discussion. Actual closure dates and billing blocks need the centre’s annual calendar.</p></div></section><aside class="stack"><section class="panel"><div class="panel-head"><h3>Calendar balancing</h3></div><div class="panel-body"><p class="small muted">A seven-lesson period may be balanced by a later nine-lesson period within the calendar year. If there is no later balancing period, arrange an extra lesson.</p><div class="notice blue mt-16">Planned centre closures are separate from a student’s absence and make-up record.</div></div></section><section class="panel"><div class="panel-body"><h3>Parent notices</h3><p class="small muted mt-8">Confirmed closures should appear on the schedule and in affected families’ upcoming lessons.</p></div></section></aside></div>';
 }
 function messagesPage(){return conversationUI.render();}
 const assignmentStatus = status => ({upcoming:['Up next','blue'],'in-progress':['In progress','amber'],submitted:['Ready to mark','blue'],corrections:['Corrections needed','red'],completed:['Completed','green']}[status] || [status,'']);
