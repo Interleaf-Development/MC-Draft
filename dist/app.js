@@ -8,6 +8,7 @@ import { createProofUI } from './billing-proof-ui.js';
 import { createBankCheckUI } from './bank-check-ui.js';
 import { isFamilyRole, familyText, familyDate, familyContent } from './family-locale.js';
 import { roleFromUrl, syncEntryPoint } from './entry-points.js';
+import { createEdgePager } from './schedule-drag.js';
 const STORAGE = 'mathconcept-demo-v4';
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
@@ -111,6 +112,7 @@ const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({
 const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),change,modal,closeModal,toast,openReceipt:receiptDialog});
 const bankCheckUI = createBankCheckUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,render:()=>render(),modal,closeModal,toast,openMatch:matchDialog});
 function render() {
+  finishScheduleDrag(false);
   closeScheduleColourMenu();
   document.documentElement.lang = isFamilyRole(ui.role) ? 'zh-HK' : 'en';
   syncEntryPoint(ui.role);
@@ -217,12 +219,12 @@ function calendarCell(date,start,tutor,rowHeight){
  const onLeave=state.staffLeave.some(l=>l.staffId===tutor&&l.date===date&&activeStaffLeave(l)&&(l.unit==='Full day'||l.unit==='AM'&&start<HALF_DAY_BOUNDARY||l.unit==='PM'&&start+60>HALF_DAY_BOUNDARY));
  return '<div class="calendar-cell'+(moving?' pick-target':'')+(onLeave?' tutor-away':'')+'" style="--row-height:'+rowHeight+'px" data-slot data-date="'+date+'" data-start="'+start+'" data-tutor="'+tutor+'"'+(moving?' tabindex="0" role="button" aria-label="Move lesson to '+esc(tutorName(tutor)+' · '+dateLabel(date)+' · '+time(targetStart))+'"':'')+'>'+bookings.map(b=>bookingChip(b,start)).join('')+(onLeave?'<span class="tutor-away-note">On leave</span>':'')+'</div>';
 }
-function timetable(dates,tutor){
+function timetable(dates,tutor,minimumHeights={}){
  const days=dates.map(date=>action('schedule-date','<span class="day-name">'+dateLabel(date,{weekday:'short',day:undefined,month:undefined})+'</span><span class="day-number">'+Number(date.slice(8))+'</span>','timetable-dayhead'+(date===TODAY?' today':''),'data-date="'+date+'" aria-label="View '+dateLabel(date,{weekday:'long'})+'"')).join('');
  const rows=SCHEDULE_HOURS.map(start=>{
   const count=Math.max(0,...dates.map(date=>slotBookings(date,start,tutor).length));
   const hasLeave=dates.some(date=>state.staffLeave.some(l=>l.staffId===tutor&&l.date===date&&activeStaffLeave(l)&&(l.unit==='Full day'||l.unit==='AM'&&start<HALF_DAY_BOUNDARY||l.unit==='PM'&&start+60>HALF_DAY_BOUNDARY)));
-  const rowHeight=Math.max(40,count*24+8+(hasLeave?18:0));
+  const rowHeight=Math.max(40,minimumHeights[start]||0,count*24+8+(hasLeave?18:0));
   return '<div class="timetable-time" style="--row-height:'+rowHeight+'px" data-hour="'+start+'">'+time(start)+'</div>'+dates.map(date=>calendarCell(date,start,tutor,rowHeight)).join('');
  }).join('');
  return '<div class="timetable '+(ui.scheduleView==='day'?'day':'week')+'" style="--day-count:'+dates.length+'" role="group" aria-label="'+tutorName(tutor)+' schedule"><div class="timetable-corner">Time</div>'+days+rows+'<div class="timetable-end">'+time(CENTRE_CLOSE)+'</div><div class="timetable-end-fill"></div></div>';
@@ -928,10 +930,102 @@ document.addEventListener('input',e=>{
  if(e.target.id==='student-working'&&ui.role==='student'&&canDraw()){assignment.working=e.target.value;persist();}
  else if(e.target.id==='work-feedback'&&ui.role==='teacher'){assignment.note=e.target.value;persist();}
 });
-document.addEventListener('dragstart', e=>{const chip=e.target.closest('.booking-chip[draggable=true]');if(chip){e.dataTransfer.setData('text/plain',chip.dataset.id);e.dataTransfer.effectAllowed='move';}});
-document.addEventListener('dragover',e=>{const slot=e.target.closest('[data-slot]');if(slot){e.preventDefault();slot.classList.add('drag-over');}});
-document.addEventListener('dragleave',e=>{const slot=e.target.closest('[data-slot]');if(slot&&!slot.contains(e.relatedTarget))slot.classList.remove('drag-over');});
-document.addEventListener('drop',e=>{if(ui.role!=='admin')return;const slot=e.target.closest('[data-slot]');if(slot){e.preventDefault();slot.classList.remove('drag-over');const id=e.dataTransfer.getData('text/plain');if(state.bookings.some(b=>b.id===id))moveTo(id,{date:slot.dataset.date,start:Number(slot.dataset.start),tutor:slot.dataset.tutor});}});
+let scheduleDrag=null;
+const scheduleEdgePager=createEdgePager({onPage:pageDraggedWeek,onHint:showScheduleDragHint});
+function scheduleDragBounds(){
+ if(!scheduleDrag?.scroll.isConnected)return null;
+ const r=scheduleDrag.scroll.getBoundingClientRect();
+ return {left:Math.max(0,r.left),right:Math.min(innerWidth,r.left+scheduleDrag.scroll.clientWidth),top:Math.max(0,r.top),bottom:Math.min(innerHeight,r.top+scheduleDrag.scroll.clientHeight)};
+}
+function scheduleDragEdge(x,y){
+ const r=scheduleDragBounds();
+ if(!r||ui.scheduleView!=='week'||x<r.left||x>r.right||y<r.top||y>r.bottom)return 0;
+ const width=Math.min(36,(r.right-r.left)/4);
+ return x<=r.left+width?-1:x>=r.right-width?1:0;
+}
+function showScheduleDragHint(direction,duration){
+ $('#schedule-drag-edge-hint')?.remove();
+ const scroll=scheduleDrag?.scroll;
+ if(scroll){scroll.classList.toggle('drag-edge-left',direction===-1);scroll.classList.toggle('drag-edge-right',direction===1);}
+ if(!direction)return;
+ const r=scheduleDragBounds();if(!r)return;
+ const hint=document.createElement('div');hint.id='schedule-drag-edge-hint';hint.className='schedule-drag-edge-hint';hint.setAttribute('role','status');
+ hint.innerHTML=icon(direction===-1?'left':'right')+'<span>'+(direction===-1?'Previous week':'Next week')+'</span><i aria-hidden="true"></i>';
+ hint.style.setProperty('--edge-dwell',duration+'ms');hint.style.top=(r.top+12)+'px';
+ if(direction===-1)hint.style.left=(r.left+8)+'px';else hint.style.right=(innerWidth-r.right+8)+'px';
+ document.body.append(hint);
+}
+function pageDraggedWeek(direction){
+ const drag=scheduleDrag;
+ if(!drag||ui.role!=='admin'||ui.page!=='schedule'||ui.scheduleView!=='week'||ui.scheduleTutor!==drag.tutor||!drag.scroll.isConnected||document.hidden||performance.now()-drag.lastOver>600||scheduleDragEdge(drag.x,drag.y)!==direction)return false;
+ const scroll=drag.scroll,top=scroll.scrollTop,left=scroll.scrollLeft;
+ const visible=$('.timetable:not(.drag-source-table)',scroll);if(!visible)return false;
+ // Retain the native drag source and its ancestors until drop/dragend. Replacing
+ // #app (or detaching this grid) would cancel the browser's ongoing drag.
+ if(visible===drag.origin){
+  visible.classList.add('drag-source-table');visible.setAttribute('aria-hidden','true');
+ }else visible.remove();
+ ui.weekOffset+=direction;
+ const day=new Date(ui.date+'T12:00:00Z');day.setUTCDate(day.getUTCDate()+direction*7);ui.date=day.toISOString().slice(0,10);
+ const dates=shiftedWeek();
+ scroll.insertAdjacentHTML('beforeend',timetable(dates,drag.tutor,drag.rowHeights));
+ const fresh=$('.timetable:not(.drag-source-table)',scroll);
+ // Keep hour rows stable even when the destination week has fewer bookings.
+ $$('.timetable-time',fresh).forEach(row=>{drag.rowHeights[row.dataset.hour]=row.getBoundingClientRect().height;});
+ scroll.scrollTop=top;scroll.scrollLeft=left;
+ $('#teacher-schedule .calendar-title').textContent=dateLabel(dates[0])+' – '+dateLabel(dates.at(-1),{year:'numeric'});
+ $$('.calendar-cell.drag-over').forEach(slot=>slot.classList.remove('drag-over'));
+ return true;
+}
+function finishScheduleDrag(refresh=true){
+ const drag=scheduleDrag;
+ scheduleEdgePager.stop();scheduleDrag=null;
+ if(!drag)return;
+ drag.scroll.classList.remove('lesson-dragging','drag-edge-left','drag-edge-right');
+ $$('.calendar-cell.drag-over').forEach(slot=>slot.classList.remove('drag-over'));
+ if(drag.origin.classList.contains('drag-source-table'))drag.origin.remove();
+ if(refresh&&drag.scroll.isConnected&&ui.role==='admin'&&ui.page==='schedule'){
+  const top=drag.scroll.scrollTop,left=drag.scroll.scrollLeft;
+  const dates=ui.scheduleView==='week'?shiftedWeek():[ui.date];
+  const visible=$('.timetable',drag.scroll);if(visible)visible.outerHTML=timetable(dates,ui.scheduleTutor);
+  drag.scroll.scrollTop=top;drag.scroll.scrollLeft=left;
+ }
+}
+document.addEventListener('dragstart',e=>{
+ const chip=e.target.closest('.booking-chip[draggable=true]');
+ if(!chip||ui.role!=='admin'||ui.page!=='schedule'||!e.dataTransfer)return;
+ const booking=state.bookings.find(b=>b.id===chip.dataset.id);if(!booking||!activeBooking(booking))return;
+ finishScheduleDrag(false);closeScheduleColourMenu();
+ const scroll=chip.closest('.calendar-scroll'),origin=chip.closest('.timetable');if(!scroll||!origin)return;
+ scheduleDrag={id:booking.id,tutor:ui.scheduleTutor,scroll,origin,lastOver:performance.now(),x:e.clientX,y:e.clientY,rowHeights:Object.fromEntries($$('.timetable-time',origin).map(row=>[row.dataset.hour,row.getBoundingClientRect().height]))};
+ e.dataTransfer.setData('text/plain',booking.id);e.dataTransfer.effectAllowed='move';
+ scroll.classList.add('lesson-dragging');scheduleEdgePager.start();
+});
+document.addEventListener('dragover',e=>{
+ if(!scheduleDrag)return;
+ if(ui.role!=='admin'||ui.page!=='schedule'){finishScheduleDrag();return;}
+ Object.assign(scheduleDrag,{x:e.clientX,y:e.clientY,lastOver:performance.now()});
+ const direction=scheduleDragEdge(e.clientX,e.clientY);scheduleEdgePager.update(direction);
+ const slot=e.target.closest('.timetable:not(.drag-source-table) [data-slot]');
+ $$('.calendar-cell.drag-over').forEach(cell=>{if(cell!==slot)cell.classList.remove('drag-over');});
+ if(slot||direction){e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='move';if(slot)slot.classList.add('drag-over');}
+});
+document.addEventListener('dragleave',e=>{
+ const slot=e.target.closest('[data-slot]');if(slot&&!slot.contains(e.relatedTarget))slot.classList.remove('drag-over');
+ const r=scheduleDragBounds();
+ if(r&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom||e.relatedTarget&&!scheduleDrag.scroll.contains(e.relatedTarget)||!e.relatedTarget&&(e.target===document.documentElement||e.target===document.body)))scheduleEdgePager.pause();
+});
+document.addEventListener('drop',e=>{
+ if(!scheduleDrag)return;
+ const id=scheduleDrag.id,slot=e.target.closest('.timetable:not(.drag-source-table) [data-slot]');
+ const destination=slot?{date:slot.dataset.date,start:Number(slot.dataset.start),tutor:slot.dataset.tutor}:null;
+ e.preventDefault();finishScheduleDrag();
+ if(destination&&ui.role==='admin'&&state.bookings.some(b=>b.id===id&&activeBooking(b)))moveTo(id,destination);
+});
+document.addEventListener('dragend',()=>finishScheduleDrag());
+window.addEventListener('blur',()=>finishScheduleDrag());
+window.addEventListener('pagehide',()=>finishScheduleDrag(false));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)finishScheduleDrag();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('#overlay').children.length)closeModal();else if(ui.workNotes){ui.workNotes=false;document.body.classList.remove('work-notes-open');const trigger=$('.drawing-tools [data-action=toggle-work-notes]');trigger?.setAttribute('aria-expanded','false');trigger?.focus();}else if(ui.moveId){ui.moveId=null;render();}else $('.sidebar')?.classList.remove('open');}if(e.key==='Tab'&&$('.modal')){const focusables=$$('button,input,select,textarea,a[href],summary', $('.modal')).filter(el=>!el.disabled&&el.getClientRects().length>0);const first=focusables[0],last=focusables.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 render();
 if(document.modelContext?.registerTool){

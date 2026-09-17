@@ -139,6 +139,49 @@
   background: #fff0ed;
   box-shadow: inset 0 0 0 2px #da6b6b;
 }
+.calendar-scroll.lesson-dragging { overflow-anchor: none; }
+/* Keep the original native drag source connected while a sibling shows the new week. */
+.calendar-scroll .timetable.drag-source-table {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.calendar-scroll.drag-edge-left { box-shadow: inset 5px 0 0 #de3b48; }
+.calendar-scroll.drag-edge-right { box-shadow: inset -5px 0 0 #de3b48; }
+.schedule-drag-edge-hint {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px 12px;
+  overflow: hidden;
+  border: 1px solid #f0b9bd;
+  border-radius: 8px;
+  color: #ae2431;
+  background: #fff7f7;
+  box-shadow: 0 3px 12px #41212b14;
+  font-size: 12px;
+  font-weight: 650;
+  pointer-events: none;
+}
+.schedule-drag-edge-hint .icon { width: 16px; height: 16px; }
+.schedule-drag-edge-hint i {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: #d92d3e;
+  transform-origin: left;
+  animation: schedule-edge-dwell var(--edge-dwell) linear both;
+}
+@keyframes schedule-edge-dwell { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .schedule-drag-edge-hint i { animation: none; }
+}
 .timetable .calendar-cell.pick-target { background: #fffcf5; }
 .timetable .booking-chip {
   display: flex;
