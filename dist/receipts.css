@@ -16,16 +16,15 @@
 .receipts-day-heading > span { color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 .receipts-day-heading.is-today > time { color: #cf373e; }
 .receipts-day-list { display: flex; flex-direction: column; gap: 5px; padding: 7px; }
-.receipts-entry { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 9px 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; text-align: left; font: inherit; cursor: pointer; }
-.receipts-entry:hover { background: #faf7f7; border-color: #deb9bc; }
+.receipts-entry { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 9px 8px; background: var(--receipt-fill, #fff); border: 1px solid var(--receipt-border, var(--line)); border-radius: 6px; text-align: left; font: inherit; cursor: pointer; }
+.receipts-entry:hover { background: var(--receipt-hover, #f5f6f8); border-color: var(--receipt-hover-border, #a8b1c0); }
+.receipts-entry.is-matched, .receipts-bank-swatch.is-matched { --receipt-fill: #e9f5ee; --receipt-border: #c0ddca; --receipt-hover: #daeee2; --receipt-hover-border: #88b89b; }
+.receipts-entry.is-review, .receipts-bank-swatch.is-review { --receipt-fill: #fff3cc; --receipt-border: #ead28a; --receipt-hover: #ffecb0; --receipt-hover-border: #c4a443; }
+.receipts-entry.is-waiting, .receipts-bank-swatch.is-waiting { --receipt-fill: #fff; --receipt-border: #dfe3eb; }
 .receipts-entry:focus-visible { outline: 2px solid #cf373e; outline-offset: 1px; }
 .receipts-entry-name { color: var(--ink); font-size: 12px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
-.receipts-entry-amount { display: flex; align-items: center; justify-content: space-between; gap: 5px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.receipts-bank-status { display: inline-flex; flex: none; width: 14px; height: 14px; }
-.receipts-bank-status svg { width: 100%; height: 100%; }
-.receipts-bank-status.matched { color: #27815e; }
-.receipts-bank-status.waiting { color: #778496; }
-.receipts-bank-status.review { color: #ac6e22; }
+.receipts-entry-amount { color: #566579; font-size: 12px; font-variant-numeric: tabular-nums; }
+.receipts-bank-swatch { display: inline-block; flex: none; width: 11px; height: 11px; background: var(--receipt-fill); border: 1px solid var(--receipt-border); border-radius: 3px; }
 .receipts-bank-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 11px; }
 .receipts-bank-legend > span { display: inline-flex; align-items: center; gap: 5px; }
 .billing-tabs-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }

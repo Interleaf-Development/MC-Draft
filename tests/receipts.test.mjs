@@ -115,7 +115,13 @@ test('seven-column board shows only student names and amounts in its receipt ent
     assert.ok(row, `Receipt entry links to a known receipt: ${id}`);
     const visibleText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
     assert.equal(visibleText, `${row.student.name} ${money(row.receipt.amount)}`);
+    assert.doesNotMatch(content, /<svg|receipts-bank-status/);
   }
+  const legend = html.match(/<div class="receipts-bank-legend"[^>]*>([\s\S]*?)<\/div>/)?.[1];
+  assert.ok(legend);
+  assert.deepEqual([...legend.matchAll(/receipts-bank-swatch is-(review|matched|waiting)/g)].map(match => match[1]), ['review', 'matched', 'waiting']);
+  assert.equal(legend.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(), 'Needs review Bank matched Awaiting bank check');
+  assert.doesNotMatch(legend, /<svg|receipts-bank-status/);
   assert.doesNotMatch(html, /data-action="receipts-(?:view|page)"|id="receipts-page-size"/);
 });
 
@@ -136,8 +142,8 @@ test('statement import refreshes suggested status to bank matched without changi
   assert.equal(receipt.bankId, null);
   const beforeEntry = ui.render().match(/<button\b(?=[^>]*data-action="receipts-open")[\s\S]*?<\/button>/)[0];
   assert.match(beforeEntry, /Awaiting bank check/);
-  assert.match(beforeEntry, /receipts-bank-status waiting/);
-  assert.doesNotMatch(beforeEntry, /receipts-bank-status matched/);
+  assert.match(beforeEntry, /class="receipts-entry is-waiting"/);
+  assert.doesNotMatch(beforeEntry, /is-matched|<svg/);
   importBankStatement(state, { name: 'Week statement.csv', rows: [deposit()] });
   assert.equal(receiptRegister(state).items[0].bankStatus, 'matched');
   assert.equal(receipt.bankId, 'BANK-RECEIPTS');
@@ -145,8 +151,10 @@ test('statement import refreshes suggested status to bank matched without changi
   assert.equal(receiptRegister(state).groups.find(group => group.date === sentDate).rows[0].receipt.id, receipt.id);
   const afterEntry = ui.render().match(/<button\b(?=[^>]*data-action="receipts-open")[\s\S]*?<\/button>/)[0];
   assert.match(afterEntry, /Bank matched/);
-  assert.match(afterEntry, /receipts-bank-status matched/);
-  assert.match(afterEntry, /aria-hidden="true"/);
+  assert.match(afterEntry, /class="receipts-entry is-matched"/);
+  assert.match(afterEntry, /title="Bank matched"/);
+  assert.match(afterEntry, /aria-label="[^"]*Bank matched"/);
+  assert.doesNotMatch(afterEntry, /<svg|receipts-bank-status/);
 });
 
 test('manual reconciliation refreshes ambiguity and amount warnings in the same week board', () => {
@@ -160,9 +168,39 @@ test('manual reconciliation refreshes ambiguity and amount warnings in the same 
   assert.equal(receiptRegister(state).items[0].bankStatus, 'amount-mismatch');
   const entry = ui.render().match(/<button\b(?=[^>]*data-action="receipts-open")[\s\S]*?<\/button>/)[0];
   assert.match(entry, /Amount mismatch/);
-  assert.match(entry, /receipts-bank-status review/);
-  assert.doesNotMatch(entry, /receipts-bank-status matched/);
+  assert.match(entry, /class="receipts-entry is-review"/);
+  assert.doesNotMatch(entry, /is-matched|<svg/);
   assert.equal(receipt.issuedDate, sentDate);
+});
+
+test('each sent day puts every review case before waiting and matched receipts with deterministic ordering', () => {
+  const state = { invoices: [], receipts: [], bankTransactions: [] };
+  const addReceipt = (number, issuedDate, status) => {
+    const id = `R-${number}`, invoiceId = `INV-${number}`, bankId = `BANK-${number}`, reference = `SORT-RECEIPT-${number}`;
+    state.invoices.push({ id: invoiceId, studentId: 'chloe', proofReference: reference });
+    state.receipts.push({ id, invoiceId, studentId: 'chloe', amount: 2000, issuedDate, bankId: status === 'matched' ? bankId : null });
+    if (status !== 'missing') state.bankTransactions.push({ id: bankId, date: issuedDate, amount: status === 'amount-mismatch' ? 1800 : 2000, reference, direction: 'credit' });
+    if (status === 'ambiguous') state.bankTransactions.push({ id: `${bankId}-SECOND`, date: issuedDate, amount: 2000, reference, direction: 'credit' });
+  };
+  for (const [date, offset] of [['2026-09-28', 0], ['2026-09-29', 100]]) {
+    addReceipt(offset + 50, date, 'matched');
+    addReceipt(offset + 2, date, 'missing');
+    addReceipt(offset + 40, date, 'ready');
+    addReceipt(offset + 11, date, 'ambiguous');
+    addReceipt(offset + 9, date, 'amount-mismatch');
+  }
+  const before = JSON.stringify(state), result = receiptRegister(state);
+  const days = result.groups.filter(group => group.rows.length);
+  assert.deepEqual(days.map(group => group.date), ['2026-09-28', '2026-09-29']);
+  assert.deepEqual(days.map(group => group.rows.map(row => row.receipt.id)), [
+    ['R-11', 'R-9', 'R-2', 'R-50', 'R-40'],
+    ['R-111', 'R-109', 'R-102', 'R-150', 'R-140']
+  ]);
+  for (const group of days) assert.deepEqual(group.rows.map(row => row.bankStatus), ['ambiguous', 'amount-mismatch', 'missing', 'matched', 'ready']);
+  assert.deepEqual(result.items.map(row => row.receipt.issuedDate), [
+    ...Array(5).fill('2026-09-29'), ...Array(5).fill('2026-09-28')
+  ], 'Date remains the primary sort key across the register');
+  assert.equal(JSON.stringify(state), before, 'Prioritising review rows never changes the saved receipt records');
 });
 
 test('missing deposits are reviewable and status filters keep all seven days, including no matches', () => {
