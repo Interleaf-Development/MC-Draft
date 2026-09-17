@@ -106,7 +106,7 @@ if (Object.hasOwn(NAV, requestedRole)) {
  ui.role = requestedRole;
  ui.page = NAV[requestedRole][0][0];
 }
-const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre manager', initials: 'KK', colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: 'KK', colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
+const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre director', initials: 'KK', colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: 'KK', colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
 const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),persist:()=>{previousState=null;persist();},render:()=>render(),modal,closeModal,toast,childSwitch:()=>childSwitch()});
 const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),change,modal,closeModal,toast,openReceipt:receiptDialog});
 const bankCheckUI = createBankCheckUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,render:()=>render(),modal,closeModal,toast,openMatch:matchDialog});

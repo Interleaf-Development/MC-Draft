@@ -1,6 +1,6 @@
 // Bump this version when changing the offline asset set or cache policy.
 const CACHE_PREFIX = 'mathconcept-static-';
-const CACHE_NAME = CACHE_PREFIX + 'v12-schedule-grades';
+const CACHE_NAME = CACHE_PREFIX + 'v13-centre-director';
 const shells = { '/index.html': '/', '/parent/index.html': '/parent/', '/student/index.html': '/student/' };
 function shellPath(path) {
   if (path === '/' || path === '/index.html') return '/index.html';
