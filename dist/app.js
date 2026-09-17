@@ -96,7 +96,7 @@ function closeModal() {
 function modal(title, body, footer = '', wide = false) {
   returnFocus = document.activeElement;
   $('#overlay').innerHTML = '<div class="modal-backdrop" data-backdrop><section class="modal ' + (wide ? 'wide' : '') + '" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title" class="modal-title">' + t(title) + '</h2>' + action('close-modal', icon('x'), 'icon-btn', 'aria-label="'+t('Close dialog')+'"') + '</div><div class="modal-body"><div id="form-error" class="form-error" role="alert"></div>' + body + '</div>' + (footer ? '<div class="modal-footer">' + footer + '</div>' : '') + '</section></div>';
-  document.body.style.overflow = 'hidden'; setTimeout(() => $('.modal input:not([type=hidden]), .modal select, .modal button')?.focus(), 30);
+  document.body.style.overflow = 'hidden'; setTimeout(() => { if(!$('.modal')?.contains(document.activeElement))$('.modal input:not([type=hidden]), .modal select, .modal button')?.focus(); }, 30);
 }
 const NAV = {
  admin: [['schedule','calendar','Schedule'],['students','users','Students'],['billing','wallet','Billing & reconciliation'],['messages','message','Conversations'],['calendar','settings','Centre calendar']],
@@ -112,8 +112,8 @@ if (Object.hasOwn(NAV, requestedRole)) {
 const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre director', initials: centre.initials, colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: centre.initials, colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
 const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),persist:()=>{previousState=null;persist();},render:()=>render(),modal,closeModal,toast,childSwitch:()=>childSwitch()});
 const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),change,modal,closeModal,toast,openReceipt:receiptDialog});
-const receiptsUI = createReceiptsUI({getState:()=>state,render:()=>render(),openReceipt:receiptDialog,openProof});
-const bankCheckUI = createBankCheckUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,render:()=>render(),modal,closeModal,toast,openMatch:matchDialog});
+const receiptsUI = createReceiptsUI({getState:()=>state,render:()=>render(),openReceipt:receiptDialog,openProof,openReview:openPaymentReview});
+const bankCheckUI = createBankCheckUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,render:()=>render(),modal,closeModal,toast,openMatch:openPaymentReview});
 function render() {
   finishScheduleDrag(false);
   closeScheduleColourMenu();
@@ -444,9 +444,9 @@ function invoiceStatus(invoice){
 }
 function billingPage(){
  const key='invoices',c=collection(key);
- const shell=heading('Billing & reconciliation')+tabs(['Invoices','Receipts','Reconciliation','HQ report'],ui.billingTab,'billing-tab');
- if(ui.billingTab==='Receipts')return shell+receiptsUI.render();
- if(ui.billingTab==='Reconciliation')return shell+bankCheckUI.render();
+ const combined=ui.billingTab==='Receipts & reconciliation';
+ const shell=heading('Billing & reconciliation')+'<div class="billing-tabs-toolbar">'+tabs(['Invoices','Receipts & reconciliation','HQ report'],ui.billingTab,'billing-tab')+(combined?bankCheckUI.renderPrimaryActions():'')+'</div>';
+ if(combined)return shell+receiptsUI.render()+'<div class="receipts-bank-actions">'+bankCheckUI.renderSecondaryActions()+'</div>';
  if(ui.billingTab==='HQ report')return shell+directorReview();
  const labels={issued:'Receipt issued',review:'Proof needs review',proof:'Needs screening',awaiting:'Awaiting payment',overdue:'Overdue'};
  const list=state.invoices.filter(item=>!c.query||matchesStudent(item.studentId,c.query)||[item.id,item.proofReference].join(' ').toLowerCase().includes(c.query.toLowerCase())).filter(item=>c.status==='all'||invoiceStatus(item)===c.status).sort((a,b)=>b.issued.localeCompare(a.issued)||studentById(a.studentId).number.localeCompare(studentById(b.studentId).number));
@@ -715,30 +715,49 @@ function openMakeup(id,mode='single'){
  const unavailable=parent&&remaining<60?'請聯絡中心安排餘下補堂。':mode==='single'&&m.expiry>=TODAY?t('No available times for this teacher on this date. Choose another date or teacher.','這位老師當天沒有空檔，請選擇其他日期或老師。'):t('No suitable times before this deadline. ','期限內沒有合適時段。')+(parent?'請聯絡中心商討延長補堂期限。':'Extend the deadline to show more options.');
  modal('Arrange a make-up','<div class="between mb-16"><div><h3>'+studentById(m.studentId).name+'</h3><p class="small muted">'+t(remaining+' min remaining · Use by '+dateLabel(m.expiry),'剩餘 '+remaining+' 分鐘 · 補堂限期 '+dateLabel(m.expiry))+'</p></div>'+(!parent?action('extend-makeup','Extend deadline','inline-link','data-id="'+id+'"'):'')+'</div>'+(!parent?'<div class="segmented mb-16">'+action('makeup-mode','One lesson',mode==='single'?'active':'','data-mode="single"')+action('makeup-mode','30-minute extensions',mode==='split'?'active':'','data-mode="split"')+'</div>':'')+filters+'<div class="form-stack" style="gap:9px">'+candidates.map((s,i)=>'<label class="check-option"><input type="'+(mode==='split'?'checkbox':'radio')+'" name="makeup-slot" value="'+i+'"><span class="grow"><strong class="small">'+dateLabel(s.date,{weekday:'short'})+' · '+time(s.start)+'–'+time(s.start+s.duration)+'</strong><span class="row-meta" style="display:block">'+tutorName(s.tutor)+(mode==='split'?' · '+t('Extends the existing lesson','延長原有課堂'):' · '+s.duration+' '+t('minutes','分鐘'))+'</span></span></label>').join('')+(candidates.length?'':'<p class="small muted">'+unavailable+'</p>')+'</div>'+(mode==='split'?'<div class="notice blue mt-16">'+t('Both half-hour extensions belong to the same missed lesson and use one reschedule.','兩次延長各 30 分鐘，合共補回同一節缺席課堂，只計一次調堂。')+'</div>':''),action('close-modal','Cancel','btn')+action('confirm-makeup',parent?'Request these times':'Confirm booking','btn primary',candidates.length?'':'disabled'),true);
 }
+function captureBankReview() {
+ const review=$('[data-bank-review]'),origin=$('[data-bank-review-origin]');
+ if(ui.role!=='admin'||(!review&&!origin))return null;
+ const id=review?.dataset.bankReview||origin.dataset.bankReviewOrigin;
+ if(review){const receipt=state.receipts.find(item=>item.id===id);ui.matchDraft={receiptId:id,bankId:ui.selectedBank,note:$('#reconcile-note')?.value??receipt?.note??'',editing:ui.matchEditing};}
+ return id;
+}
+function addBankReviewReturn(receiptId){
+ if(!receiptId)return;
+ $('.modal')?.setAttribute('data-bank-review-origin',receiptId);
+ $('.modal-footer')?.insertAdjacentHTML('afterbegin',action('return-bank-review','Back to bank review','btn','data-id="'+esc(receiptId)+'"'));
+}
 function openProof(invoiceId){
- const note=$('#reconcile-note');
- if(note)ui.matchDraft={receiptId:ui.matchReceiptId,bankId:ui.selectedBank,note:note.value,editing:ui.matchEditing};
+ const reviewId=captureBankReview();
  const opened=proofUI.openProof(invoiceId);
- if(opened&&note&&ui.role==='admin')$('.modal-footer')?.insertAdjacentHTML('afterbegin',action('return-bank-review','Back to bank review','btn','data-id="'+ui.matchReceiptId+'"'));
+ if(opened)addBankReviewReturn(reviewId);
  return opened;
 }
+function openPaymentReview(receiptId){
+ if(ui.role!=='admin')return;
+ ui.matchDraft=null;
+ matchDialog(receiptId);
+}
 function receiptDialog(receiptId){
+ const reviewId=captureBankReview();
  const r=state.receipts.find(r=>r.id===receiptId),i=state.invoices.find(i=>i.id===r.invoiceId);
  modal(t('Receipt','收據')+' '+r.id,'<div class="receipt-paper"><div class="between"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><span class="eyebrow">'+t('Receipt','收據')+'</span></div><p class="small muted mt-16">'+esc(content(centre.name))+'</p><dl class="detail-grid"><div><dt>'+t('Receipt no.','收據編號')+'</dt><dd>'+r.id+'</dd></div><div><dt>'+t('Issued','發出日期')+'</dt><dd>'+familyDate(r.issuedDate,ui.role)+'</dd></div><div><dt>'+t('Parent / guardian','家長／監護人')+'</dt><dd>'+esc(studentById(r.studentId).parent)+'</dd></div><div><dt>'+t('Student','學生')+'</dt><dd>'+esc(studentById(r.studentId).name)+'</dd></div></dl><p class="strong small">'+esc(i?.description?content(i.description):t('Regular programme','常規課程'))+'</p><p class="small muted mt-8">'+esc(content(i?.period||''))+' · '+r.invoiceId+'</p><div class="receipt-total"><span>'+t('Payment amount','付款金額')+'</span><span>'+money(r.amount)+'</span></div><p class="small muted">'+t('Issued from payment proof · bank reconciliation is separate.','根據付款證明發出 · 銀行對賬另行處理。')+'<br>'+t('Demonstration receipt · no actual payment','示範收據 · 不涉及實際付款')+'</p></div>',action('close-modal',t('Close','關閉'),'btn')+(ui.role==='admin'&&i?.proof?action('view-proof','Payment proof','btn','data-id="'+esc(i.id)+'"'):'')+action('print-receipt',icon('download')+' '+t('Print / save PDF','列印／儲存 PDF'),'btn primary'));
+ addBankReviewReturn(reviewId);
 }
 function matchDialog(receiptId,editing=false){
- const r=state.receipts.find(r=>r.id===receiptId),invoice=state.invoices.find(i=>i.id===r.invoiceId),analysis=analyzeStatement(state).receipts.find(row=>row.receiptId===receiptId);
+ const r=state.receipts.find(r=>r.id===receiptId);if(!r||ui.role!=='admin')return;
+ const invoice=state.invoices.find(i=>i.id===r.invoiceId),analysis=analyzeStatement(state).receipts.find(row=>row.receiptId===receiptId);
  ui.matchEditing=editing;ui.matchReceiptId=receiptId;ui.selectedBank=ui.matchDraft?.receiptId===receiptId?ui.matchDraft.bankId:r.bankId||null;ui.matchCandidates=analysis?.candidateBankIds||[];
  Object.assign(collection('bank'),{page:1,query:''});
  const linked=reconciliation(state,r);
  if(linked.status==='Matched'&&!editing){
   const bank=linked.bank;
-  modal('Payment · '+esc(studentById(r.studentId).name),'<div class="billing-workspace"><div class="two-columns"><section><p class="small muted">Receipt '+r.id+'</p><h3 class="mt-8">'+money(r.amount)+'</h3><dl class="detail-grid"><div><dt>Receipt issued</dt><dd>'+dateLabel(r.issuedDate)+'</dd></div><div><dt>Payment date on proof</dt><dd>'+dateLabel(invoice?.claimedPaymentDate||r.proofDate)+'</dd></div></dl>'+action('view-proof','View payment proof','inline-link','data-id="'+r.invoiceId+'"')+'</section><section><p class="small muted">Bank deposit</p><h3 class="mt-8">'+money(bank.amount)+'</h3><dl class="detail-grid"><div><dt>Bank credited</dt><dd>'+dateLabel(bank.date)+'</dd></div><div><dt>HQ month</dt><dd>'+dateLabel(bank.date,{day:undefined,month:'long',year:'numeric'})+'</dd></div><div><dt>Payer</dt><dd>'+esc(bank.payer||invoice?.proofPayer||'Not recorded')+'</dd></div><div><dt>Reference</dt><dd>'+esc(bank.reference)+'</dd></div></dl>'+(linked.adjustment?'<p class="small muted">'+linked.adjustment+'</p>':'')+'</section></div>'+(r.note?'<p class="small">'+esc(r.note)+'</p>':'')+'</div>',action('change-bank-match','Change match','btn ghost','data-id="'+r.id+'"')+action('close-modal','Close','btn'),true);
+  modal('Payment · '+esc(studentById(r.studentId).name),'<div class="billing-workspace" data-bank-review="'+esc(r.id)+'"><div class="two-columns"><section><p class="small muted">Receipt '+r.id+'</p><h3 class="mt-8">'+money(r.amount)+'</h3><dl class="detail-grid"><div><dt>Receipt issued</dt><dd>'+dateLabel(r.issuedDate)+'</dd></div><div><dt>Payment date on proof</dt><dd>'+dateLabel(invoice?.claimedPaymentDate||r.proofDate)+'</dd></div></dl>'+'<div class="flex wrap mt-8">'+action('view-receipt','Receipt','btn small','data-id="'+esc(r.id)+'"')+action('view-proof','Payment proof','btn small','data-id="'+esc(r.invoiceId)+'"')+'</div>'+'</section><section><p class="small muted">Bank deposit</p><h3 class="mt-8">'+money(bank.amount)+'</h3><dl class="detail-grid"><div><dt>Bank credited</dt><dd>'+dateLabel(bank.date)+'</dd></div><div><dt>HQ month</dt><dd>'+dateLabel(bank.date,{day:undefined,month:'long',year:'numeric'})+'</dd></div><div><dt>Payer</dt><dd>'+esc(bank.payer||invoice?.proofPayer||'Not recorded')+'</dd></div><div><dt>Reference</dt><dd>'+esc(bank.reference)+'</dd></div></dl>'+(linked.adjustment?'<p class="small muted">'+linked.adjustment+'</p>':'')+'</section></div>'+(r.note?'<p class="small">'+esc(r.note)+'</p>':'')+'</div>',action('change-bank-match','Change match','btn ghost','data-id="'+r.id+'"')+action('close-modal','Close','btn'),true);
   return;
  }
  const warning=analysis?.status==='ambiguous'?(ui.matchCandidates.length>1?ui.matchCandidates.length+' deposits could match this receipt.':'This deposit could match more than one receipt.'):analysis?.status==='amount-mismatch'?'The deposit amount differs from the receipt.':'';
  const details='<dl class="detail-grid"><div><dt>Receipt issued</dt><dd>'+dateLabel(r.issuedDate)+'</dd></div><div><dt>Payment date on proof</dt><dd>'+dateLabel(invoice?.claimedPaymentDate||r.proofDate)+'</dd></div><div><dt>Payer</dt><dd>'+esc(invoice?.proofReview?.extracted?.payer||invoice?.proofPayer||studentById(r.studentId).parent)+'</dd></div><div><dt>Reference</dt><dd>'+esc(invoice?.proofReference||'Not recorded')+'</dd></div></dl>';
- modal('Bank match · '+esc(studentById(r.studentId).name),'<div class="billing-workspace">'+(warning?'<p class="billing-status review">'+esc(warning)+'</p>':'')+'<div class="two-columns"><section><p class="small muted">'+r.id+'</p><h3 class="mt-8">'+money(r.amount)+'</h3>'+details+action('view-proof','View payment proof','inline-link','data-id="'+r.invoiceId+'"')+'<div id="match-comparison" class="mt-16">'+matchComparison(r,ui.selectedBank)+'</div></section><section>'+searchControl('bank','Search bank deposits','Payer, reference or date')+'<div id="bank-results">'+bankResults()+'</div></section></div>'+field('Review note','<input id="reconcile-note" value="'+esc(ui.matchDraft?.receiptId===receiptId?ui.matchDraft.note:r.note)+'" placeholder="Optional">')+'</div>',action('close-modal','Cancel','btn')+action('confirm-match','Save bank match','btn primary'),true);
+ modal('Bank match · '+esc(studentById(r.studentId).name),'<div class="billing-workspace" data-bank-review="'+esc(r.id)+'">'+(warning?'<p class="billing-status review">'+esc(warning)+'</p>':'')+'<div class="two-columns"><section><p class="small muted">'+r.id+'</p><h3 class="mt-8">'+money(r.amount)+'</h3>'+details+'<div class="flex wrap mt-8">'+action('view-receipt','Receipt','btn small','data-id="'+esc(r.id)+'"')+action('view-proof','Payment proof','btn small','data-id="'+esc(r.invoiceId)+'"')+'</div>'+'<div id="match-comparison" class="mt-16">'+matchComparison(r,ui.selectedBank)+'</div></section><section>'+searchControl('bank','Search bank deposits','Payer, reference or date')+'<div id="bank-results">'+bankResults()+'</div></section></div>'+field('Review note','<input id="reconcile-note" value="'+esc(ui.matchDraft?.receiptId===receiptId?ui.matchDraft.note:r.note)+'" placeholder="Optional">')+'</div>',action('close-modal','Cancel','btn')+action('confirm-match','Save bank match','btn primary'),true);
 }
 function matchComparison(r,bankId){
  const b=state.bankTransactions.find(b=>b.id===bankId);if(!b)return '';
@@ -859,14 +878,14 @@ function handleAction(a,id,button){
   const parent=$('#enrol-parent').value.trim(),phone=$('#enrol-phone').value.trim(),date=$('#enrol-date').value,start=Number($('#enrol-time').value),plan=$('#enrol-plan').value;
   if(change(()=>{if(!parent||!phone)throw new Error('Add the parent’s name and contact number.');if(state.assessment.enrolled)throw new Error('Mia is already enrolled.');if(plan==='block'&&(date<'2026-10-01'||date>'2026-11-30'))throw new Error('For block-only enrolment, choose a first lesson in October or November.');const b={id:uid('lesson'),studentId:'mia',date,start,duration:60,tutor:centre.managerId,status:'scheduled',attendance:'unmarked',note:'New student'};const error=validateSlot(state,b);if(error)throw new Error(error);const credit=assessmentCredit(state.assessment,TODAY);state.assessment.enrolled=true;state.assessment.parent=parent;state.assessment.phone=phone;state.assessment.status='enrolled';state.bookings.push(b);state.invoices.push({id:'INV-1029',studentId:'mia',amount:2000+(plan==='intro'?250:0)-credit,period:plan==='intro'?'Introductory lesson + Oct–Nov 2026':'Oct–Nov 2026',issued:TODAY,due:'2026-10-20',description:(plan==='intro'?'1 introductory lesson (HK$250) + ':'')+'8-lesson block'+(credit?' − HK$200 assessment deduction':''),receiptId:null,proof:false});record(state,'Enrolled Mia Cheung with '+money(credit)+' assessment deduction');},'Enrolment and first invoice created.'))closeModal();
  }else if(a==='billing-tab'){ui.billingTab=button.dataset.value;render();}
- else if(a==='report-exceptions'){ui.billingTab='Reconciliation';bankCheckUI.reset();render();}
+ else if(a==='report-exceptions'){ui.billingTab='Receipts & reconciliation';bankCheckUI.reset();render();bankCheckUI.openReviewQueue();}
  else if(a==='view-invoice'){
   const i=state.invoices.find(i=>i.id===id);modal(t('Invoice '+id,'繳費通知 '+id),'<div class="receipt-paper"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><p class="small muted mt-16">'+t(centre.name)+'</p><dl class="detail-grid"><div><dt>' + t('Student','學生') + '</dt><dd>'+studentById(i.studentId).name+'</dd></div><div><dt>' + t('Tuition period','學費期數') + '</dt><dd>'+content(i.period)+'</dd></div><div><dt>' + t('Issued','發出日期') + '</dt><dd>'+dateLabel(i.issued)+'</dd></div><div><dt>' + t('Payment due','繳費限期') + '</dt><dd>'+dateLabel(i.due)+'</dd></div></dl><p class="small">'+esc(content(i.description))+'</p><div class="receipt-total"><span>' + t('Total','總額') + '</span><span>'+money(i.amount)+'</span></div></div>',action('close-modal','Close','btn')+(i.proof?action('view-proof','Payment proof','btn','data-id="'+id+'"'):'')+(i.receiptId?action('view-receipt','Receipt','btn primary','data-id="'+i.receiptId+'"'):action('submit-proof',i.proof?'Replace proof':'Add payment proof','btn primary','data-id="'+id+'"')));
  }else if(a==='submit-proof')proofUI.openSubmit(id);
  else if(a==='view-proof')openProof(id);
  else if(a==='view-receipt')receiptDialog(id);
  else if(a==='print-receipt')window.print();
- else if(a==='match-receipt')matchDialog(id);
+ else if(a==='match-receipt')openPaymentReview(id);
  else if(a==='return-bank-review')matchDialog(id,Boolean(ui.matchDraft?.editing));
  else if(a==='change-bank-match')matchDialog(id,true);
  else if(a==='choose-bank'){ui.selectedBank=id;$$('.bank-choice').forEach(el=>{el.classList.toggle('selected',el.dataset.id===id);el.setAttribute('aria-pressed',String(el.dataset.id===id));});$('#match-comparison').innerHTML=matchComparison(state.receipts.find(r=>r.id===ui.matchReceiptId),id);}

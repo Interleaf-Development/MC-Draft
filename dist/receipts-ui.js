@@ -1,4 +1,5 @@
 import { TODAY, students, billingPayerName, money } from './model.js';
+import { analyzeStatement } from './billing-automation.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const studentIndex = new Map(students.map(student => [student.id, student]));
@@ -8,6 +9,18 @@ const addDays = (date, count) => new Date(Date.parse(date + 'T00:00:00Z') + coun
 const dateText = (date, options = {}) => new Date(date + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC', ...options });
 const button = (action, label, attrs = '', className = 'btn small') => `<button type="button" class="${className}" data-action="receipts-${action}" ${attrs}>${label}</button>`;
 const arrow = direction => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${direction === 'left' ? 'm14 7-5 5 5 5' : 'm10 7 5 5-5 5'}"/></svg>`;
+const bankLabels = { matched: 'Bank matched', ready: 'Awaiting bank check', ambiguous: 'Ambiguous deposit', 'amount-mismatch': 'Amount mismatch', missing: 'Deposit not found' };
+const statusFilters = { all: 'All receipts', review: 'Needs review', ready: 'Awaiting bank check', matched: 'Bank matched' };
+const bankIcon = status => {
+  const tone = status === 'matched' ? 'matched' : status === 'ready' ? 'waiting' : 'review';
+  const shape = tone === 'matched' ? '<path d="m5 12 4 4L19 6"/>' : tone === 'waiting' ? '<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>' : '<path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v5m0 3h.01"/>';
+  return `<span class="receipts-bank-status ${tone}" title="${bankLabels[status]}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${shape}</svg></span>`;
+};
+
+/** A suggested deposit is not a confirmed bank match until the receipt is linked. */
+export function receiptBankStatus(row) {
+  return row?.status === 'matched' && !row.linked ? 'ready' : row?.status || 'missing';
+}
 
 /** Receipt dates describe when the receipt was issued/sent, independently of bank credit dates. */
 export function receiptPeriod(date = TODAY) {
@@ -27,15 +40,18 @@ export function hasReceiptProof(invoice) {
 }
 
 /** Keep every receipt in its sent-day column, including busy days and empty days. */
-export function receiptRegister(state, { date = TODAY, query = '' } = {}) {
+export function receiptRegister(state, { date = TODAY, query = '', status = 'all' } = {}) {
   const period = receiptPeriod(date), needle = query.trim().toLocaleLowerCase();
   const invoiceIndex = new Map((state.invoices || []).map(invoice => [invoice.id, invoice]));
+  const analysis = analyzeStatement({ ...state, receipts: state.receipts || [], invoices: state.invoices || [], bankTransactions: state.bankTransactions || [] });
+  const bankResults = new Map(analysis.receipts.map(row => [row.receiptId, row]));
   const rows = (state.receipts || []).filter(receipt => validDate(receipt.issuedDate) && receipt.issuedDate >= period.start && receipt.issuedDate <= period.end).map(receipt => {
     const invoice = invoiceIndex.get(receipt.invoiceId);
     const student = studentIndex.get(receipt.studentId) || { id: receipt.studentId, name: receipt.studentId || 'Unknown student', number: '', parent: '' };
     const parent = billingPayerName(state, receipt.studentId) || student.parent;
-    return { receipt, invoice, student, parent, proofAvailable: hasReceiptProof(invoice) };
-  }).filter(row => !needle || [row.student.name, row.student.number, row.student.parent, row.parent, row.invoice?.proofPayer, row.invoice?.proofReview?.extracted?.payer, row.receipt.id, row.receipt.invoiceId, row.invoice?.proofReference, row.invoice?.proofReview?.extracted?.reference].join(' ').toLocaleLowerCase().includes(needle))
+    const bankResult = bankResults.get(receipt.id);
+    return { receipt, invoice, student, parent, proofAvailable: hasReceiptProof(invoice), bankResult, bankStatus: receiptBankStatus(bankResult) };
+  }).filter(row => (status === 'all' || (status === 'review' ? !['matched', 'ready'].includes(row.bankStatus) : row.bankStatus === status)) && (!needle || [row.student.name, row.student.number, row.student.parent, row.parent, row.invoice?.proofPayer, row.invoice?.proofReview?.extracted?.payer, row.receipt.id, row.receipt.invoiceId, row.invoice?.proofReference, row.invoice?.proofReview?.extracted?.reference].join(' ').toLocaleLowerCase().includes(needle)))
     .sort((a, b) => b.receipt.issuedDate.localeCompare(a.receipt.issuedDate) || b.receipt.id.localeCompare(a.receipt.id, 'en', { numeric: true }));
   const groups = Array.from({ length: 7 }, (_, index) => ({ date: addDays(period.start, index), rows: [] }));
   const byDate = new Map(groups.map(group => [group.date, group]));
@@ -44,15 +60,15 @@ export function receiptRegister(state, { date = TODAY, query = '' } = {}) {
 }
 
 /** The host owns rendering and evidence dialogs. This workspace never changes billing records. */
-export function createReceiptsUI({ getState, render, openReceipt, openProof }) {
-  let date = TODAY, query = '', searchTimer;
+export function createReceiptsUI({ getState, render, openReceipt, openProof, openReview }) {
+  let date = TODAY, query = '', status = 'all', searchTimer;
   const refresh = () => { clearTimeout(searchTimer); render(); };
 
   function workspace() {
-    const result = receiptRegister(getState(), { date, query });
+    const result = receiptRegister(getState(), { date, query, status });
     const periodTitle = `${dateText(result.start, { year: undefined })} – ${dateText(result.end)}`;
-    const columns = result.groups.map(group => `<section class="receipts-day-column" aria-label="${dateText(group.date, { weekday: 'long' })}"><h3 class="receipts-day-heading${group.date === TODAY ? ' is-today' : ''}"><span>${dateText(group.date, { weekday: 'short', day: undefined, month: undefined, year: undefined })}</span><time datetime="${group.date}">${dateText(group.date, { year: undefined })}</time></h3><div class="receipts-day-list">${group.rows.length ? group.rows.map(({ receipt, student }) => button('open', `<span class="receipts-entry-name">${esc(student.name)}</span><span class="receipts-entry-amount">${money(receipt.amount)}</span>`, `data-id="${esc(receipt.id)}" aria-label="Open receipt ${esc(receipt.id)} for ${esc(student.name)}, ${money(receipt.amount)}, sent ${dateText(group.date)}"`, 'receipts-entry')).join('') : '<span class="receipts-day-empty" aria-label="No receipts sent">—</span>'}</div></section>`).join('');
-    return `<div class="billing-workspace receipts-workspace"><div class="receipts-toolbar"><div class="receipts-period-controls">${button('previous', arrow('left'), 'aria-label="Previous week"', 'icon-btn border')}${button('next', arrow('right'), 'aria-label="Next week"', 'icon-btn border')}<strong class="receipts-period-title">${esc(periodTitle)}</strong>${button('today', 'This week')}</div><div class="receipts-date-controls"><input id="receipts-search" type="search" value="${esc(query)}" placeholder="Find receipt" aria-label="Search receipts by student, parent, receipt or payment reference"><input id="receipts-date" type="date" value="${date}" aria-label="Choose receipt week"></div></div>${query && !result.total ? '<p class="small muted receipts-empty-search" role="status">No matching receipts this week.</p>' : ''}<section class="panel receipts-board" aria-label="Receipts by sent date" tabindex="0"><div class="receipts-week-grid">${columns}</div></section></div>`;
+    const columns = result.groups.map(group => `<section class="receipts-day-column" aria-label="${dateText(group.date, { weekday: 'long' })}"><h3 class="receipts-day-heading${group.date === TODAY ? ' is-today' : ''}"><span>${dateText(group.date, { weekday: 'short', day: undefined, month: undefined, year: undefined })}</span><time datetime="${group.date}">${dateText(group.date, { year: undefined })}</time></h3><div class="receipts-day-list">${group.rows.length ? group.rows.map(({ receipt, student, bankStatus }) => button('open', `<span class="receipts-entry-name">${esc(student.name)}</span><span class="receipts-entry-amount">${money(receipt.amount)}${bankIcon(bankStatus)}</span>`, `data-id="${esc(receipt.id)}" aria-label="Open receipt ${esc(receipt.id)} for ${esc(student.name)}, ${money(receipt.amount)}, sent ${dateText(group.date)}, ${bankLabels[bankStatus]}"`, 'receipts-entry')).join('') : '<span class="receipts-day-empty" aria-label="No receipts sent">—</span>'}</div></section>`).join('');
+    return `<div class="billing-workspace receipts-workspace"><div class="receipts-toolbar"><div class="receipts-period-controls">${button('previous', arrow('left'), 'aria-label="Previous week"', 'icon-btn border')}${button('next', arrow('right'), 'aria-label="Next week"', 'icon-btn border')}<strong class="receipts-period-title">${esc(periodTitle)}</strong>${button('today', 'This week')}</div><div class="receipts-date-controls"><input id="receipts-search" type="search" value="${esc(query)}" placeholder="Find receipt" aria-label="Search receipts by student, parent, receipt or payment reference"><select id="receipts-status" aria-label="Receipt bank status">${Object.entries(statusFilters).map(([value, label]) => `<option value="${value}"${status === value ? ' selected' : ''}>${label}</option>`).join('')}</select><input id="receipts-date" type="date" value="${date}" aria-label="Choose receipt week"></div></div>${(query || status !== 'all') && !result.total ? '<p class="small muted receipts-empty-search" role="status">No matching receipts this week.</p>' : ''}<section class="panel receipts-board" aria-label="Receipts by sent date" tabindex="0"><div class="receipts-week-grid">${columns}</div></section><div class="receipts-bank-legend" aria-label="Bank status legend"><span>${bankIcon('matched')}Bank matched</span><span>${bankIcon('ready')}Awaiting bank check</span><span>${bankIcon('missing')}Needs review</span></div></div>`;
   }
 
   function handleAction(action, id, element) {
@@ -61,7 +77,7 @@ export function createReceiptsUI({ getState, render, openReceipt, openProof }) {
     if (name === 'open' || name === 'proof') {
       const receipt = getState().receipts.find(item => item.id === id);
       if (!receipt) return true;
-      if (name === 'open') openReceipt(receipt.id);
+      if (name === 'open') (openReview || openReceipt)(receipt.id);
       else if (hasReceiptProof(getState().invoices.find(invoice => invoice.id === receipt.invoiceId))) openProof(receipt.invoiceId);
       return true;
     }
@@ -74,6 +90,7 @@ export function createReceiptsUI({ getState, render, openReceipt, openProof }) {
 
   function onChange(event) {
     if (event.target.id === 'receipts-date') { if (!validDate(event.target.value)) return true; date = event.target.value; refresh(); return true; }
+    if (event.target.id === 'receipts-status') { if (!Object.hasOwn(statusFilters, event.target.value)) return true; status = event.target.value; refresh(); return true; }
     return false;
   }
 
@@ -90,5 +107,5 @@ export function createReceiptsUI({ getState, render, openReceipt, openProof }) {
     return true;
   }
 
-  return { render: workspace, handleAction, onChange, onInput, reset: () => { clearTimeout(searchTimer); date = TODAY; query = ''; } };
+  return { render: workspace, handleAction, onChange, onInput, reset: () => { clearTimeout(searchTimer); date = TODAY; query = ''; status = 'all'; } };
 }

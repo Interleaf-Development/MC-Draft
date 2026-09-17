@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TODAY, seed, seedCentreVolume, money } from '../dist/model.js';
-import { normalizeBillingAutomation, submitPaymentProof } from '../dist/billing-automation.js';
-import { receiptPeriod, receiptRegister, hasReceiptProof, createReceiptsUI } from '../dist/receipts-ui.js';
+import { TODAY, seed, seedCentreVolume, money, matchReceipt } from '../dist/model.js';
+import { normalizeBillingAutomation, submitPaymentProof, importBankStatement } from '../dist/billing-automation.js';
+import { receiptPeriod, receiptRegister, receiptBankStatus, hasReceiptProof, createReceiptsUI } from '../dist/receipts-ui.js';
 
 const fresh = () => normalizeBillingAutomation(seedCentreVolume(seed()));
 const createUI = state => {
@@ -10,6 +10,14 @@ const createUI = state => {
   const ui = createReceiptsUI({ getState: () => state, render: () => { calls.renders++; }, openReceipt: id => calls.receipts.push(id), openProof: id => calls.proofs.push(id) });
   return { ui, calls };
 };
+const singleReceipt = () => {
+  const state = normalizeBillingAutomation(seed());
+  state.invoices = state.invoices.filter(invoice => invoice.id === 'INV-1024');
+  state.receipts = []; state.bankTransactions = [];
+  submitPaymentProof(state, 'INV-1024', { scenario: 'pass', reference: 'FPS RECEIPTS-TEST', paymentDate: TODAY });
+  return state;
+};
+const deposit = overrides => ({ id: 'BANK-RECEIPTS', date: '2026-09-29', amount: 2000, reference: 'FPS RECEIPTS-TEST', payer: 'Elaine Chan', direction: 'credit', ...overrides });
 
 test('receipt week is Monday–Sunday across month, year and leap-day boundaries', () => {
   assert.deepEqual(receiptPeriod('2026-09-30'), { start: '2026-09-28', end: '2026-10-04' });
@@ -109,6 +117,92 @@ test('seven-column board shows only student names and amounts in its receipt ent
     assert.equal(visibleText, `${row.student.name} ${money(row.receipt.amount)}`);
   }
   assert.doesNotMatch(html, /data-action="receipts-(?:view|page)"|id="receipts-page-size"/);
+});
+
+test('receipt bank status distinguishes confirmed links from suggested matches and all review cases', () => {
+  assert.equal(receiptBankStatus({ status: 'matched', linked: true }), 'matched');
+  assert.equal(receiptBankStatus({ status: 'matched', linked: false, autoEligible: true }), 'ready');
+  for (const status of ['ambiguous', 'amount-mismatch', 'missing']) {
+    assert.equal(receiptBankStatus({ status, linked: false }), status);
+    assert.equal(receiptBankStatus({ status, linked: true }), status);
+  }
+  assert.equal(receiptBankStatus(undefined), 'missing');
+});
+
+test('statement import refreshes suggested status to bank matched without changing receipt sent date', () => {
+  const state = singleReceipt(), { ui } = createUI(state), receipt = state.receipts[0], sentDate = receipt.issuedDate;
+  state.bankTransactions.push(deposit());
+  assert.equal(receiptRegister(state).items[0].bankStatus, 'ready');
+  assert.equal(receipt.bankId, null);
+  const beforeEntry = ui.render().match(/<button\b(?=[^>]*data-action="receipts-open")[\s\S]*?<\/button>/)[0];
+  assert.match(beforeEntry, /Awaiting bank check/);
+  assert.match(beforeEntry, /receipts-bank-status waiting/);
+  assert.doesNotMatch(beforeEntry, /receipts-bank-status matched/);
+  importBankStatement(state, { name: 'Week statement.csv', rows: [deposit()] });
+  assert.equal(receiptRegister(state).items[0].bankStatus, 'matched');
+  assert.equal(receipt.bankId, 'BANK-RECEIPTS');
+  assert.equal(receipt.issuedDate, sentDate);
+  assert.equal(receiptRegister(state).groups.find(group => group.date === sentDate).rows[0].receipt.id, receipt.id);
+  const afterEntry = ui.render().match(/<button\b(?=[^>]*data-action="receipts-open")[\s\S]*?<\/button>/)[0];
+  assert.match(afterEntry, /Bank matched/);
+  assert.match(afterEntry, /receipts-bank-status matched/);
+  assert.match(afterEntry, /aria-hidden="true"/);
+});
+
+test('manual reconciliation refreshes ambiguity and amount warnings in the same week board', () => {
+  const state = singleReceipt(), { ui } = createUI(state), receipt = state.receipts[0], sentDate = receipt.issuedDate;
+  state.bankTransactions.push(deposit(), deposit({ id: 'BANK-SECOND', date: TODAY }));
+  assert.equal(receiptRegister(state).items[0].bankStatus, 'ambiguous');
+  assert.match(ui.render(), /title="Ambiguous deposit"/);
+  matchReceipt(state, receipt.id, 'BANK-SECOND');
+  assert.equal(receiptRegister(state).items[0].bankStatus, 'matched');
+  state.bankTransactions.find(bank => bank.id === 'BANK-SECOND').amount = 1800;
+  assert.equal(receiptRegister(state).items[0].bankStatus, 'amount-mismatch');
+  const entry = ui.render().match(/<button\b(?=[^>]*data-action="receipts-open")[\s\S]*?<\/button>/)[0];
+  assert.match(entry, /Amount mismatch/);
+  assert.match(entry, /receipts-bank-status review/);
+  assert.doesNotMatch(entry, /receipts-bank-status matched/);
+  assert.equal(receipt.issuedDate, sentDate);
+});
+
+test('missing deposits are reviewable and status filters keep all seven days, including no matches', () => {
+  const state = singleReceipt(), { ui } = createUI(state);
+  assert.equal(receiptRegister(state).items[0].bankStatus, 'missing');
+  assert.match(ui.render(), /title="Deposit not found"/);
+  assert.equal(receiptRegister(state, { status: 'review' }).total, 1);
+  assert.equal(receiptRegister(state, { status: 'matched' }).total, 0);
+  for (const status of ['review', 'ready', 'matched', 'all']) {
+    assert.equal(ui.onChange({ target: { id: 'receipts-status', value: status } }), true);
+    const result = receiptRegister(state, { status }), html = ui.render();
+    assert.equal(result.groups.length, 7);
+    assert.equal((html.match(/class="[^\"]*\breceipts-day-column\b[^\"]*"/g) || []).length, 7);
+    assert.equal((html.match(/data-action="receipts-open"/g) || []).length, result.total);
+    if (!result.total) assert.match(html, /No matching receipts this week/);
+  }
+  ui.onChange({ target: { id: 'receipts-status', value: 'matched' } });
+  ui.reset();
+  assert.match(ui.render(), /option value="all" selected/);
+  assert.match(ui.render(), /data-action="receipts-open"/);
+});
+
+test('status filtering combines with search and candidate matching still considers receipts outside the visible week', () => {
+  const state = singleReceipt();
+  state.bankTransactions.push(deposit());
+  assert.equal(receiptRegister(state, { status: 'ready', query: 'Chloe' }).total, 1);
+  assert.equal(receiptRegister(state, { status: 'ready', query: 'Different student' }).total, 0);
+  state.receipts.push({ ...state.receipts[0], id: 'R-OUTSIDE-WEEK', issuedDate: '2026-09-27' });
+  const register = receiptRegister(state, { status: 'review' });
+  assert.equal(register.total, 1);
+  assert.equal(register.items[0].bankStatus, 'ambiguous', 'A hidden competing receipt prevents a unique suggested match');
+});
+
+test('combined workspace opens receipt review when supplied, preserving standalone document fallback', () => {
+  const state = fresh(), before = JSON.stringify(state), calls = [];
+  const ui = createReceiptsUI({ getState: () => state, render: () => {}, openReceipt: id => calls.push(['receipt', id]), openProof: id => calls.push(['proof', id]), openReview: id => calls.push(['review', id]) });
+  ui.handleAction('receipts-open', 'R-1027');
+  ui.handleAction('receipts-proof', 'R-1027');
+  assert.deepEqual(calls, [['review', 'R-1027'], ['proof', 'INV-1027']]);
+  assert.equal(JSON.stringify(state), before);
 });
 
 test('missing legacy proof remains unavailable; valid saved uploads and explicit demo samples are viewable', () => {

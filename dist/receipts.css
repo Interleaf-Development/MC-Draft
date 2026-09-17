@@ -5,9 +5,10 @@
 .receipts-period-controls .icon-btn { width: 32px; height: 32px; flex: none; }
 .receipts-period-title { margin: 0 5px; font-size: 14px; font-weight: 650; white-space: nowrap; }
 .receipts-date-controls { margin-left: auto; }
-.receipts-date-controls > input { min-height: 34px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font: inherit; font-size: 12px; }
+.receipts-date-controls > input,
+.receipts-date-controls > select { min-height: 34px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font: inherit; font-size: 12px; }
 .receipts-date-controls > input[type=search] { width: 185px; }
-.receipts-board { overflow: auto; max-height: max(360px, calc(100dvh - 235px)); }
+.receipts-board { overflow: auto; max-height: max(300px, calc(100dvh - 315px)); }
 .receipts-week-grid { display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); min-width: 840px; min-height: 360px; }
 .receipts-day-column { min-width: 0; border-right: 1px solid var(--line); }
 .receipts-day-column:last-child { border-right: 0; }
@@ -19,7 +20,19 @@
 .receipts-entry:hover { background: #faf7f7; border-color: #deb9bc; }
 .receipts-entry:focus-visible { outline: 2px solid #cf373e; outline-offset: 1px; }
 .receipts-entry-name { color: var(--ink); font-size: 12px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
-.receipts-entry-amount { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.receipts-entry-amount { display: flex; align-items: center; justify-content: space-between; gap: 5px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.receipts-bank-status { display: inline-flex; flex: none; width: 14px; height: 14px; }
+.receipts-bank-status svg { width: 100%; height: 100%; }
+.receipts-bank-status.matched { color: #27815e; }
+.receipts-bank-status.waiting { color: #778496; }
+.receipts-bank-status.review { color: #ac6e22; }
+.receipts-bank-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 11px; }
+.receipts-bank-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.billing-tabs-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.billing-tabs-toolbar > .tabs { flex: 1; margin-bottom: 0; }
+.billing-tabs-toolbar > .btn { flex: none; }
+.receipts-bank-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; color: var(--muted); }
+.receipts-bank-actions .btn.ghost { color: var(--muted); }
 .receipts-day-empty { padding: 12px 0; color: #a1aab8; text-align: center; font-size: 12px; }
 .receipts-empty-search { margin: 0; }
 @media (max-width: 850px) {
