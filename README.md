@@ -133,7 +133,7 @@ Automatic bank matches require an exact amount, strong reference/full-payer iden
 - All role views share browser-local demonstration data. The role switch is a presentation tool, not access control.
 - Sample worksheets illustrate the interaction; they are not MathConcept's actual curriculum. Supplied mascot SVGs are preserved under assets/SVG and copied into dist/brand.
 - Old prototype requests stay inactive during migration; saved confirmed leave remains active.
-- The roster and annual calendar are illustrative. The calendar shows the 48-lesson target and a seven/nine balancing example; it is not a generated operational calendar.
+- Staff rosters are illustrative.
 - Recurring future lessons are seeded examples. This is not a full annual timetable engine.
 - The sample introductory rate is HK$250 and needs client confirmation.
 - Reconciliation currently demonstrates one receipt against one bank entry. Combined sibling payments, partial allocations and split transfers need further discovery.
