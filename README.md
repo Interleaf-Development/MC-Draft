@@ -35,7 +35,7 @@ The app shell and local artwork are cached after the first successful online vis
 
 Parent and Student screens use **Hong Kong Traditional Chinese (`zh-HK`)**, including new features going forward. Admin and Teacher screens remain English. Shared components select their language by role; user-authored messages, notes and worksheet answers retain their original text. See `AGENTS.md` for the development convention.
 
-- **Parent: mobile first.** Three home shortcuts (上課時間、課堂報告、功課) lead into a seven-day lesson list grouped by date. The bottom bar contains 主頁、課堂、訊息、繳費 and a raised MathConcept icon opening the attendance QR. Lesson cards open details and eligible leave/QR actions; homework opens read-only for parents. A single-column layout, 44px minimum action targets, 16px form inputs, safe-area spacing and bottom-sheet dialogs support phones. The Demo menu contains presentation controls. The same narrow layout is kept on desktop for client review.
+- **Parent: mobile first.** Three home shortcuts (上課時間、課堂報告、功課) lead into a seven-day lesson list grouped by date. The bottom bar contains 主頁、課堂、訊息、繳費 and a raised MathConcept icon opening the attendance QR. Homepage lesson cards are read-only; leave requests are available under 課堂. Homework opens read-only for parents. A single-column layout, 44px minimum action targets, 16px form inputs, safe-area spacing and bottom-sheet dialogs support phones. The Demo menu contains presentation controls. The same narrow layout is kept on desktop for client review.
 - **Student: large tablet first.** Designed around iPad Pro-size portrait and landscape viewports (1024 × 1366 and 1366 × 1024). A full-width worksheet replaces the desktop sidebar; 48px writing tools and Hand in stay visible while the page scrolls. Notes and typed working open in a side panel. Use Pen to write or Move page to scroll across the sheet.
 - **Admin / Teacher: desktop first.** Denser operational views retain their sidebar and tables.
 
@@ -84,6 +84,8 @@ The QR contains an opaque demo token, with no student name or contact details. T
 6. **Parent → Handbook:** see the shared summary and marked work.
 
 ### 2. Staff-arranged exception: two half-hour extensions
+
+After a parent submits leave under **課堂**, the make-up picker opens automatically. **稍後再安排** keeps the leave request pending without selecting a replacement; **選擇補堂時間** on that lesson reopens the picker. Choosing a full replacement adds the proposed time to the same request. Staff see the proposal under **Parent requests** and approve leave and its replacement together, with availability checked again at approval. No booking or make-up credit is created before approval.
 
 Parents request full lessons in the app. If a parent asks in person and the centre agrees to a split exception:
 

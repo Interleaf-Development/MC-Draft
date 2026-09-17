@@ -20,6 +20,7 @@ function renderer(role = 'parent') {
   const ui = { role, page: 'lessons', familyStudent: 'chloe' };
   const dialog = { title: '', body: '', footer: '', opened: 0, closed: 0 };
   const error = { textContent: '', classList: { add() {} } };
+  const absenceReason = { value: 'School activity' };
   const messages = [];
   let selected = [];
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -30,7 +31,7 @@ function renderer(role = 'parent') {
     heading: (title, actions = '') => '<h1>' + esc(title) + '</h1>' + actions,
     action: (name, label, cls = '', attrs = '') => '<button data-action="' + name + '" class="' + cls + '" ' + attrs + '>' + t(label) + '</button>',
     field: (label, input) => '<label>' + t(label) + input + '</label>',
-    icon: () => '', art: () => '', childSwitch: () => '',
+    icon: name => '<span aria-hidden="true" data-icon="' + name + '"></span>', art: () => '', childSwitch: () => '',
     tag: label => '<span>' + esc(t(label)) + '</span>',
     empty: (title, message = '') => '<h3>' + esc(title) + '</h3><p>' + esc(message) + '</p>',
     tutorName: id => model.tutors.find(item => item.id === id)?.name || id,
@@ -38,6 +39,7 @@ function renderer(role = 'parent') {
     closeModal: () => { dialog.closed++; },
     toast: message => messages.push(message), persist: () => {}, render: () => {},
     $: selector => {
+      if (selector === '#absence-reason') return absenceReason;
       assert.equal(selector, '#form-error');
       return error;
     },
@@ -46,17 +48,157 @@ function renderer(role = 'parent') {
       return selected.map(value => ({ value: String(value) }));
     }
   });
-  vm.runInContext('let previousState = null;\n' + ['change', 'nextLessons', 'lessonRow', 'parentLessons', 'openMakeup', 'handleAction'].map(functionSource).join('\n'), context);
+  vm.runInContext('let previousState = null;\n' + ['change', 'nextLessons', 'lessonRow', 'parentLessonGroups', 'parentOverview', 'parentLessons', 'openMakeup', 'handleAction'].map(functionSource).join('\n'), context);
   return {
     ui, dialog, error, messages,
     get state() { return context.state; },
     call: (name, ...args) => context[name](...args),
+    act: (name, id, dataset = {}) => context.handleAction(name, id, { dataset }),
+    dismiss: () => context.closeModal(),
     confirm(indices = [0]) { selected = indices; context.handleAction('confirm-makeup', undefined, { dataset: {} }); }
   };
 }
 
 const plain = value => JSON.parse(JSON.stringify(value));
 const slot = (duration, extra = {}) => ({ date: model.TODAY, start: 600, duration, tutor: 'chan', ...extra });
+const upcoming = app => app.state.bookings.find(item => item.studentId === 'chloe' && item.date === model.TODAY && model.activeBooking(item));
+
+test('Parent home lesson cards display lesson information without links, controls or chevrons', () => {
+  const app = renderer(), lesson = upcoming(app);
+  model.requestAbsence(app.state, lesson.id, 'School activity');
+  const page = app.call('parentOverview');
+  const cards = [...page.matchAll(/<article class="parent-day-card">([\s\S]*?)<\/article>/g)];
+  assert.ok(cards.length > 0);
+  for (const [, card] of cards) {
+    assert.match(card, /class="parent-home-lesson"/);
+    assert.match(card, /<time datetime="\d{4}-\d{2}-\d{2}">/);
+    assert.match(card, /數學/);
+    assert.doesNotMatch(card, /<(?:button|a)\b|data-action=|tabindex=|role="button"|data-icon="right"/);
+  }
+  assert.match(cards[0][1], /請假待確認/);
+  assert.match(page, /data-page="lessons"/, 'Quick action still opens the lesson management page');
+});
+
+test('Submitting leave immediately prompts for a replacement without booking it; Skip preserves pending leave', () => {
+  const app = renderer(), lesson = upcoming(app), before = model.clone(app.state);
+  app.act('send-leave-request', lesson.id);
+  assert.equal(app.error.textContent, '');
+  assert.equal(app.state.leaveRequests.length, 1);
+  const request = app.state.leaveRequests[0];
+  assert.equal(request.bookingId, lesson.id);
+  assert.equal(request.status, 'pending');
+  assert.equal(request.reason, 'School activity');
+  assert.equal(app.dialog.opened, 1);
+  assert.equal(app.ui.makeupLeaveRequestId, request.id);
+  assert.ok(app.ui.makeupCandidates.length > 0);
+  assert.ok(app.ui.makeupCandidates.every(item => item.duration === lesson.duration));
+  assert.match(app.dialog.footer, /data-action="close-modal"[^>]*>稍後再安排<\/button>/);
+  assert.deepEqual(app.state.bookings, before.bookings);
+  assert.deepEqual(app.state.makeups, before.makeups);
+  assert.deepEqual(app.state.audit, before.audit);
+  const pending = model.clone(app.state);
+  app.dismiss();
+  assert.deepEqual(app.state, pending, 'Dismissal never approves leave, reserves a place or loses the request');
+  assert.match(app.call('parentLessons'), new RegExp('data-action="absence-makeup"[^>]*data-id="' + request.id + '"'));
+});
+
+for (const duration of [60, 90]) {
+  test(`Parent can propose one ${duration}-minute replacement while leave awaits approval`, () => {
+    const app = renderer(), lesson = upcoming(app);
+    lesson.duration = duration;
+    app.act('send-leave-request', lesson.id);
+    assert.equal(app.error.textContent, '');
+    assert.ok(app.ui.makeupCandidates.length > 0);
+    assert.ok(app.ui.makeupCandidates.every(item => item.duration === duration));
+    const selected = plain(app.ui.makeupCandidates[0]), before = model.clone(app.state);
+    app.confirm();
+    assert.equal(app.error.textContent, '');
+    assert.equal(app.dialog.closed, 1);
+    assert.equal(app.state.leaveRequests.length, 1, 'Replacement belongs to the original leave request');
+    assert.equal(app.state.leaveRequests[0].status, 'pending');
+    assert.deepEqual(plain(app.state.leaveRequests[0].replacementSlots), [selected]);
+    assert.deepEqual(app.state.bookings, before.bookings);
+    assert.deepEqual(app.state.makeups, before.makeups);
+    assert.deepEqual(app.state.audit, before.audit);
+  });
+}
+
+test('Parent can reopen a skipped request and context switches when choosing another pending absence', () => {
+  const app = renderer();
+  const first = model.requestAbsence(app.state, upcoming(app).id, 'School activity');
+  const laterLesson = app.state.bookings.find(item => item.studentId === 'chloe' && item.date === '2026-10-02');
+  laterLesson.duration = 90;
+  const second = model.requestAbsence(app.state, laterLesson.id, 'Medical appointment');
+  const before = model.clone(app.state);
+  app.act('absence-makeup', first.id);
+  assert.equal(app.ui.makeupLeaveRequestId, first.id);
+  const firstContext = app.ui.makeupContextKey;
+  assert.ok(app.ui.makeupCandidates.every(item => item.duration === 60));
+  app.dismiss();
+  app.act('absence-makeup', second.id);
+  assert.equal(app.ui.makeupLeaveRequestId, second.id);
+  assert.notEqual(app.ui.makeupContextKey, firstContext);
+  assert.ok(app.ui.makeupCandidates.length > 0);
+  assert.ok(app.ui.makeupCandidates.every(item => item.duration === 90));
+  app.call('openMakeup', 'makeup-chloe');
+  assert.equal(app.ui.makeupLeaveRequestId, null, 'An approved make-up clears pending-absence context');
+  assert.deepEqual(app.state, before, 'Switching contexts never changes any lesson or request');
+});
+
+test('Invalid or foreign pending leave cannot offer replacement choices', () => {
+  for (const scenario of ['missing', 'foreign', 'approved', 'declined', 'changed-lesson']) {
+    const app = renderer();
+    const lesson = upcoming(app);
+    const request = model.requestAbsence(app.state, lesson.id, 'School activity');
+    let requestId = request.id;
+    if (scenario === 'missing') requestId = 'missing-request';
+    if (scenario === 'foreign') request.studentId = 'mia';
+    if (['approved', 'declined'].includes(scenario)) request.status = scenario;
+    if (scenario === 'changed-lesson') lesson.status = 'moved';
+    const before = model.clone(app.state);
+    assert.doesNotThrow(() => app.act('absence-makeup', requestId), scenario);
+    if (scenario === 'changed-lesson') {
+      assert.equal(app.ui.makeupCandidates.length, 0);
+      assert.doesNotMatch(app.dialog.body + app.dialog.footer, /name="makeup-slot"|data-action="confirm-makeup"/);
+      assert.match(app.dialog.footer, /稍後再安排/);
+    } else assert.equal(app.dialog.opened, 0, scenario);
+    assert.deepEqual(app.state, before, scenario);
+  }
+});
+
+test('Pending absence confirmation rejects stale, foreign, short and split proposals without booking', () => {
+  for (const scenario of ['approved', 'foreign', 'changed-lesson', 'short', 'split', 'missing-option']) {
+    const app = renderer(), lesson = upcoming(app);
+    const request = model.requestAbsence(app.state, lesson.id, 'School activity');
+    app.act('absence-makeup', request.id);
+    assert.ok(app.ui.makeupCandidates.length > 0);
+    let indices = [0];
+    if (scenario === 'approved') request.status = 'approved';
+    if (scenario === 'foreign') app.ui.familyStudent = 'mia';
+    if (scenario === 'changed-lesson') lesson.status = 'moved';
+    if (scenario === 'short') app.ui.makeupCandidates = [slot(30)];
+    if (scenario === 'split') { app.ui.makeupCandidates = [slot(30), slot(30, { start: 630 })]; indices = [0, 1]; }
+    if (scenario === 'missing-option') indices = [99];
+    const before = model.clone(app.state);
+    assert.doesNotThrow(() => app.confirm(indices), scenario);
+    assert.ok(app.error.textContent, scenario + ' reports a recoverable error');
+    assert.equal(app.dialog.closed, 0, scenario);
+    assert.deepEqual(app.state, before, scenario + ' keeps bookings and pending requests unchanged');
+  }
+});
+
+test('A duplicate or foreign leave submission cannot launch a new replacement picker', () => {
+  for (const scenario of ['duplicate', 'foreign']) {
+    const app = renderer(), lesson = upcoming(app);
+    if (scenario === 'duplicate') model.requestAbsence(app.state, lesson.id, 'Already requested');
+    else app.ui.familyStudent = 'mia';
+    const before = model.clone(app.state);
+    app.act('send-leave-request', lesson.id);
+    assert.ok(app.error.textContent, scenario);
+    assert.equal(app.dialog.opened, 0, scenario);
+    assert.deepEqual(app.state, before, scenario);
+  }
+});
 
 test('Parent stale split-mode calls are normalized to a single full lesson without split controls', () => {
   const app = renderer(), before = model.clone(app.state);

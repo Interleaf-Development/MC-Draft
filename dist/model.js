@@ -539,11 +539,11 @@ export function requestAbsence(state, bookingId, reason) {
   state.leaveRequests.push(request);
   return request;
 }
-export function approveAbsence(state, requestId) {
+function approveAbsenceOnly(state, requestId) {
   const request = state.leaveRequests.find(r => r.id === requestId);
   if (!request || request.status !== 'pending') throw new Error('This request has already been handled.');
   const source = state.bookings.find(b => b.id === request.bookingId);
-  if (!source || !activeBooking(source)) throw new Error('The lesson has changed. Review this request again.');
+  if (!source || !activeBooking(source) || source.studentId !== request.studentId) throw new Error('The lesson has changed. Review this request again.');
   const cycle = cycleForDate(source.date);
   if (usedReschedules(state, source.studentId, cycle.period) >= 3) throw new Error('This student has used three reschedules for this block.');
   source.status = 'absent'; source.attendance = 'absent';
@@ -552,6 +552,61 @@ export function approveAbsence(state, requestId) {
   source.caseId = makeup.id;
   state.makeups.push(makeup);
   record(state, 'Approved absence for ' + studentById(source.studentId).name + ', ' + dateLabel(source.date));
+  return makeup;
+}
+// Parents can choose a preferred replacement while their leave still awaits the centre.
+// A preview never reserves capacity or creates real make-up time.
+export function previewAbsenceMakeup(state, requestId) {
+  const trial = clone(state);
+  const request = trial.leaveRequests.find(item => item.id === requestId);
+  if (request) {
+    delete request.replacementSlots;
+    delete request.replacementSource;
+  }
+  const makeup = approveAbsenceOnly(trial, requestId);
+  return { state: trial, makeup };
+}
+function absenceSourceSnapshot(source) {
+  return { id: source.id, studentId: source.studentId, date: source.date, start: source.start, duration: source.duration, tutor: source.tutor };
+}
+function parentAbsenceSlot(state, requestId, slots) {
+  const request = state.leaveRequests.find(item => item.id === requestId);
+  if (!request || request.kind === 'makeup' || request.status !== 'pending') throw new Error('This request has already been handled.');
+  const source = state.bookings.find(item => item.id === request.bookingId);
+  if (!source || !activeBooking(source) || source.studentId !== request.studentId) throw new Error('The lesson has changed. Review this request again.');
+  if (request.replacementSource && Object.entries(absenceSourceSnapshot(source)).some(([key, value]) => request.replacementSource[key] !== value)) throw new Error('The lesson has changed. Review this request again.');
+  if (!Array.isArray(slots) || slots.length !== 1 || ![60, 90].includes(slots[0]?.duration) || slots[0].duration !== source.duration) throw new Error('Choose one full replacement lesson matching the missed lesson.');
+  // Keep only scheduling fields; callers cannot replace the booking or student IDs.
+  const { date, start, duration, tutor } = slots[0];
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date + 'T12:00:00Z')) || new Date(date + 'T12:00:00Z').toISOString().slice(0, 10) !== date || !Number.isInteger(start) || start % 30 !== 0) throw new Error('Choose a valid lesson time and duration.');
+  if (date < TODAY) throw new Error('Choose an upcoming replacement lesson.');
+  if (source.date === date && source.start === start) throw new Error('Choose a different time.');
+  return { date, start, duration, tutor };
+}
+export function requestAbsenceReplacement(state, requestId, slots) {
+  const slot = parentAbsenceSlot(state, requestId, slots);
+  const preview = previewAbsenceMakeup(state, requestId);
+  bookMakeup(preview.state, preview.makeup.id, [slot]);
+  const request = state.leaveRequests.find(item => item.id === requestId);
+  request.replacementSlots = [slot];
+  request.replacementSource = absenceSourceSnapshot(state.bookings.find(item => item.id === request.bookingId));
+  return request;
+}
+export function approveAbsence(state, requestId) {
+  const request = state.leaveRequests.find(item => item.id === requestId);
+  if (!request || request.status !== 'pending') throw new Error('This request has already been handled.');
+  if (!request.replacementSlots) return approveAbsenceOnly(state, requestId);
+  const slot = parentAbsenceSlot(state, requestId, request.replacementSlots);
+  const trial = clone(state);
+  const makeup = approveAbsenceOnly(trial, requestId);
+  const bookings = bookMakeup(trial, makeup.id, [slot]);
+  // Nothing touches live state until both absence and replacement pass validation.
+  const source = state.bookings.find(item => item.id === request.bookingId);
+  Object.assign(source, trial.bookings.find(item => item.id === source.id));
+  Object.assign(request, trial.leaveRequests.find(item => item.id === requestId));
+  state.makeups.push(makeup);
+  state.bookings.push(...bookings);
+  state.audit.unshift(...trial.audit.slice(0, trial.audit.length - state.audit.length));
   return makeup;
 }
 export function bookMakeup(state, makeupId, slots) {

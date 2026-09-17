@@ -18,7 +18,6 @@ function functionSource(name) {
 
 function renderer() {
   const state = model.seed();
-  const dialog = { title: '', body: '', footer: '', opened: 0 };
   const ui = { role: 'parent', page: 'overview', familyStudent: 'chloe', selectedStudent: 'chloe', assignmentId: null, readonly: false, showOriginal: false, pen: 'pen', ink: '#35475f' };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   const context = vm.createContext({
@@ -29,16 +28,15 @@ function renderer() {
     familyDate, esc,
     heading: (title, actions = '') => '<h1>' + esc(title) + '</h1>' + actions,
     action: (name, label, cls = '', attrs = '') => '<button data-action="' + name + '" class="' + cls + '" ' + attrs + '>' + label + '</button>',
-    icon: () => '', art: () => '', avatar: () => '', thumbnail: () => '', childSwitch: () => '',
+    icon: name => '<span aria-hidden="true" data-icon="' + name + '"></span>', art: () => '', avatar: () => '', thumbnail: () => '', childSwitch: () => '',
     empty: (title, message) => '<h3>' + esc(title) + '</h3><p>' + esc(message) + '</p>',
     tag: label => '<span>' + esc(label) + '</span>',
-    modal: (title, body, footer) => { Object.assign(dialog, { title, body, footer }); dialog.opened++; },
     tutorName: id => model.tutors.find(tutor => tutor.id === id)?.name || 'Unassigned'
   });
   const statusSource = source.slice(source.indexOf('const assignmentStatus ='), source.indexOf('const thumbnail ='));
-  const names = ['nextLessons', 'lessonRow', 'noteCard', 'assessmentOverview', 'assignmentRow', 'parentLessonGroups', 'parentOverview', 'parentHomework', 'parentBottomNav', 'parentLessonDialog', 'fraction', 'paperQuestions', 'currentAssignment', 'canDraw', 'worksheetPage'];
+  const names = ['nextLessons', 'lessonRow', 'noteCard', 'assessmentOverview', 'assignmentRow', 'parentLessonGroups', 'parentOverview', 'parentHomework', 'parentBottomNav', 'fraction', 'paperQuestions', 'currentAssignment', 'canDraw', 'worksheetPage'];
   vm.runInContext(statusSource + '\n' + names.map(functionSource).join('\n'), context);
-  return { state, ui, dialog, call: (name, ...args) => context[name](...args) };
+  return { state, ui, call: (name, ...args) => context[name](...args) };
 }
 
 const booking = (id, date, start, extra = {}) => ({ id, studentId: 'chloe', date, start, duration: 60, tutor: 'chan', status: 'scheduled', attendance: 'unmarked', ...extra });
@@ -131,27 +129,25 @@ test('Mia’s assessment and enrolment remain available before she has regular l
   assert.deepEqual(plain(app.call('parentLessonGroups', 'mia')).flatMap(group => group.lessons.map(lesson => lesson.id)), ['mia-first']);
 });
 
-test('lesson details offer check-in only today and suppress duplicate leave requests or requests after attendance', () => {
+test('home lesson cards remain read-only while showing attendance and pending leave', () => {
   const app = renderer();
   app.state.bookings = [
-    booking('today', model.TODAY, 960),
+    booking('today', model.TODAY, 960, { attendance: 'present' }),
     booking('future', '2026-10-02', 960),
     booking('cancelled', model.TODAY, 960, { status: 'cancelled' }),
     booking('other-child', model.TODAY, 960, { studentId: 'mia' })
   ];
-  app.call('parentLessonDialog', 'today');
-  assert.match(app.dialog.footer, /data-action="show-lesson-checkin"[^>]*data-id="today"/);
-  assert.match(app.dialog.footer, /data-action="request-leave"/);
-  app.state.bookings[0].attendance = 'present';
-  app.call('parentLessonDialog', 'today');
-  assert.match(app.dialog.body, /已登記出席/);
-  assert.doesNotMatch(app.dialog.footer, /data-action="request-leave"/);
   app.state.leaveRequests.push({ bookingId: 'future', status: 'pending' });
-  app.call('parentLessonDialog', 'future');
-  assert.match(app.dialog.body, /請假待中心確認/);
-  assert.doesNotMatch(app.dialog.footer, /data-action="(?:request-leave|show-lesson-checkin)"/);
-  const count = app.dialog.opened, before = model.clone(app.state);
-  for (const id of ['cancelled', 'other-child', 'missing']) app.call('parentLessonDialog', id);
-  assert.equal(app.dialog.opened, count);
+  const before = model.clone(app.state), home = app.call('parentOverview');
+  const cards = [...home.matchAll(/<article class="parent-day-card">([\s\S]*?)<\/article>/g)].map(match => match[1]);
+  assert.equal(cards.length, 2);
+  assert.match(cards[0], /已登記出席/);
+  assert.match(cards[1], /請假待確認/);
+  for (const card of cards) {
+    assert.match(card, /16:00–17:00/);
+    assert.match(card, /數學/);
+    assert.doesNotMatch(card, /<(?:button|a)\b|data-action=|tabindex=|role="button"|data-icon="right"/);
+  }
+  assert.doesNotMatch(home, /data-action="(?:parent-lesson|request-leave|show-lesson-checkin)"/);
   assert.deepEqual(app.state, before);
 });
