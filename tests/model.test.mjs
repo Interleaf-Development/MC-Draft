@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { seed, clone, activeBooking, validateSlot, moveBooking, requestAbsence, approveAbsence, bookMakeup, issueReceipt, matchReceipt, reconciliation, reportingTotals, assessmentCredit, staffBalance, cycleForDate } from '../dist/model.js';
+import { seed, clone, activeBooking, validateSlot, moveBooking, requestAbsence, bookMakeup, issueReceipt, matchReceipt, reconciliation, reportingTotals, assessmentCredit, staffBalance, cycleForDate } from '../dist/model.js';
 import { demoStatementRows } from '../dist/billing-automation.js';
 test('an ordinary move preserves its source and stops it occupying a seat',()=>{
  const s=seed(),source=s.bookings.find(b=>b.studentId==='chloe'&&b.date==='2026-09-30');
@@ -47,7 +47,7 @@ test('capacity checks every overlapping part of an extension',()=>{
 });
 test('October absences belong to the October-November block',()=>{
  const s=seed(),b=s.bookings.find(b=>b.studentId==='chloe'&&b.date==='2026-10-07');
- const r=requestAbsence(s,b.id,'School event'),m=approveAbsence(s,r.id);
+ const r=requestAbsence(s,b.id,'School event'),m=s.makeups.find(item=>item.id===r.makeupId);
  assert.equal(m.period,'Oct–Nov 2026');assert.equal(m.expiry,'2026-11-30');
  assert.deepEqual(cycleForDate('2027-01-05'),{period:'Dec–Jan 2026/2027',expiry:'2027-01-31'});
 });

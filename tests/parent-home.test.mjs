@@ -129,7 +129,7 @@ test('Mia’s assessment and enrolment remain available before she has regular l
   assert.deepEqual(plain(app.call('parentLessonGroups', 'mia')).flatMap(group => group.lessons.map(lesson => lesson.id)), ['mia-first']);
 });
 
-test('home lesson cards remain read-only while showing attendance and pending leave', () => {
+test('home lesson cards remain read-only and confirmed leave disappears from upcoming lessons immediately', () => {
   const app = renderer();
   app.state.bookings = [
     booking('today', model.TODAY, 960, { attendance: 'present' }),
@@ -137,12 +137,15 @@ test('home lesson cards remain read-only while showing attendance and pending le
     booking('cancelled', model.TODAY, 960, { status: 'cancelled' }),
     booking('other-child', model.TODAY, 960, { studentId: 'mia' })
   ];
-  app.state.leaveRequests.push({ bookingId: 'future', status: 'pending' });
+  const request = model.requestAbsence(app.state, 'future', 'School activity');
+  assert.equal(request.status, 'confirmed');
+  assert.equal(app.state.bookings.find(item => item.id === 'future').status, 'absent');
   const before = model.clone(app.state), home = app.call('parentOverview');
   const cards = [...home.matchAll(/<article class="parent-day-card">([\s\S]*?)<\/article>/g)].map(match => match[1]);
-  assert.equal(cards.length, 2);
+  assert.equal(cards.length, 1);
   assert.match(cards[0], /已登記出席/);
-  assert.match(cards[1], /請假待確認/);
+  assert.deepEqual(plain(app.call('parentLessonGroups', 'chloe')).flatMap(group => group.lessons.map(lesson => lesson.id)), ['today']);
+  assert.doesNotMatch(home, /請假待確認/);
   for (const card of cards) {
     assert.match(card, /16:00–17:00/);
     assert.match(card, /數學/);

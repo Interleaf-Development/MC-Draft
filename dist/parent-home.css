@@ -181,3 +181,21 @@
 @media (prefers-reduced-motion: reduce) { .role-parent .modal.checkin-modal { animation: none; } }
 
 .role-parent .parent-leave-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+
+/* Leave is confirmed immediately; suggested dates remain a CS follow-up. */
+.parent-preferences-form { display: grid; gap: 18px; }
+.parent-preferences-form .notice p { line-height: 1.65; }
+.parent-preferences-form .notice strong { display: block; margin-bottom: 5px; }
+.parent-makeup-card { padding: 18px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
+.parent-makeup-card h4 { font-size: 14px; line-height: 1.6; }
+.parent-makeup-card .between { gap: 8px; }
+.parent-makeup-card .btn { justify-self: start; }
+.parent-makeup-status { color: #8b642e; font-size: 14px; font-weight: 600; }
+.parent-makeup-guidance { line-height: 1.7; }
+.parent-makeup-guidance + .parent-makeup-card { border-top: 1px solid var(--line); }
+.makeup-preferences { display: grid; gap: 4px; margin: 10px 0; line-height: 1.65; }
+.makeup-preference-note { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; margin-bottom: 10px; }
+.makeup-policy-note { color: #8b642e; margin: 10px 0; }
+.makeup-followup-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.makeup-followup-actions .btn { flex: 1 1 auto; }
+.role-parent .parent-preferences-form input[type="date"] { width: 100%; min-width: 0; }

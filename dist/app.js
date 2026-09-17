@@ -1,4 +1,4 @@
-import { TODAY, centre, WEEK, seed, clone, uid, time, money, students, studentById, worksheets, worksheetById, tutors, activeBooking, validateSlot, moveBooking, requestAbsence, approveAbsence, previewAbsenceMakeup, requestAbsenceReplacement, bookMakeup, usedReschedules, reconciliation, matchReceipt, reportingTotals, assessmentCredit, staffBalance, activeStaffLeave, staffLeaveUnits, normalizeStaffLeave, setStaffLeave, cancelStaffLeave, record, cycleForDate, enrolledStudents, filterStudents, paginate, seedCentreVolume, seedTeacherSchedules, seedBusyAfternoons, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from './model.js';
+import { TODAY, centre, WEEK, seed, clone, uid, time, money, students, studentById, worksheets, worksheetById, tutors, activeBooking, validateSlot, moveBooking, requestAbsence, normalizeParentLeave, setMakeupPreferences, bookMakeup, usedReschedules, reconciliation, matchReceipt, reportingTotals, assessmentCredit, staffBalance, activeStaffLeave, staffLeaveUnits, normalizeStaffLeave, setStaffLeave, cancelStaffLeave, record, cycleForDate, enrolledStudents, filterStudents, paginate, seedCentreVolume, seedTeacherSchedules, seedBusyAfternoons, CENTRE_OPEN, CENTRE_CLOSE, HALF_DAY_BOUNDARY } from './model.js';
 import { makeCheckInPass, qrSvg, redeemCheckIn } from './checkin.js';
 import { getStudentProfile, saveStudentProfile } from './student-profile.js';
 import { normalizeConversations } from './conversations.js';
@@ -14,7 +14,7 @@ import { centreConfig } from './branch-config.js';
 const STORAGE = centreConfig.storageKey;
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
-seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);
+seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);
 const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:centre.managerId, scheduleBookingId:null, scheduleRemarkDrafts:{}, date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Invoices', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:centre.managerId };
 const t = (en, zh) => isFamilyRole(ui.role) ? (zh ?? familyText(en, ui.role)) : en;
 const content = value => familyContent(value, ui.role);
@@ -468,11 +468,19 @@ function directorReview(){
  const monthLabel=month=>dateLabel(month+'-01',{day:undefined,month:'long',year:'numeric'});
  return '<div class="billing-workspace"><div class="billing-toolbar"><select class="btn" data-change="report-month" aria-label="Reporting month">'+months.map(month=>'<option value="'+month+'"'+(ui.reportMonth===month?' selected':'')+'>'+monthLabel(month)+'</option>').join('')+'</select><div class="billing-total"><span>Matched deposits</span><strong>'+money(totals.total)+'</strong></div>'+action('export-report',icon('download')+' Export report','btn')+'</div><section class="panel billing-table"><div class="table-scroll"><table><thead><tr><th>Student / receipt</th><th>Receipt issued</th><th>Bank credited</th><th class="billing-amount">Amount</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(matched.total?'':empty('No matched deposits this month'))+(matched.pageCount>1?pager('matched',matched):'')+'</section><div class="billing-secondary-actions">'+(exceptions?action('report-exceptions','Review exceptions ('+exceptions+')','btn ghost small'):'')+action('mark-report-reviewed',state.reviewedMonths?.[ui.reportMonth]?'Review recorded':'Mark report reviewed','btn ghost small',state.reviewedMonths?.[ui.reportMonth]?'disabled':'')+'</div></div>';
 }
-function scheduleQueues(){
- const pending=state.makeups.filter(m=>m.minutes>m.used).sort((a,b)=>a.expiry.localeCompare(b.expiry)),requests=state.leaveRequests.filter(r=>r.status==='pending');
- const filtered=pending.filter(m=>matchesStudent(m.studentId,collection('makeups').query)),makeupsPage=collectionPage('makeups',filtered,5),requestsPage=collectionPage('requests',requests,5);
- return '<section class="panel rail-card"><div class="rail-title"><h3>Pending make-ups</h3>'+tag(pending.length)+'</div>'+(pending.length>5?searchControl('makeups','Search make-ups','Student or ID'):'')+(pending.length?makeupsPage.items.map(m=>{const s=studentById(m.studentId),source=state.bookings.find(b=>b.id===m.sourceId);return '<div class="makeup-card"><div class="flex">'+avatar(s,'small')+'<div><div class="small strong">'+s.name+'</div><div class="user-caption">'+s.number+' · '+(m.minutes-m.used)+' min remaining</div></div></div><div class="makeup-meta">Missed '+dateLabel(source.date)+'<br>Use by '+dateLabel(m.expiry)+'</div>'+action('makeup-book','Find a time '+icon('arrow','sm'),'btn small w-full','data-id="'+m.id+'"')+'</div>';}).join(''):'<p class="small muted">All make-ups are booked.</p>')+pager('makeups',makeupsPage,true)+'</section><section class="panel rail-card"><div class="rail-title"><h3>Parent requests</h3>'+tag(requests.length)+'</div>'+(requests.length?requestsPage.items.map(r=>'<div class="makeup-card"><p class="small strong">'+studentById(r.studentId).name+'</p><p class="small muted mt-8">'+esc(r.reason||'Absence request')+'</p>'+((r.replacementSlots||r.slots)?.length?'<p class="small muted mt-8">Make-up: '+(r.replacementSlots||r.slots).map(slot=>dateLabel(slot.date)+' '+time(slot.start)+'–'+time(slot.start+slot.duration)+' · '+esc(tutorName(slot.tutor))).join('; ')+'</p>':'')+'<div class="flex mt-16">'+action('approve-absence','Approve','btn small soft','data-id="'+r.id+'"')+action('decline-absence','Decline','btn small ghost','data-id="'+r.id+'"')+'</div></div>').join(''):'<div class="flex" style="align-items:flex-start">'+icon('circlecheck')+'<p class="small muted">You’re up to date.</p></div>')+pager('requests',requestsPage,true)+'</section>';
+function makeupPreferencesSummary(m){
+ const dates=m.preferredDates||[],note=m.preferencesNote||'';
+ return (dates.length?'<div class="makeup-preferences"><p class="small strong">'+t('Preferred dates (not booked)','意願日期（並非預約）')+'</p><p class="small">'+dates.map(d=>esc(dateLabel(d,{weekday:'short'}))).join('、')+'</p></div>':'')+(note?'<p class="small makeup-preference-note">'+esc(note)+'</p>':'');
 }
+function scheduleQueues(){
+ const pending=state.makeups.filter(m=>m.minutes>m.used).sort((a,b)=>a.expiry.localeCompare(b.expiry));
+ const filtered=pending.filter(m=>matchesStudent(m.studentId,collection('makeups').query)),makeupsPage=collectionPage('makeups',filtered,5);
+ return '<section class="panel rail-card"><div class="rail-title"><h3>Pending make-ups</h3>'+tag(pending.length)+'</div>'+(pending.length>5?searchControl('makeups','Search make-ups','Student or ID'):'')+(pending.length?makeupsPage.items.map(m=>{
+  const student=studentById(m.studentId),source=state.bookings.find(b=>b.id===m.sourceId),leave=state.leaveRequests.find(r=>r.makeupId===m.id&&r.kind!=='makeup');
+  return '<div class="makeup-card" data-makeup-id="'+esc(m.id)+'"><div class="flex">'+avatar(student,'small')+'<div><div class="small strong">'+esc(student.name)+'</div><div class="user-caption">'+student.number+' · '+(m.minutes-m.used)+' min remaining</div></div></div><div class="makeup-meta">Leave: '+dateLabel(source?.date)+(source?' · '+time(source.start):'')+'<br>Use by '+dateLabel(m.expiry)+'</div>'+(leave?.reason?'<p class="small makeup-preference-note">'+esc(leave.reason)+'</p>':'')+makeupPreferencesSummary(m)+(m.policyReviewRequired?'<p class="small makeup-policy-note">Reschedule limit reached · staff review needed</p>':'')+'<div class="makeup-followup-actions">'+action('contact-makeup-parent','Contact parent','btn small','data-id="'+m.id+'"')+action('makeup-book','Arrange make-up','btn small primary','data-id="'+m.id+'"')+'</div></div>';
+ }).join(''):'<p class="small muted">All make-ups are arranged.</p>')+pager('makeups',makeupsPage,true)+'</section>';
+}
+
 function scheduleLeaveStrip(staffId){
  const balance=staffBalance(state,staffId);
  return '<section class="panel schedule-leave-strip" aria-label="'+esc(tutorName(staffId))+' annual leave"><div class="leave-strip-balance"><h3>Annual leave</h3><p><strong>'+balance.available+'</strong> days available</p></div><div class="leave-strip-actions">'+action('leave-details','Details','btn small','data-id="'+staffId+'"')+(ui.role==='admin'?action('set-staff-leave',icon('plus')+' Set leave','btn small','data-id="'+staffId+'"'):'')+'</div></section>';
@@ -545,8 +553,8 @@ const childSwitch=()=>'<select class="btn" data-change="family-student" aria-lab
 
 function nextLessons(studentId){return state.bookings.filter(b=>b.studentId===studentId&&activeBooking(b)&&b.date>=TODAY).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start);}
 function lessonRow(b,allowLeave=false){
- const src=state.bookings.find(s=>s.id===b.sourceId);const request=state.leaveRequests.find(r=>r.bookingId===b.id&&r.status==='pending'),replacement=request?.replacementSlots?.[0];
- return '<div class="lesson-item"><div class="date-tile '+(b.date===TODAY?'red':'')+'"><span class="month">'+dateLabel(b.date,{day:undefined,month:'short'})+'</span><span class="day">'+Number(b.date.slice(8))+'</span></div><div class="grow"><div class="strong">'+dateLabel(b.date,{weekday:'long',day:undefined,month:undefined})+' · '+time(b.start)+'–'+time(b.start+b.duration)+'</div><div class="row-meta">'+tutorName(b.tutor)+(src?' · '+t('Make-up from '+dateLabel(src.date),dateLabel(src.date)+' 的補堂'):' · '+t('Mathematics'))+'</div>'+(replacement?'<div class="row-meta">待確認補堂：'+dateLabel(replacement.date)+' '+time(replacement.start)+'–'+time(replacement.start+replacement.duration)+'</div>':'')+'</div>'+(request?'<div class="parent-leave-actions">'+tag('Leave requested','amber')+(allowLeave&&ui.role==='parent'?action('absence-makeup',replacement?'更改補堂時間':'選擇補堂時間','btn small','data-id="'+request.id+'"'):'')+'</div>':allowLeave?action('request-leave','Request leave','btn small','data-id="'+b.id+'"'):'')+'</div>';
+ const src=state.bookings.find(s=>s.id===b.sourceId);
+ return '<div class="lesson-item"><div class="date-tile '+(b.date===TODAY?'red':'')+'"><span class="month">'+dateLabel(b.date,{day:undefined,month:'short'})+'</span><span class="day">'+Number(b.date.slice(8))+'</span></div><div class="grow"><div class="strong">'+dateLabel(b.date,{weekday:'long',day:undefined,month:undefined})+' · '+time(b.start)+'–'+time(b.start+b.duration)+'</div><div class="row-meta">'+tutorName(b.tutor)+(src?' · '+t('Make-up from '+dateLabel(src.date),dateLabel(src.date)+' 的補堂'):' · '+t('Mathematics'))+'</div></div>'+(b.attendance==='present'?tag(t('Attended','已登記出席'),'green'):allowLeave&&activeBooking(b)&&b.date>=TODAY?action('request-leave','Request leave','btn small','data-id="'+b.id+'"'):'')+'</div>';
 }
 
 function parentBottomNav(){
@@ -566,15 +574,19 @@ function parentOverview(){
  if(ui.familyStudent==='mia'&&!state.assessment.enrolled)return assessmentOverview();
  const groups=parentLessonGroups(ui.familyStudent);
  const shortcuts=[['lessons','calendar','上課時間'],['handbook','file','課堂報告'],['homework','book','功課']];
- return heading('家長主頁')+'<nav class="parent-quick-actions" aria-label="常用功能">'+shortcuts.map(([page,ic,label])=>action('navigate',icon(ic)+'<span>'+label+'</span>','parent-quick-action','data-page="'+page+'"')).join('')+'</nav><section class="parent-upcoming" aria-labelledby="parent-week-title"><div class="parent-week-heading"><h2 id="parent-week-title">未來 7 天的課堂</h2>'+childSwitch()+'</div>'+(groups.length?'<div class="parent-lesson-days">'+groups.map(group=>'<article class="parent-day-card"><h3><time datetime="'+group.date+'">'+dateLabel(group.date,{weekday:'short'})+(group.date===TODAY?'（今天）':'')+'</time></h3><div>'+group.lessons.map(b=>{const pending=state.leaveRequests.some(r=>r.bookingId===b.id&&r.status==='pending');return '<div class="parent-home-lesson"><span class="parent-lesson-copy"><strong>'+time(b.start)+'–'+time(b.start+b.duration)+'</strong><span class="parent-lesson-meta">數學 · '+esc(tutorName(b.tutor))+(b.sourceId?'<span class="parent-lesson-status">補堂</span>':'')+'</span>'+(b.attendance==='present'?'<span class="parent-attendance">'+icon('check','sm')+'已登記出席</span>':pending?'<span class="parent-lesson-status">請假待確認</span>':'')+'</span></div>';}).join('')+'</div></article>').join('')+'</div>':'<p class="parent-no-lessons">未來 7 天暫無已安排的課堂。</p>')+'</section>';
+ return heading('家長主頁')+'<nav class="parent-quick-actions" aria-label="常用功能">'+shortcuts.map(([page,ic,label])=>action('navigate',icon(ic)+'<span>'+label+'</span>','parent-quick-action','data-page="'+page+'"')).join('')+'</nav><section class="parent-upcoming" aria-labelledby="parent-week-title"><div class="parent-week-heading"><h2 id="parent-week-title">未來 7 天的課堂</h2>'+childSwitch()+'</div>'+(groups.length?'<div class="parent-lesson-days">'+groups.map(group=>'<article class="parent-day-card"><h3><time datetime="'+group.date+'">'+dateLabel(group.date,{weekday:'short'})+(group.date===TODAY?'（今天）':'')+'</time></h3><div>'+group.lessons.map(b=>{return '<div class="parent-home-lesson"><span class="parent-lesson-copy"><strong>'+time(b.start)+'–'+time(b.start+b.duration)+'</strong><span class="parent-lesson-meta">數學 · '+esc(tutorName(b.tutor))+(b.sourceId?'<span class="parent-lesson-status">補堂</span>':'')+'</span>'+(b.attendance==='present'?'<span class="parent-attendance">'+icon('check','sm')+'已登記出席</span>':'')+'</span></div>';}).join('')+'</div></article>').join('')+'</div>':'<p class="parent-no-lessons">未來 7 天暫無已安排的課堂。</p>')+'</section>';
 }
 function parentHomework(){
  const list=state.assignments.filter(a=>a.studentId===ui.familyStudent&&a.homework===true);
  return heading('功課',childSwitch())+'<section class="panel"><div class="panel-head"><h2>功課</h2></div>'+(list.length?list.map(a=>assignmentRow(a,true)).join(''):empty('暫無功課','老師安排的家課將顯示於這裏。'))+'</section>';
 }
+function parentMakeupCard(m){
+ const source=state.bookings.find(b=>b.id===m.sourceId),pending=m.minutes>m.used;
+ return '<article class="parent-makeup-card"><div class="between wrap"><h4>'+dateLabel(source?.date,{weekday:'short'})+(source?' · '+time(source.start)+'–'+time(source.start+source.duration):'')+'</h4>'+tag(source?.attendance==='absent'?'請假已確認':'已調堂','green')+'</div>'+(pending?'<p class="parent-makeup-status">待客服聯絡 · '+(m.used>0?'仍有補堂待安排':'補堂尚未安排')+'</p>'+makeupPreferencesSummary(m)+'<p class="small muted">補堂限期 '+dateLabel(m.expiry)+'</p>'+action('makeup-preferences',(m.preferredDates?.length||m.preferencesNote)?'更改意願日期':'提供意願日期（選填）','btn small','data-id="'+m.id+'"'):'<p class="small">補堂已由中心安排。</p>')+'</article>';
+}
 function parentLessons(){
- const id=ui.familyStudent,list=nextLessons(id),makeups=state.makeups.filter(m=>m.studentId===id),remaining=makeups.reduce((n,m)=>n+m.minutes-m.used,0);
- return heading('課堂',childSwitch())+'<div class="family-grid"><section class="panel"><div class="panel-head"><h3>即將上課</h3><span class="small muted">'+t(studentById(id).level)+' · 數學</span></div>'+(list.length?list.map(b=>lessonRow(b,true)).join(''):empty('暫未安排課堂','中心會協助安排固定上課時間。'))+'</section><aside class="stack"><section class="panel"><div class="panel-head"><h3>補堂</h3></div><div class="panel-body"><p class="small muted">8 至 9 月課程</p><div class="stat-pair"><div><div class="number">'+remaining+' <span class="small muted">分鐘</span></div><div class="label">待安排</div></div><div><div class="number">'+usedReschedules(state,id)+' <span class="small muted">/ 3</span></div><div class="label">已用調堂次數</div></div></div></div>'+(makeups.length?makeups.map(m=>'<div class="panel-footer"><div class="between"><div><p class="small strong">剩餘 '+(m.minutes-m.used)+' 分鐘</p><p class="small muted">補堂限期 '+dateLabel(m.expiry)+'</p></div>'+(m.minutes-m.used>=60?action('makeup-book','Find a time','btn small','data-id="'+m.id+'"'):m.minutes>m.used?'<span class="small muted">請聯絡中心安排</span>':tag('Booked','green'))+'</div></div>').join(''):'')+'</section><div class="helper-art"><div><h4>稍後再安排補堂</h4><p>你可以先申請請假，之後再選擇補堂時間。</p></div>'+art(16)+'</div></aside></div>';
+ const id=ui.familyStudent,list=nextLessons(id),makeups=state.makeups.filter(m=>m.studentId===id).sort((a,b)=>Number(b.minutes>b.used)-Number(a.minutes>a.used)||b.sourceId.localeCompare(a.sourceId));
+ return heading('課堂',childSwitch())+'<div class="family-grid"><section class="panel"><div class="panel-head"><h3>即將上課</h3><span class="small muted">'+t(studentById(id).level)+' · 數學</span></div>'+(list.length?list.map(b=>lessonRow(b,true)).join(''):empty('暫未安排課堂','中心會協助安排固定上課時間。'))+'</section><section class="panel"><div class="panel-head"><h3>請假及補堂</h3></div>'+(makeups.some(m=>m.minutes>m.used)?'<div class="panel-body parent-makeup-guidance"><p>客服會聯絡你確認補堂日期及時間。</p><p class="small muted mt-8">你可提供最多 3 個意願日期，並非預約；請等候客服確認後才到中心上課。</p></div>':'')+(makeups.length?makeups.map(parentMakeupCard).join(''):empty('暫無請假紀錄'))+'</section></div>';
 }
 
 function parentHandbook(){
@@ -676,46 +688,48 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>'+t('This is a front-end prototype with fictional students and payments. Changes stay in this browser. No messages, payments or reports are sent to an external service.','這是使用虛構學生及付款資料的介面示範。修改只儲存在此瀏覽器，不會向外傳送訊息、付款或報告。')+'</p><p class="mt-16 muted">'+t('The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.','示範課堂日期為 2026 年 9 月 30 日。銀行交易樣本包含跨月例子，可試用入賬日期調整及對賬流程。')+'</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>'+t('Restore the original fictional students, lessons and payments. Your demo edits and handwriting in this browser will be cleared.','還原最初的虛構學生、課堂及付款資料。你在此瀏覽器的示範修改及手寫內容將被清除。')+'</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);conversationUI.reset();bankCheckUI.reset();receiptsUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);conversationUI.reset();bankCheckUI.reset();receiptsUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
-function openMakeup(id,mode='single',leaveRequestId=null){
- const parent=ui.role==='parent';
- const leave=leaveRequestId?state.leaveRequests.find(r=>r.id===leaveRequestId&&r.status==='pending'&&r.kind!=='makeup'&&r.studentId===ui.familyStudent):null;
- if(leaveRequestId&&(!parent||!leave))return;
- let workingState=state,m=state.makeups.find(item=>item.id===id);
- if(leave){
-  try{const preview=previewAbsenceMakeup(state,leave.id);workingState=preview.state;m=preview.makeup;}
-  catch(error){ui.makeupLeaveRequestId=null;ui.makeupCandidates=[];modal('選擇補堂時間','<p class="mb-16">請假申請已送出，待中心確認。</p><p>'+esc(t(error.message))+'</p><p class="small muted mt-16">你可以稍後再安排，或聯絡中心協助。</p>',action('close-modal','稍後再安排','btn'));return;}
+function openMakeupPreferences(id,justConfirmed=false){
+ if(ui.role!=='parent')return;
+ const m=state.makeups.find(item=>item.id===id&&item.studentId===ui.familyStudent);
+ if(!m||m.minutes<=m.used)return;
+ const source=state.bookings.find(b=>b.id===m.sourceId);
+ ui.makeupId=id;ui.makeupCandidates=[];ui.makeupLeaveRequestId=null;
+ const fields=Array.from({length:3},(_,i)=>field('意願日期 '+(i+1)+'（選填）','<input type="date" id="preferred-makeup-date-'+i+'" name="preferred-makeup-date" min="'+TODAY+'" value="'+esc(m.preferredDates?.[i]||'')+'">')).join('');
+ modal(justConfirmed?'請假已確認':'提供補堂意願','<div class="parent-preferences-form">'+(source?'<p class="small strong">請假課堂：'+dateLabel(source.date,{weekday:'short'})+' · '+time(source.start)+'–'+time(source.start+source.duration)+'</p>':'')+'<div class="notice blue"><strong>補堂尚未安排</strong><p>客服會聯絡你確認補堂日期及時間。</p><p class="small mt-8">意願日期並非預約，請等候客服確認後才到中心上課。</p></div><div class="form-stack">'+fields+field('備註（選填）','<textarea id="makeup-preferences-note" rows="2" maxlength="1000" placeholder="例如：只方便星期六下午">'+esc(m.preferencesNote||'')+'</textarea>')+'</div></div>',action('close-modal',justConfirmed?'暫時略過':'取消','btn')+action('save-makeup-preferences','提交意願','btn primary','data-id="'+m.id+'"'));
+}
+function openMakeup(id,mode='single'){
+ if(ui.role==='parent'){openMakeupPreferences(id);return;}
+ if(ui.role!=='admin')return;
+ const m=state.makeups.find(item=>item.id===id);
+ if(!m||m.minutes<=m.used)return;
+ const remaining=m.minutes-m.used,source=state.bookings.find(b=>b.id===m.sourceId);
+ if(ui.makeupContextKey!==id||!ui.makeupDate||!ui.makeupTutor){
+  const next=state.bookings.filter(b=>b.studentId===m.studentId&&activeBooking(b)&&b.date>=TODAY&&b.date<=m.expiry).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start)[0];
+  ui.makeupDate=next?.date||TODAY;
+  ui.makeupTutor=source?.tutor||next?.tutor||studentById(m.studentId).tutor||tutors[0].id;
  }
- if(!m||(parent&&m.studentId!==ui.familyStudent))return;
- const remaining=m.minutes-m.used,source=workingState.bookings.find(b=>b.id===m.sourceId),contextKey=leave?.id||id;
- if(parent)mode='single';
- if(!leave&&state.leaveRequests.some(r=>r.kind==='makeup'&&r.makeupId===id&&r.status==='pending')){toast('A replacement request is already awaiting confirmation.');return;}
- if(ui.makeupContextKey!==contextKey||!ui.makeupDate||!ui.makeupTutor){
-  const next=workingState.bookings.filter(b=>b.studentId===m.studentId&&activeBooking(b)&&b.date>=TODAY&&b.date<=m.expiry).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start)[0],preferred=leave?.replacementSlots?.[0];
-  ui.makeupDate=preferred?.date||next?.date||TODAY;
-  ui.makeupTutor=preferred?.tutor||source?.tutor||next?.tutor||studentById(m.studentId).tutor||tutors[0].id;
- }
- ui.makeupMode=mode;ui.makeupId=id;ui.makeupLeaveRequestId=leave?.id||null;ui.makeupContextKey=contextKey;
+ ui.makeupMode=mode;ui.makeupId=id;ui.makeupLeaveRequestId=null;ui.makeupContextKey=id;
  const candidates=[];
  if(mode==='split'){
-  workingState.bookings.filter(b=>b.studentId===m.studentId&&activeBooking(b)&&b.date>=TODAY&&b.date<=m.expiry&&b.duration===60).forEach(b=>{const slot={date:b.date,start:b.start+b.duration,duration:30,tutor:b.tutor};if(!validateSlot(workingState,{...slot,studentId:m.studentId}))candidates.push(slot);});
+  state.bookings.filter(b=>b.studentId===m.studentId&&activeBooking(b)&&b.date>=TODAY&&b.date<=m.expiry&&b.duration===60).forEach(b=>{const slot={date:b.date,start:b.start+b.duration,duration:30,tutor:b.tutor};if(!validateSlot(state,{...slot,studentId:m.studentId}))candidates.push(slot);});
  }else{
   const duration=remaining>=90?90:remaining>=60?60:30;
-  if((!parent||duration>=60)&&remaining>=duration&&ui.makeupDate>=TODAY&&ui.makeupDate<=m.expiry){
+  if(remaining>=duration&&ui.makeupDate>=TODAY&&ui.makeupDate<=m.expiry){
    for(let start=CENTRE_OPEN;start+duration<=CENTRE_CLOSE;start+=30){
     const slot={date:ui.makeupDate,start,duration,tutor:ui.makeupTutor};
-    if(leave&&source.date===slot.date&&source.start===slot.start)continue;
-    if(!validateSlot(workingState,{...slot,studentId:m.studentId}))candidates.push(slot);
+    if(!validateSlot(state,{...slot,studentId:m.studentId}))candidates.push(slot);
    }
   }
  }
  ui.makeupCandidates=candidates;
- const filters=mode==='single'&&(!parent||remaining>=60)?'<div class="field-row mb-16">'+field('Date','<input type="date" id="makeup-date" data-change="makeup-date" aria-label="'+t('Make-up date','補堂日期')+'" value="'+esc(ui.makeupDate)+'" min="'+TODAY+'" max="'+m.expiry+'">')+field('Teacher','<select id="makeup-tutor" data-change="makeup-tutor" aria-label="'+t('Make-up teacher','補堂老師')+'">'+tutors.map(t=>'<option value="'+t.id+'"'+(t.id===ui.makeupTutor?' selected':'')+'>'+t.name+'</option>').join('')+'</select>')+'</div>':'';
- const unavailable=parent&&remaining<60?'請聯絡中心安排餘下補堂。':mode==='single'&&m.expiry>=TODAY?t('No available times for this teacher on this date. Choose another date or teacher.','這位老師當天沒有空檔，請選擇其他日期或老師。'):t('No suitable times before this deadline. ','期限內沒有合適時段。')+(parent?'請聯絡中心商討延長補堂期限。':'Extend the deadline to show more options.');
- modal(leave?'選擇補堂時間':'Arrange a make-up',(leave?'<p class="small muted mb-16">請假申請已送出。可先選擇補堂時間，或稍後再安排。請假及補堂均待中心確認。</p>':'')+'<div class="between mb-16"><div><h3>'+studentById(m.studentId).name+'</h3><p class="small muted">'+t(remaining+' min remaining · Use by '+dateLabel(m.expiry),'剩餘 '+remaining+' 分鐘 · 補堂限期 '+dateLabel(m.expiry))+'</p></div>'+(!parent?action('extend-makeup','Extend deadline','inline-link','data-id="'+id+'"'):'')+'</div>'+(!parent?'<div class="segmented mb-16">'+action('makeup-mode','One lesson',mode==='single'?'active':'','data-mode="single"')+action('makeup-mode','30-minute extensions',mode==='split'?'active':'','data-mode="split"')+'</div>':'')+filters+'<div class="form-stack" style="gap:9px">'+candidates.map((s,i)=>'<label class="check-option"><input type="'+(mode==='split'?'checkbox':'radio')+'" name="makeup-slot" value="'+i+'"><span class="grow"><strong class="small">'+dateLabel(s.date,{weekday:'short'})+' · '+time(s.start)+'–'+time(s.start+s.duration)+'</strong><span class="row-meta" style="display:block">'+tutorName(s.tutor)+(mode==='split'?' · '+t('Extends the existing lesson','延長原有課堂'):' · '+s.duration+' '+t('minutes','分鐘'))+'</span></span></label>').join('')+(candidates.length?'':'<p class="small muted">'+unavailable+'</p>')+'</div>'+(mode==='split'?'<div class="notice blue mt-16">'+t('Both half-hour extensions belong to the same missed lesson and use one reschedule.','兩次延長各 30 分鐘，合共補回同一節缺席課堂，只計一次調堂。')+'</div>':''),action('close-modal',leave?'稍後再安排':'Cancel','btn')+action('confirm-makeup',parent?'Request these times':'Confirm booking','btn primary',candidates.length?'':'disabled'),true);
+ const filters=mode==='single'?'<div class="field-row mb-16">'+field('Date','<input type="date" id="makeup-date" data-change="makeup-date" aria-label="Make-up date" value="'+esc(ui.makeupDate)+'" min="'+TODAY+'" max="'+m.expiry+'">')+field('Teacher','<select id="makeup-tutor" data-change="makeup-tutor" aria-label="Make-up teacher">'+tutors.map(t=>'<option value="'+t.id+'"'+(t.id===ui.makeupTutor?' selected':'')+'>'+t.name+'</option>').join('')+'</select>')+'</div>':'';
+ const unavailable=mode==='single'&&m.expiry>=TODAY?'No available times for this teacher on this date. Choose another date or teacher.':'No suitable times before this deadline. Extend the deadline to show more options.';
+ modal('Arrange a make-up','<div class="between mb-16"><div><h3>'+studentById(m.studentId).name+'</h3><p class="small muted">'+remaining+' min remaining · Use by '+dateLabel(m.expiry)+'</p></div>'+action('extend-makeup','Extend deadline','inline-link','data-id="'+id+'"')+'</div>'+makeupPreferencesSummary(m)+'<p class="small muted mb-16">Confirm the arrangement with the parent before booking.</p><div class="segmented mb-16">'+action('makeup-mode','One lesson',mode==='single'?'active':'','data-mode="single"')+action('makeup-mode','30-minute extensions',mode==='split'?'active':'','data-mode="split"')+'</div>'+filters+'<div class="form-stack" style="gap:9px">'+candidates.map((s,i)=>'<label class="check-option"><input type="'+(mode==='split'?'checkbox':'radio')+'" name="makeup-slot" value="'+i+'"><span class="grow"><strong class="small">'+dateLabel(s.date,{weekday:'short'})+' · '+time(s.start)+'–'+time(s.start+s.duration)+'</strong><span class="row-meta" style="display:block">'+tutorName(s.tutor)+(mode==='split'?' · Extends the existing lesson':' · '+s.duration+' minutes')+'</span></span></label>').join('')+(candidates.length?'':'<p class="small muted">'+unavailable+'</p>')+'</div>'+(mode==='split'?'<div class="notice blue mt-16">Both half-hour extensions belong to the same missed lesson and use one reschedule.</div>':''),action('close-modal','Cancel','btn')+action('confirm-makeup','Confirm booking','btn primary',candidates.length?'':'disabled'),true);
 }
+
 function captureBankReview() {
  const review=$('[data-bank-review]'),origin=$('[data-bank-review-origin]');
  if(ui.role!=='admin'||(!review&&!origin))return null;
@@ -818,23 +832,38 @@ function handleAction(a,id,button){
  }else if(a==='confirm-move-extension'){
   const extension={approvedExpiry:$('#extension-date').value,overrideReason:$('#extension-reason').value};const move=ui.pendingMove;
   if(change(()=>moveBooking(state,move.id,{...move.slot,...extension}),'Deadline extended and lesson moved.',true)){ui.moveId=null;closeModal();render();}
- }else if(a==='absence-makeup')openMakeup('', 'single', id);
+ }else if(a==='absence-makeup'){
+  const leave=state.leaveRequests.find(r=>r.id===id&&r.studentId===ui.familyStudent);if(leave?.makeupId)openMakeupPreferences(leave.makeupId);
+ }else if(a==='makeup-preferences')openMakeupPreferences(id);
  else if(a==='makeup-book')openMakeup(id);
  else if(a==='makeup-mode')openMakeup(ui.makeupId,button.dataset.mode);
- else if(a==='extend-makeup'){
-  const m=state.makeups.find(m=>m.id===id);
+ else if(a==='contact-makeup-parent'){
+  if(ui.role!=='admin')return;
+  const m=state.makeups.find(m=>m.id===id);if(!m)return;
+  ui.page='messages';render();conversationUI.handleAction('wa-contact',m.studentId,button);
+ }else if(a==='save-makeup-preferences'){
+  if(ui.role!=='parent')return;
+  const dates=$$('input[name="preferred-makeup-date"]').map(el=>el.value).filter(Boolean),note=$('#makeup-preferences-note')?.value||'';
+  if(change(()=>{const m=state.makeups.find(m=>m.id===id&&m.studentId===ui.familyStudent);if(!m)throw new Error('找不到此子女的補堂紀錄。');setMakeupPreferences(state,m.id,dates,note);},'已儲存補堂意願。客服會聯絡你確認安排。'))closeModal();
+ }else if(a==='extend-makeup'){
+  if(ui.role!=='admin')return;
+  const m=state.makeups.find(m=>m.id===id);if(!m)return;
   modal('Extend make-up deadline','<div class="form-stack">'+field('New deadline','<input type="date" id="makeup-expiry" value="'+m.expiry+'" min="'+m.expiry+'">')+field('Reason','<input id="makeup-reason" placeholder="Reason for this exception" value="'+esc(m.reason)+'">')+'</div>',action('close-modal','Cancel','btn')+action('save-makeup-extension','Save extension','btn primary','data-id="'+id+'"'));
  }else if(a==='save-makeup-extension'){
+  if(ui.role!=='admin')return;
   const expiry=$('#makeup-expiry').value,reason=$('#makeup-reason').value.trim();
-  if(change(()=>{const m=state.makeups.find(m=>m.id===id);if(!expiry||expiry<m.expiry||!reason)throw new Error('Enter a valid later deadline and a reason.');m.expiry=expiry;m.reason=reason;record(state,'Extended make-up deadline for '+studentById(m.studentId).name+' to '+dateLabel(expiry));},'Deadline updated'))openMakeup(id);
+  if(change(()=>{const m=state.makeups.find(m=>m.id===id);if(!m||!expiry||expiry<m.expiry||!reason)throw new Error('Enter a valid later deadline and a reason.');m.expiry=expiry;m.reason=reason;record(state,'Extended make-up deadline for '+studentById(m.studentId).name+' to '+dateLabel(expiry));},'Deadline updated'))openMakeup(id);
  }else if(a==='confirm-makeup'){
-  const slots=$$('input[name="makeup-slot"]:checked').map(el=>ui.makeupCandidates[Number(el.value)]),m=state.makeups.find(m=>m.id===ui.makeupId);
-  if(change(()=>{if(!slots.length)throw new Error('Choose a replacement time.');if(ui.role==='parent'){if(ui.makeupLeaveRequestId){const leave=state.leaveRequests.find(r=>r.id===ui.makeupLeaveRequestId&&r.studentId===ui.familyStudent&&r.status==='pending');if(!leave)throw new Error('請假申請已更新，請重新選擇課堂。');requestAbsenceReplacement(state,leave.id,slots);}else{if(!m||m.studentId!==ui.familyStudent||slots.length!==1||![60,90].includes(slots[0]?.duration))throw new Error('請選擇一節完整課堂作補堂。');const trial=clone(state);bookMakeup(trial,m.id,slots);state.leaveRequests.push({id:uid('request'),kind:'makeup',makeupId:m.id,studentId:m.studentId,slots,reason:slots.map(s=>dateLabel(s.date)+' '+time(s.start)+' · '+s.duration+' min').join('; '),status:'pending'});}}else bookMakeup(state,m.id,slots);},ui.role==='parent'?'Times requested. The centre will confirm.':'Make-up booked. One reschedule, linked replacements.'))closeModal();
+  if(ui.role!=='admin'){toast('補堂由客服聯絡你確認，家長不能自行預約。');return;}
+  const slots=$$('input[name="makeup-slot"]:checked').map(el=>ui.makeupCandidates[Number(el.value)]);
+  if(change(()=>{if(!slots.length)throw new Error('Choose a replacement time.');bookMakeup(state,ui.makeupId,slots);},'Make-up booked. The parent’s lesson list is updated.'))closeModal();
  }else if(a==='request-leave'){
-  const b=state.bookings.find(b=>b.id===id);if(ui.role!=='parent'||!b||b.studentId!==ui.familyStudent||!activeBooking(b))return;modal('Request leave','<p class="strong mb-16">'+dateLabel(b.date,{weekday:'long'})+' · '+time(b.start)+'–'+time(b.start+b.duration)+'</p>'+field('Reason','<textarea id="absence-reason" placeholder="'+t('Let the centre know why you cannot attend.','請填寫未能上課的原因。')+'"></textarea>')+'<p class="small muted mt-16">'+'送出後可選擇補堂時間，也可以稍後再安排。'+'</p>',action('close-modal','Cancel','btn')+action('send-leave-request','Send request','btn primary','data-id="'+id+'"'));
- }else if(a==='send-leave-request'){const reason=$('#absence-reason')?.value||'';let request;if(change(()=>{const booking=state.bookings.find(b=>b.id===id);if(ui.role!=='parent'||booking?.studentId!==ui.familyStudent)throw new Error('請選擇你子女的課堂。');request=requestAbsence(state,id,reason);}))openMakeup('', 'single', request.id);}
- else if(a==='approve-absence'){change(()=>{const r=state.leaveRequests.find(r=>r.id===id);if(r.kind==='makeup'){bookMakeup(state,r.makeupId,r.slots);r.status='approved';}else approveAbsence(state,id);},'Request approved. The schedules are updated.');}
- else if(a==='decline-absence'){change(()=>{state.leaveRequests.find(r=>r.id===id).status='declined';},'Request declined.');}
+  const b=state.bookings.find(b=>b.id===id);if(ui.role!=='parent'||!b||b.studentId!==ui.familyStudent||!activeBooking(b)||b.attendance==='present'||b.date<TODAY)return;
+  modal('申請請假','<p class="strong mb-16">'+dateLabel(b.date,{weekday:'long'})+' · '+time(b.start)+'–'+time(b.start+b.duration)+'</p>'+field('原因（選填）','<textarea id="absence-reason" rows="3" maxlength="1000" placeholder="請填寫未能上課的原因。"></textarea>')+'<p class="small muted mt-16">提交後請假即確認，原有課堂將取消出席。補堂由客服另行聯絡安排。</p>',action('close-modal','Cancel','btn')+action('send-leave-request','確認請假','btn primary','data-id="'+id+'"'));
+ }else if(a==='send-leave-request'){
+  const reason=$('#absence-reason')?.value||'';let request;
+  if(change(()=>{const booking=state.bookings.find(b=>b.id===id);if(ui.role!=='parent'||booking?.studentId!==ui.familyStudent)throw new Error('請選擇你子女的課堂。');request=requestAbsence(state,id,reason);}))openMakeupPreferences(request.makeupId,true);
+ }
  else if(a==='select-student'){collection('folder-work').page=1;ui.selectedStudent=id;ui.folderTab='All work';render();}
  else if(a==='folder-tab'){collection('folder-work').page=1;ui.folderTab=button.dataset.value;render();}
  else if(a==='open-folder'){ui.page='classroom';render();}
@@ -926,7 +955,7 @@ document.addEventListener('change',e=>{
  if(target.id==='al-date'){refreshStaffLeaveUnits();return;}
  if(target.id==='al-unit'){refreshStaffLeaveImpact();return;}
  if(target.dataset.profileField){updateProfileDraft(target);return;}
- if(type==='makeup-date'||type==='makeup-tutor'){ui[type==='makeup-date'?'makeupDate':'makeupTutor']=target.value;openMakeup(ui.makeupId,'single',ui.makeupLeaveRequestId);return;}
+ if(type==='makeup-date'||type==='makeup-tutor'){ui[type==='makeup-date'?'makeupDate':'makeupTutor']=target.value;openMakeup(ui.makeupId,'single');return;}
  if(target.id==='new-duration'){const duration=Number(target.value),current=Number($('#new-time').value);$('#new-time').innerHTML=lessonTimeOptions(duration,Math.min(current,CENTRE_CLOSE-duration));return;}
  if(type==='checkin-lesson'){ui.checkInBooking=target.value;checkInDialog();return;}
  if(type==='page-size'){const c=collection(target.dataset.list);c.pageSize=Number(target.value);c.page=1;renderCollection(target.dataset.list);return;}
@@ -1056,6 +1085,6 @@ if(document.modelContext?.registerTool){
  const lifecycle=new AbortController();
  const register=tool=>{try{Promise.resolve(document.modelContext.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};
  register({name:'navigate_demo',title:'Open a MathConcept demo view',description:'Switch the visible demo role and screen. Does not modify lesson or financial records.',inputSchema:{type:'object',properties:{role:{type:'string',enum:['admin','teacher','parent','student']},page:{type:'string'}},required:['role'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(!NAV[input?.role])throw new Error('Unknown demo role.');const target=input.page||NAV[input.role][0][0];if(!NAV[input.role].some(([page])=>page===target))throw new Error('Unknown screen for this role.');closeModal();ui.role=input.role;ui.page=target;ui.moveId=null;ui.assignmentId=null;ui.standaloneFolder=false;render();return{role:ui.role,page:ui.page};}});
- register({name:'read_demo_summary',title:'Read the current demo summary',description:'Read a compact summary of the visible role, pending make-up requests and receipt matching. Fictional demonstration data only.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute(){return{role:ui.role,page:ui.page,worksheet:currentAssignment()?{status:currentAssignment().status,studentStrokes:currentAssignment().strokes.length,teacherStrokes:currentAssignment().feedback.length,working:currentAssignment().working,submissions:currentAssignment().submissions?.length||0}:null,pendingRequests:state.leaveRequests.filter(r=>r.status==='pending').length,makeups:state.makeups.map(m=>({student:studentById(m.studentId).name,remainingMinutes:m.minutes-m.used,expiry:m.expiry,period:m.period})),centre:{enrolled:enrolledStudents(state).length,invoices:state.invoices.length,conversations:state.messages.length},attendance:state.bookings.filter(b=>b.date===TODAY&&b.attendance==='present').map(b=>({studentId:b.studentId,bookingId:b.id})),receipts:state.receipts.slice(0,10).map(r=>({id:r.id,issued:r.issuedDate,...(({status,adjustment,month})=>({status,adjustment,bankMonth:month}))(reconciliation(state,r))}))};}});
+ register({name:'read_demo_summary',title:'Read the current demo summary',description:'Read a compact summary of the visible role, pending make-up requests and receipt matching. Fictional demonstration data only.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute(){return{role:ui.role,page:ui.page,worksheet:currentAssignment()?{status:currentAssignment().status,studentStrokes:currentAssignment().strokes.length,teacherStrokes:currentAssignment().feedback.length,working:currentAssignment().working,submissions:currentAssignment().submissions?.length||0}:null,pendingRequests:state.makeups.filter(m=>m.minutes>m.used).length,makeups:state.makeups.map(m=>({student:studentById(m.studentId).name,remainingMinutes:m.minutes-m.used,expiry:m.expiry,period:m.period})),centre:{enrolled:enrolledStudents(state).length,invoices:state.invoices.length,conversations:state.messages.length},attendance:state.bookings.filter(b=>b.date===TODAY&&b.attendance==='present').map(b=>({studentId:b.studentId,bookingId:b.id})),receipts:state.receipts.slice(0,10).map(r=>({id:r.id,issued:r.issuedDate,...(({status,adjustment,month})=>({status,adjustment,bankMonth:month}))(reconciliation(state,r))}))};}});
  addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
 }

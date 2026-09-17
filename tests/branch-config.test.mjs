@@ -23,7 +23,7 @@ function open(config, saved) {
     centreConfig: config,
     localStorage: { getItem: key => saved.get(key) || null, setItem: (key, value) => saved.set(key, value) },
     seed: () => ({ version: 4, marker: 'fresh ' + config.id }),
-    seedCentreVolume() {}, seedTeacherSchedules() {}, seedBusyAfternoons() {}, normalizeStaffLeave() {}, normalizeConversations() {}, normalizeBillingAutomation() {},
+    seedCentreVolume() {}, seedTeacherSchedules() {}, seedBusyAfternoons() {}, normalizeParentLeave() {}, normalizeStaffLeave() {}, normalizeConversations() {}, normalizeBillingAutomation() {},
     toast() { throw new Error('Unexpected storage error'); }
   });
 }

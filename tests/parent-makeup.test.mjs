@@ -14,19 +14,22 @@ function functionSource(name) {
   return source.slice(start, next === -1 ? undefined : start + 1 + next);
 }
 
-// Run the production renderers and confirmation handler against the real model.
-// DOM stubs supply only the selected radio/checkbox indices and modal error area.
+// Exercise the production leave/preferences handlers against the real model.
+// DOM stubs provide only editable form values and the modal error area.
 function renderer(role = 'parent') {
   const ui = { role, page: 'lessons', familyStudent: 'chloe' };
+  const state = model.seed();
+  model.normalizeParentLeave(state);
   const dialog = { title: '', body: '', footer: '', opened: 0, closed: 0 };
   const error = { textContent: '', classList: { add() {} } };
   const absenceReason = { value: 'School activity' };
+  const preferencesNote = { value: '' };
   const messages = [];
-  let selected = [];
+  let selected = [], preferredDates = ['', '', ''];
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   const t = (en, zh) => ui.role === 'parent' ? (zh ?? familyText(en, ui.role)) : en;
   const context = vm.createContext({
-    ...model, ui, state: model.seed(), t, esc,
+    ...model, ui, state, t, esc,
     dateLabel: (date, options) => familyDate(date, ui.role, options),
     heading: (title, actions = '') => '<h1>' + esc(title) + '</h1>' + actions,
     action: (name, label, cls = '', attrs = '') => '<button data-action="' + name + '" class="' + cls + '" ' + attrs + '>' + t(label) + '</button>',
@@ -40,154 +43,197 @@ function renderer(role = 'parent') {
     toast: message => messages.push(message), persist: () => {}, render: () => {},
     $: selector => {
       if (selector === '#absence-reason') return absenceReason;
+      if (selector === '#makeup-preferences-note') return preferencesNote;
       assert.equal(selector, '#form-error');
       return error;
     },
     $$: selector => {
+      if (selector === 'input[name="preferred-makeup-date"]') return preferredDates.map(value => ({ value }));
       assert.equal(selector, 'input[name="makeup-slot"]:checked');
       return selected.map(value => ({ value: String(value) }));
     }
   });
-  vm.runInContext('let previousState = null;\n' + ['change', 'nextLessons', 'lessonRow', 'parentLessonGroups', 'parentOverview', 'parentLessons', 'openMakeup', 'handleAction'].map(functionSource).join('\n'), context);
+  const names = ['change', 'nextLessons', 'lessonRow', 'parentLessonGroups', 'parentOverview', 'makeupPreferencesSummary', 'parentMakeupCard', 'parentLessons', 'openMakeupPreferences', 'openMakeup', 'handleAction'];
+  vm.runInContext('let previousState = null;\n' + names.map(functionSource).join('\n'), context);
   return {
     ui, dialog, error, messages,
     get state() { return context.state; },
     call: (name, ...args) => context[name](...args),
     act: (name, id, dataset = {}) => context.handleAction(name, id, { dataset }),
     dismiss: () => context.closeModal(),
+    save(id, dates = [], note = '') {
+      preferredDates = [...dates]; preferencesNote.value = note;
+      context.handleAction('save-makeup-preferences', id, { dataset: {} });
+    },
     confirm(indices = [0]) { selected = indices; context.handleAction('confirm-makeup', undefined, { dataset: {} }); }
   };
 }
 
 const plain = value => JSON.parse(JSON.stringify(value));
-const slot = (duration, extra = {}) => ({ date: model.TODAY, start: 600, duration, tutor: 'chan', ...extra });
 const upcoming = app => app.state.bookings.find(item => item.studentId === 'chloe' && item.date === model.TODAY && model.activeBooking(item));
-
-test('Parent home lesson cards display lesson information without links, controls or chevrons', () => {
-  const app = renderer(), lesson = upcoming(app);
-  model.requestAbsence(app.state, lesson.id, 'School activity');
-  const page = app.call('parentOverview');
-  const cards = [...page.matchAll(/<article class="parent-day-card">([\s\S]*?)<\/article>/g)];
-  assert.ok(cards.length > 0);
-  for (const [, card] of cards) {
-    assert.match(card, /class="parent-home-lesson"/);
-    assert.match(card, /<time datetime="\d{4}-\d{2}-\d{2}">/);
-    assert.match(card, /數學/);
-    assert.doesNotMatch(card, /<(?:button|a)\b|data-action=|tabindex=|role="button"|data-icon="right"/);
-  }
-  assert.match(cards[0][1], /請假待確認/);
-  assert.match(page, /data-page="lessons"/, 'Quick action still opens the lesson management page');
-});
-
-test('Submitting leave immediately prompts for a replacement without booking it; Skip preserves pending leave', () => {
-  const app = renderer(), lesson = upcoming(app), before = model.clone(app.state);
-  app.act('send-leave-request', lesson.id);
-  assert.equal(app.error.textContent, '');
-  assert.equal(app.state.leaveRequests.length, 1);
-  const request = app.state.leaveRequests[0];
-  assert.equal(request.bookingId, lesson.id);
-  assert.equal(request.status, 'pending');
-  assert.equal(request.reason, 'School activity');
-  assert.equal(app.dialog.opened, 1);
-  assert.equal(app.ui.makeupLeaveRequestId, request.id);
-  assert.ok(app.ui.makeupCandidates.length > 0);
-  assert.ok(app.ui.makeupCandidates.every(item => item.duration === lesson.duration));
-  assert.match(app.dialog.footer, /data-action="close-modal"[^>]*>稍後再安排<\/button>/);
-  assert.deepEqual(app.state.bookings, before.bookings);
-  assert.deepEqual(app.state.makeups, before.makeups);
-  assert.deepEqual(app.state.audit, before.audit);
-  const pending = model.clone(app.state);
-  app.dismiss();
-  assert.deepEqual(app.state, pending, 'Dismissal never approves leave, reserves a place or loses the request');
-  assert.match(app.call('parentLessons'), new RegExp('data-action="absence-makeup"[^>]*data-id="' + request.id + '"'));
-});
+const noBookingControls = html => assert.doesNotMatch(html, /name="makeup-slot"|id="makeup-(?:date|tutor)"|data-action="(?:confirm-makeup|makeup-mode)"|data-mode="split"/);
 
 for (const duration of [60, 90]) {
-  test(`Parent can propose one ${duration}-minute replacement while leave awaits approval`, () => {
+  test(`Submitting ${duration}-minute leave immediately confirms absence and opens optional date preferences`, () => {
     const app = renderer(), lesson = upcoming(app);
     lesson.duration = duration;
+    const before = model.clone(app.state);
     app.act('send-leave-request', lesson.id);
     assert.equal(app.error.textContent, '');
-    assert.ok(app.ui.makeupCandidates.length > 0);
-    assert.ok(app.ui.makeupCandidates.every(item => item.duration === duration));
-    const selected = plain(app.ui.makeupCandidates[0]), before = model.clone(app.state);
-    app.confirm();
-    assert.equal(app.error.textContent, '');
-    assert.equal(app.dialog.closed, 1);
-    assert.equal(app.state.leaveRequests.length, 1, 'Replacement belongs to the original leave request');
-    assert.equal(app.state.leaveRequests[0].status, 'pending');
-    assert.deepEqual(plain(app.state.leaveRequests[0].replacementSlots), [selected]);
-    assert.deepEqual(app.state.bookings, before.bookings);
-    assert.deepEqual(app.state.makeups, before.makeups);
-    assert.deepEqual(app.state.audit, before.audit);
+    assert.equal(app.state.leaveRequests.length, before.leaveRequests.length + 1);
+    const request = app.state.leaveRequests.at(-1);
+    const makeup = app.state.makeups.find(item => item.id === request.makeupId);
+    assert.equal(request.bookingId, lesson.id);
+    assert.equal(request.status, 'confirmed');
+    assert.equal(request.reason, 'School activity');
+    assert.equal(lesson.status, 'absent');
+    assert.equal(lesson.attendance, 'absent');
+    assert.equal(lesson.caseId, makeup.id);
+    assert.equal(makeup.sourceId, lesson.id);
+    assert.equal(makeup.minutes, duration);
+    assert.equal(makeup.used, 0);
+    assert.equal(makeup.followUpStatus, 'pending');
+    assert.deepEqual(plain(makeup.preferredDates), []);
+    assert.equal(app.state.bookings.length, before.bookings.length, 'Leave adds no replacement or reservation');
+    assert.deepEqual(app.state.bookings.filter(item => item.id !== lesson.id), before.bookings.filter(item => item.id !== lesson.id));
+    assert.equal(app.dialog.opened, 1);
+    const dialog = app.dialog.title + app.dialog.body + app.dialog.footer;
+    assert.match(dialog, /請假已確認/);
+    assert.match(dialog, /客服會聯絡你確認補堂日期及時間/);
+    assert.match(dialog, /意願日期並非預約/);
+    assert.equal([...app.dialog.body.matchAll(/name="preferred-makeup-date"/g)].length, 3);
+    assert.match(app.dialog.footer, /data-action="close-modal"/);
+    assert.match(app.dialog.footer, new RegExp('data-action="save-makeup-preferences"[^>]*data-id="' + makeup.id + '"'));
+    noBookingControls(dialog);
+    const confirmed = model.clone(app.state);
+    app.dismiss();
+    assert.deepEqual(app.state, confirmed, 'Skipping preferences preserves confirmed leave and an admin follow-up');
+    const page = app.call('parentLessons');
+    assert.match(page, /請假已確認/);
+    assert.match(page, /待客服聯絡/);
+    assert.match(page, new RegExp('data-action="makeup-preferences"[^>]*data-id="' + makeup.id + '"'));
+    assert.doesNotMatch(page, /請假待確認|選擇補堂時間|data-action="(?:approve-absence|decline-absence)"/);
   });
 }
 
-test('Parent can reopen a skipped request and context switches when choosing another pending absence', () => {
+test('Parent can save several preferred dates and reopen them without reserving or choosing a session', () => {
+  const app = renderer(), lesson = upcoming(app);
+  app.act('send-leave-request', lesson.id);
+  const request = app.state.leaveRequests.at(-1), makeup = app.state.makeups.find(item => item.id === request.makeupId);
+  const before = model.clone(app.state);
+  const dates = ['2026-10-01', '2026-10-05', '2026-10-08'];
+  app.save(makeup.id, dates, '放學後較方便');
+  assert.equal(app.error.textContent, '');
+  assert.equal(app.dialog.closed, 1);
+  assert.deepEqual(plain(makeup.preferredDates), dates);
+  assert.equal(makeup.preferencesNote, '放學後較方便');
+  assert.equal(makeup.followUpStatus, 'pending');
+  assert.equal(makeup.used, 0);
+  assert.deepEqual(app.state.bookings, before.bookings);
+  assert.deepEqual(app.state.leaveRequests, before.leaveRequests);
+  assert.deepEqual(app.state.makeups.filter(item => item.id !== makeup.id), before.makeups.filter(item => item.id !== makeup.id));
+  app.act('makeup-preferences', makeup.id);
+  for (const date of dates) assert.match(app.dialog.body, new RegExp('value="' + date + '"'));
+  assert.match(app.dialog.body, /放學後較方便/);
+  noBookingControls(app.dialog.body + app.dialog.footer);
+  assert.match(app.call('parentLessons'), /待客服聯絡/);
+});
+
+test('Dates are optional and may be cleared without cancelling leave or removing the follow-up', () => {
+  const app = renderer(), lesson = upcoming(app);
+  app.act('send-leave-request', lesson.id);
+  const request = app.state.leaveRequests.at(-1), makeup = app.state.makeups.find(item => item.id === request.makeupId);
+  app.save(makeup.id, ['2026-10-02'], 'Please call');
+  const bookings = model.clone(app.state.bookings);
+  app.act('makeup-preferences', makeup.id);
+  app.save(makeup.id, ['', '', ''], '');
+  assert.equal(app.error.textContent, '');
+  assert.deepEqual(plain(makeup.preferredDates), []);
+  assert.equal(makeup.preferencesNote, '');
+  assert.equal(makeup.followUpStatus, 'pending');
+  assert.equal(request.status, 'confirmed');
+  assert.equal(lesson.status, 'absent');
+  assert.deepEqual(app.state.bookings, bookings);
+});
+
+test('Reopening different make-up cases cannot leak another case’s preferences', () => {
   const app = renderer();
   const first = model.requestAbsence(app.state, upcoming(app).id, 'School activity');
   const laterLesson = app.state.bookings.find(item => item.studentId === 'chloe' && item.date === '2026-10-02');
-  laterLesson.duration = 90;
   const second = model.requestAbsence(app.state, laterLesson.id, 'Medical appointment');
+  model.setMakeupPreferences(app.state, first.makeupId, ['2026-10-03'], 'First case');
+  model.setMakeupPreferences(app.state, second.makeupId, ['2026-10-06'], 'Second case');
   const before = model.clone(app.state);
-  app.act('absence-makeup', first.id);
-  assert.equal(app.ui.makeupLeaveRequestId, first.id);
-  const firstContext = app.ui.makeupContextKey;
-  assert.ok(app.ui.makeupCandidates.every(item => item.duration === 60));
-  app.dismiss();
-  app.act('absence-makeup', second.id);
-  assert.equal(app.ui.makeupLeaveRequestId, second.id);
-  assert.notEqual(app.ui.makeupContextKey, firstContext);
-  assert.ok(app.ui.makeupCandidates.length > 0);
-  assert.ok(app.ui.makeupCandidates.every(item => item.duration === 90));
-  app.call('openMakeup', 'makeup-chloe');
-  assert.equal(app.ui.makeupLeaveRequestId, null, 'An approved make-up clears pending-absence context');
-  assert.deepEqual(app.state, before, 'Switching contexts never changes any lesson or request');
+  app.act('makeup-preferences', first.makeupId);
+  assert.match(app.dialog.body, /value="2026-10-03"/);
+  assert.match(app.dialog.body, /First case/);
+  app.act('makeup-preferences', second.makeupId);
+  assert.match(app.dialog.body, /value="2026-10-06"/);
+  assert.match(app.dialog.body, /Second case/);
+  assert.doesNotMatch(app.dialog.body, /First case|value="2026-10-03"/);
+  assert.deepEqual(app.state, before);
 });
 
-test('Invalid or foreign pending leave cannot offer replacement choices', () => {
-  for (const scenario of ['missing', 'foreign', 'approved', 'declined', 'changed-lesson']) {
-    const app = renderer();
-    const lesson = upcoming(app);
-    const request = model.requestAbsence(app.state, lesson.id, 'School activity');
-    let requestId = request.id;
-    if (scenario === 'missing') requestId = 'missing-request';
-    if (scenario === 'foreign') request.studentId = 'mia';
-    if (['approved', 'declined'].includes(scenario)) request.status = scenario;
-    if (scenario === 'changed-lesson') lesson.status = 'moved';
+test('All parent make-up entry points, including a stale split-mode action, open preferences only', () => {
+  for (const entry of ['open', 'makeup-book', 'makeup-preferences', 'makeup-mode']) {
+    const app = renderer(), before = model.clone(app.state);
+    app.ui.makeupId = 'makeup-chloe';
+    app.ui.makeupMode = 'split';
+    if (entry === 'open') app.call('openMakeup', 'makeup-chloe', 'split');
+    else app.act(entry, 'makeup-chloe', { mode: 'split' });
+    assert.equal(app.dialog.opened, 1, entry);
+    noBookingControls(app.dialog.body + app.dialog.footer);
+    assert.match(app.dialog.body, /name="preferred-makeup-date"/);
+    assert.match(app.dialog.body, /意願日期並非預約/);
+    assert.deepEqual(app.state, before, entry + ' never changes the schedule');
+  }
+});
+
+test('A partial make-up remains a CS arrangement with date preferences, never a parent half-hour booking', () => {
+  const app = renderer();
+  app.state.makeups[0].used = 30;
+  const before = model.clone(app.state), page = app.call('parentLessons');
+  assert.match(page, /data-action="makeup-preferences"[^>]*data-id="makeup-chloe"/);
+  assert.match(page, /待客服聯絡/);
+  app.call('openMakeup', 'makeup-chloe', 'split');
+  noBookingControls(app.dialog.body + app.dialog.footer);
+  assert.match(app.dialog.body, /客服/);
+  assert.deepEqual(app.state, before);
+});
+
+test('Parent cannot open or edit a missing, foreign or fully arranged make-up case', () => {
+  for (const scenario of ['missing', 'foreign', 'arranged']) {
+    const app = renderer(), makeup = app.state.makeups[0];
+    let id = makeup.id;
+    if (scenario === 'missing') id = 'missing-makeup';
+    if (scenario === 'foreign') makeup.studentId = 'mia';
+    if (scenario === 'arranged') { makeup.used = makeup.minutes; makeup.followUpStatus = 'arranged'; }
     const before = model.clone(app.state);
-    assert.doesNotThrow(() => app.act('absence-makeup', requestId), scenario);
-    if (scenario === 'changed-lesson') {
-      assert.equal(app.ui.makeupCandidates.length, 0);
-      assert.doesNotMatch(app.dialog.body + app.dialog.footer, /name="makeup-slot"|data-action="confirm-makeup"/);
-      assert.match(app.dialog.footer, /稍後再安排/);
-    } else assert.equal(app.dialog.opened, 0, scenario);
+    assert.doesNotThrow(() => app.call('openMakeup', id), scenario);
+    assert.equal(app.dialog.opened, 0, scenario);
+    assert.doesNotThrow(() => app.save(id, ['2026-10-02'], 'Changed'), scenario);
     assert.deepEqual(app.state, before, scenario);
   }
 });
 
-test('Pending absence confirmation rejects stale, foreign, short and split proposals without booking', () => {
-  for (const scenario of ['approved', 'foreign', 'changed-lesson', 'short', 'split', 'missing-option']) {
-    const app = renderer(), lesson = upcoming(app);
-    const request = model.requestAbsence(app.state, lesson.id, 'School activity');
-    app.act('absence-makeup', request.id);
-    assert.ok(app.ui.makeupCandidates.length > 0);
-    let indices = [0];
-    if (scenario === 'approved') request.status = 'approved';
-    if (scenario === 'foreign') app.ui.familyStudent = 'mia';
-    if (scenario === 'changed-lesson') lesson.status = 'moved';
-    if (scenario === 'short') app.ui.makeupCandidates = [slot(30)];
-    if (scenario === 'split') { app.ui.makeupCandidates = [slot(30), slot(30, { start: 630 })]; indices = [0, 1]; }
-    if (scenario === 'missing-option') indices = [99];
+test('Saving stale or invalid preferences reports an error without changing any records', () => {
+  for (const scenario of ['child-switched', 'arranged', 'invalid-date', 'past-date']) {
+    const app = renderer(), makeup = app.state.makeups[0];
+    app.call('openMakeup', makeup.id);
+    let dates = ['2026-10-02'];
+    if (scenario === 'child-switched') app.ui.familyStudent = 'mia';
+    if (scenario === 'arranged') makeup.used = makeup.minutes;
+    if (scenario === 'invalid-date') dates = ['2026-02-30'];
+    if (scenario === 'past-date') dates = ['2026-09-29'];
     const before = model.clone(app.state);
-    assert.doesNotThrow(() => app.confirm(indices), scenario);
-    assert.ok(app.error.textContent, scenario + ' reports a recoverable error');
+    assert.doesNotThrow(() => app.save(makeup.id, dates, 'Changed'), scenario);
+    assert.ok(app.error.textContent || app.messages.length, scenario + ' reports a recoverable error');
     assert.equal(app.dialog.closed, 0, scenario);
-    assert.deepEqual(app.state, before, scenario + ' keeps bookings and pending requests unchanged');
+    assert.deepEqual(app.state, before, scenario);
   }
 });
 
-test('A duplicate or foreign leave submission cannot launch a new replacement picker', () => {
+test('Duplicate or foreign leave cannot create a second absence or new preferences prompt', () => {
   for (const scenario of ['duplicate', 'foreign']) {
     const app = renderer(), lesson = upcoming(app);
     if (scenario === 'duplicate') model.requestAbsence(app.state, lesson.id, 'Already requested');
@@ -200,98 +246,17 @@ test('A duplicate or foreign leave submission cannot launch a new replacement pi
   }
 });
 
-test('Parent stale split-mode calls are normalized to a single full lesson without split controls', () => {
-  const app = renderer(), before = model.clone(app.state);
-  app.ui.makeupMode = 'split';
-  app.call('openMakeup', 'makeup-chloe', 'split');
-  assert.equal(app.ui.makeupMode, 'single');
-  assert.equal(app.dialog.opened, 1);
-  assert.ok(app.ui.makeupCandidates.length > 0);
-  assert.ok(app.ui.makeupCandidates.every(item => item.duration === 60));
-  assert.match(app.dialog.body, /type="radio" name="makeup-slot"/);
-  assert.doesNotMatch(app.dialog.body, /type="checkbox"|data-mode="split"|data-action="makeup-mode"|30-minute extensions|兩次延長各 30 分鐘/);
-  assert.deepEqual(app.state, before, 'Opening a picker must not book or request a lesson');
-});
-
-for (const duration of [60, 90]) {
-  test(`Parent can request one ${duration}-minute lesson without immediately booking it`, () => {
+test('A synthetic parent confirmation never books time, even with valid stale admin slot data', () => {
+  for (const duration of [30, 60, 90]) {
     const app = renderer();
-    const makeup = app.state.makeups.find(item => item.id === 'makeup-chloe');
-    makeup.minutes = duration;
-    app.state.bookings.find(item => item.id === makeup.sourceId).duration = duration;
+    app.ui.makeupId = 'makeup-chloe';
+    app.ui.makeupMode = 'single';
+    app.ui.makeupCandidates = [{ date: model.TODAY, start: 600, duration, tutor: 'chan' }];
     const before = model.clone(app.state);
-    assert.match(app.call('parentLessons'), /data-action="makeup-book"[^>]*data-id="makeup-chloe"/);
-    app.call('openMakeup', makeup.id);
-    assert.ok(app.ui.makeupCandidates.length > 0);
-    assert.ok(app.ui.makeupCandidates.every(item => item.duration === duration));
-    const selected = plain(app.ui.makeupCandidates[0]);
-    app.confirm();
-    assert.equal(app.error.textContent, '');
-    assert.equal(app.dialog.closed, 1);
-    assert.equal(app.state.leaveRequests.length, before.leaveRequests.length + 1);
-    const request = app.state.leaveRequests.at(-1);
-    assert.equal(request.kind, 'makeup');
-    assert.equal(request.status, 'pending');
-    assert.equal(request.studentId, 'chloe');
-    assert.equal(request.makeupId, makeup.id);
-    assert.deepEqual(plain(request.slots), [selected]);
-    assert.deepEqual(app.state.bookings, before.bookings);
-    assert.deepEqual(app.state.makeups, before.makeups);
-    assert.deepEqual(app.state.audit, before.audit);
-  });
-}
-
-test('a 30-minute remainder directs the Parent to the centre and cannot produce self-service options', () => {
-  const app = renderer();
-  app.state.makeups[0].used = 30;
-  const before = model.clone(app.state), page = app.call('parentLessons');
-  assert.match(page, /剩餘 30 分鐘/);
-  assert.match(page, /聯絡中心/);
-  assert.doesNotMatch(page, /data-action="makeup-book"/);
-  app.call('openMakeup', 'makeup-chloe', 'split');
-  assert.equal(app.ui.makeupMode, 'single');
-  assert.equal(app.ui.makeupCandidates.length, 0);
-  assert.doesNotMatch(app.dialog.body, /name="makeup-slot"|data-mode="split"/);
-  assert.match(app.dialog.footer, /data-action="confirm-makeup"[^>]*disabled/);
-  assert.deepEqual(app.state, before);
-});
-
-test('Parent cannot open a missing or another child’s make-up case', () => {
-  const app = renderer();
-  app.state.makeups.push({ ...app.state.makeups[0], id: 'makeup-other-child', studentId: 'mia' });
-  const before = model.clone(app.state);
-  for (const id of ['missing-makeup', 'makeup-other-child']) {
-    assert.doesNotThrow(() => app.call('openMakeup', id, 'split'));
-  }
-  assert.equal(app.dialog.opened, 0);
-  assert.deepEqual(app.state, before);
-});
-
-test('Parent confirmation rejects short, split, stale or foreign selections without queuing a request', () => {
-  const scenarios = [
-    { name: 'no selection', candidates: [slot(60)], indices: [] },
-    { name: 'one half hour', candidates: [slot(30)], indices: [0] },
-    { name: 'two half hours', candidates: [slot(30), slot(30, { start: 630 })], indices: [0, 1] },
-    { name: 'multiple full lessons', candidates: [slot(60), slot(60, { start: 660 })], indices: [0, 1], minutes: 120 },
-    { name: 'unsupported duration', candidates: [slot(45)], indices: [0] },
-    { name: 'stale option index', candidates: [slot(60)], indices: [99] },
-    { name: 'foreign case', candidates: [slot(60)], indices: [0], studentId: 'mia' },
-    { name: 'missing case', candidates: [slot(60)], indices: [0], missing: true },
-    { name: 'insufficient remainder', candidates: [slot(60)], indices: [0], used: 30 }
-  ];
-  for (const scenario of scenarios) {
-    const app = renderer();
-    Object.assign(app.state.makeups[0], {
-      minutes: scenario.minutes ?? 60, used: scenario.used ?? 0, studentId: scenario.studentId ?? 'chloe'
-    });
-    app.ui.makeupId = scenario.missing ? 'missing-makeup' : 'makeup-chloe';
-    app.ui.makeupCandidates = scenario.candidates;
-    app.ui.makeupMode = 'split';
-    const before = model.clone(app.state);
-    assert.doesNotThrow(() => app.confirm(scenario.indices), scenario.name);
-    assert.ok(app.error.textContent, scenario.name + ' should show a recoverable validation error');
-    assert.equal(app.dialog.closed, 0, scenario.name);
-    assert.deepEqual(app.state, before, scenario.name + ' must not enqueue a request or change attendance/bookings');
+    assert.doesNotThrow(() => app.confirm());
+    assert.ok(app.messages.some(message => /客服/.test(message)));
+    assert.equal(app.dialog.closed, 0);
+    assert.deepEqual(app.state, before);
   }
 });
 

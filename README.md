@@ -62,13 +62,13 @@ The QR contains an opaque demo token, with no student name or contact details. T
 - Tabs for **Koko, Ming, Oscar, Peter, Polly, Shileen, Tiffany and Winky**, with day and week views for **Monday–Sunday, 09:00–19:00**. The centre opens seven days a week; each teacher’s roster still controls their availability.
 - Hang Hau uses **Rico, John, Leo, Amy, Melissa and Jason**. Its names, staffing, class bookings and parent-facing teacher labels all follow the branch configuration.
 - Available classes from **16:00 to 19:00** contain five or six students in the sample week, with a few seats retained for the rescheduling walkthrough. Every seeded student stays with their assigned teacher. Older untouched cross-teacher examples are replaced on reload; saved moves, notes, attendance and linked bookings are preserved.
-- **Admin:** click a student card to update **Student info** below **Parent requests**, including parent contact, lesson details, remark editing, **Move lesson** and **View profile**. Switching cards keeps unsaved lesson remarks in this session.
+- **Admin:** click a student card to update **Student info** below **Pending make-ups**, including parent contact, lesson details, remark editing, **Move lesson** and **View profile**. Switching cards keeps unsaved lesson remarks in this session.
 - **Admin:** right-click a student card (or press **Shift+F10** when focused) to set its cell colour. **Green = New student**; choose **Default** to clear it. Colours are saved per lesson in this browser and follow a dragged/moved booking.
 - One time column at the left, compact student cards and a small green tick for attended lessons. Hover or open a card for exact lesson times and remarks. Longer lessons also appear in the following hour with a continuation arrow.
 - Drag within a teacher's schedule, or choose **Move lesson**, switch teacher tabs and select the destination. Half-hour starts keep their minute offset. Original bookings remain struck through, replacements show their source date, and Undo restores the move.
 - While dragging in **Week** view, hold at the timetable's left or right edge for a moment to see the previous or next week. Keep holding to continue across weeks, then drop into a time slot. Leaving the edge cancels the countdown; changing weeks alone never moves the lesson.
 - Capacity labels are hidden; the six-student overlap check still applies. Adding a lesson supports half-hour start times and 30/60/90-minute durations that end by 19:00.
-- The single-lesson make-up chooser filters by date and teacher, with available half-hour starts across the same opening hours. Parents can request one full 60- or 90-minute lesson. Only staff can arrange 30-minute exceptions and split extensions, which remain linked to the student's existing lessons. Any remaining balance below 60 minutes is arranged by the centre.
+- The staff make-up chooser filters by date and teacher, with available half-hour starts across the same opening hours. Parents only provide optional preferred dates for CS follow-up; they cannot select or reserve a slot. Staff can arrange full lessons, 30-minute exceptions and split extensions, which remain linked to the student's existing lessons.
 - Teachers can view their **My schedule** calendar and leave balance together. Managers retain the teacher tabs and editing controls.
 - The eight teacher names are provided by the user; rosters and bookings are illustrative. AM/PM uses a 14:00 boundary for the demo and requires confirmation with the centre.
 
@@ -83,16 +83,18 @@ The QR contains an opaque demo token, with no student name or contact details. T
 5. **Teacher → Lesson record:** write a summary and share it.
 6. **Parent → Handbook:** see the shared summary and marked work.
 
-### 2. Staff-arranged exception: two half-hour extensions
+### 2. Confirmed parent leave and staff-arranged make-ups
 
-After a parent submits leave under **課堂**, the make-up picker opens automatically. **稍後再安排** keeps the leave request pending without selecting a replacement; **選擇補堂時間** on that lesson reopens the picker. Choosing a full replacement adds the proposed time to the same request. Staff see the proposal under **Parent requests** and approve leave and its replacement together, with availability checked again at approval. No booking or make-up credit is created before approval.
+1. **Parent → 課堂 → 申請請假:** select the existing lesson and optionally give a reason. **確認請假** confirms leave immediately, crosses out the original booking in the admin timetable, and adds it to **Pending make-ups**. No approval is needed for leave and no replacement lesson is created.
+2. A **請假已確認** dialog offers up to three optional preferred dates and a note. **暫時略過** keeps confirmed leave and the pending follow-up. The dialog and **請假及補堂** section clearly state that CS will contact the parent to agree the date and time; suggestions are not bookings. Parents can return to **提供意願日期** / **更改意願日期** later. There is no parent time, teacher or availability picker.
+3. **Admin → Schedule → Pending make-ups:** see the original lesson, leave reason and suggested dates. **Contact parent** opens the relevant local demo chat without sending anything. **Arrange make-up** lets staff select and confirm an actual slot after speaking with the parent. Only this step adds a replacement lesson; capacity and deadline checks still apply.
+4. Once staff book the make-up, the parent's lesson list shows the confirmed replacement and the completed case leaves the pending queue. A fully used case cannot accept new preferences. Existing pending requests migrate to confirmed leave and nonbinding date preferences; previously booked replacement lessons are preserved.
 
-Parents request full lessons in the app. If a parent asks in person and the centre agrees to a split exception:
+Staff can still arrange the exceptional split make-up after discussing it with the parent:
 
-1. **Admin → Schedule → Pending make-ups → Find a time:** select **30-minute extensions** for Chloe.
+1. **Admin → Schedule → Pending make-ups → Arrange make-up:** select **30-minute extensions** for Chloe.
 2. Choose **2 October, 17:00** and **7 October, 17:00**, then **Confirm booking**.
-3. The replacement bookings appear in red and link to the missed 23 September lesson.
-4. **Parent → Lessons:** see the centre-arranged bookings, zero unbooked minutes and **one reschedule used**.
+3. The replacement bookings appear in red and link to the missed 23 September lesson. Parents only see the centre-arranged lessons.
 
 An ordinary move can also be done by dragging a booking, or by opening it and choosing **Move lesson**. Original bookings stay struck through. Capacity is checked across overlapping time intervals. A move after expiry requires a reason and a manager-approved extension. Undo is available after an ordinary move.
 
@@ -134,7 +136,7 @@ Automatic bank matches require an exact amount, strong reference/full-payer iden
 - No real authentication, authorisation, WhatsApp connection, bank integration, messages, payments or external HQ submissions.
 - All role views share browser-local demonstration data. The role switch is a presentation tool, not access control.
 - Sample worksheets illustrate the interaction; they are not MathConcept's actual curriculum. Supplied mascot SVGs are preserved under assets/SVG and copied into dist/brand.
-- Old prototype requests stay inactive during migration; saved confirmed leave remains active.
+- Old staff leave requests stay inactive during migration; saved confirmed staff leave remains active. Parent leave requests migrate to automatically confirmed leave and CS follow-up.
 - Staff rosters are illustrative.
 - Recurring future lessons are seeded examples. This is not a full annual timetable engine.
 - The sample introductory rate is HK$250 and needs client confirmation.
