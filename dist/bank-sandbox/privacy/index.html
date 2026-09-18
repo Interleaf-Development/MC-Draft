@@ -18,7 +18,8 @@
     <p>Use fictional records and bank-provided sandbox accounts only. Do not enter real student or parent details, upload real bank statements, or use production banking credentials.</p>
     <h2>Current storage and connection</h2>
     <p>The MathConcept demo stores its simulated workflow data in the browser's local storage. This data does not synchronise between devices. The demo does not currently retrieve bank transactions.</p>
-    <p>The callback page is a setup placeholder. It discards incoming authorisation parameters and does not store them in browser storage or exchange them for access tokens.</p>
+    <p>The callback page removes authorisation parameters from its address bar and holds them in page memory for up to two minutes. Its copy button places the response on the developer's clipboard for immediate verification by a local test runner. It does not save the response in browser storage or exchange it for access tokens.</p>
+    <p>The local developer test runner holds sandbox certificates, keys, tokens and sample API responses on the developer's computer, outside the demo repository. These files are for sandbox testing and can be removed after evaluation. They are not deployed with the public demo.</p>
     <h2>Hosting</h2>
     <p>The site is hosted on Vercel. Ordinary hosting and security logs may contain request details such as the requested URL, IP address and time. The sandbox pages do not add analytics or advertising scripts.</p>
     <h2>Removing demo data</h2>

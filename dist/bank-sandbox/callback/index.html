@@ -13,10 +13,15 @@
   <main>
     <img class="brand" src="/brand/mathconcept-logo.png" alt="MathConcept">
     <div class="label">mc-sandbox · Developer testing</div>
-    <h1>Callback address ready</h1>
-    <p>This address is reserved for Hang Seng sandbox integration testing. The bank authorisation flow still needs to be implemented.</p>
-    <p>No bank account has been connected through this page. Incoming authorisation parameters are discarded; this page does not exchange codes for tokens or confirm a payment.</p>
-    <p>Continue the project setup in Hang Seng Dev Hub. Use sandbox test accounts only.</p>
+    <h1>Sandbox authorisation handoff</h1>
+    <p>This address supports developer testing with Hang Seng's sandbox accounts. Bank responses must be verified by the local test runner before accessing test transactions.</p>
+    <section id="sandbox-response" hidden>
+      <h2>Unverified response received</h2>
+      <p>Copy this short-lived response to the local sandbox verifier immediately. It stays in this page's memory for up to two minutes and is not saved in browser storage.</p>
+      <button id="copy-response" type="button">Copy sandbox response</button>
+      <p id="copy-status" role="status" aria-live="polite"></p>
+    </section>
+    <p>This page does not exchange codes for tokens, connect the demo to a bank account or confirm payments. Use sandbox test accounts only.</p>
     <footer><a href="/bank-sandbox/privacy/">Sandbox privacy notice</a><a href="/bank-sandbox/terms/">Sandbox terms</a></footer>
   </main>
 </body>
