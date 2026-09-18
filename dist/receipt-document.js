@@ -7,8 +7,21 @@ const scheduleReasons = {
   'Extra lesson declined; final surplus date excluded.': '中心未有批准額外課堂，最後超出的日期不設課堂。',
   'Missing lesson retained as a make-up credit after a permanent regular schedule change.': '更改固定上課時間後，減少的課堂已保留為補堂名額。',
   'Missing lesson accepted without a make-up credit.': '中心確認減少課堂，不另提供補堂名額。',
-  'Permanent regular schedule changed with the same lesson count.': '已更改固定上課時間，課堂總數不變。'
+  'Permanent regular schedule changed with the same lesson count.': '已更改固定上課時間，課堂總數不變。',
+  'Extra lesson allowed after a temporary regular schedule change; no additional charge.': '暫時更改上課時間後，中心同意增加課堂，不另收費。',
+  'Missing lesson retained as a make-up credit after a temporary regular schedule change.': '暫時更改上課時間後，減少的課堂已保留為補堂名額。',
+  'Temporary regular schedule changed with the same lesson count.': '已暫時更改上課時間，課堂總數不變。'
 };
+function familyScheduleReason(revision, role) {
+  if (revision?.reasonZh) return revision.reasonZh;
+  const reason = revision?.reason;
+  const temporary = /^(.*?) Temporary dates: (\d{4}-\d{2}-\d{2}) through (\d{4}-\d{2}-\d{2}) inclusive; previous timetable resumes after the final date\.$/.exec(reason || '');
+  if (temporary && scheduleReasons[temporary[1]]) {
+    const date = value => familyDate(value, role, { year: 'numeric' });
+    return scheduleReasons[temporary[1]] + ' 暫時安排：' + date(temporary[2]) + ' 至 ' + date(temporary[3]) + '（包括最後一天），之後恢復原有上課時間。';
+  }
+  return scheduleReasons[reason] || reason;
+}
 function receiptPeriod(value, role) {
   if (!isFamilyRole(role)) return value;
   const months = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Sept: 9, Oct: 10, Nov: 11, Dec: 12 };
@@ -58,7 +71,7 @@ export function renderReceiptDocument(state, receiptId, { role = 'admin', revisi
   const scheduledSummary = makeUpLessonCount ? `<p class="small muted mt-8">${text('Scheduled regular lessons', '已列出日期的常規課堂')}：${lessonDates.length} ${text(lessonDates.length === 1 ? 'lesson' : 'lessons', '堂')}</p>` : '';
   const excluded = excludedDates.length ? `<p class="receipt-excluded-dates small mt-8"><strong>${text('No class on', '以下日期不設課堂')}：</strong>${excludedDates.map(value => esc(date(value))).join(text(', ', '、'))}</p>` : '';
   const lessons = Number.isFinite(lessonCount) ? `<section class="receipt-lessons mt-16"><h3 class="small">${text('Lesson entitlement', '課堂安排')} · ${lessonCount} ${text(lessonCount === 1 ? 'lesson' : 'lessons', '堂')}</h3>${scheduledSummary}${lessonList}${makeUpLessonCount ? `<p class="small mt-8">${text('Make-up entitlement', '補堂名額')}：${makeUpLessonCount} ${text(makeUpLessonCount === 1 ? 'lesson' : 'lessons', '堂')} · ${text('Contact the centre to arrange.', '請聯絡中心安排。')}</p>` : ''}${excluded}</section>` : '';
-  const reason = family ? revision?.reasonZh || scheduleReasons[revision?.reason] || revision?.reason : revision?.reason;
+  const reason = family ? familyScheduleReason(revision, role) : revision?.reason;
   const amendment = revision ? `<div class="receipt-amendment mt-16"><p class="small strong">${text('Amended', '修訂日期')} ${esc(date(revision.revisedAt))}</p><p class="small muted mt-8">${text('The original receipt date and payment amount are unchanged. This replaces the earlier document for the same payment.', '保留原收據日期及付款金額。此修訂版取代同一筆付款的舊版收據。')}</p>${reason ? `<p class="small mt-8 receipt-amendment-reason">${text('Reason', '原因')}：${esc(reason)}</p>` : ''}</div>` : '';
   const history = revisions.length ? `<details class="receipt-revision-history mt-16"><summary class="small">${text('Receipt versions', '收據版本')}</summary><div class="stack mt-8">${[
     { id: 'original', label: `${receipt.id} · ${text('Original', '原始版本')}`, selected: !revision },

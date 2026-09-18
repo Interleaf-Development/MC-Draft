@@ -80,9 +80,19 @@ const sundayExamples = [firstTutorId, secondTutorId].flatMap(tutor => students.s
 const studentsById = new Map(students.map(student => [student.id, student]));
 export const studentById = id => studentsById.get(id) || students[0];
 
+// Permanent changes historically display the latest saved rule immediately.
+// Temporary rules always resolve by date, and explicit dates resolve the entire
+// history so a later override can safely return to an earlier temporary rule.
+export function resolveRegularScheduleRule(saved, asOf) {
+  const date = asOf ?? (saved?.endDate ? TODAY : null);
+  let rule = saved;
+  while (rule && date && rule.previousRule && (rule.effectiveDate && date < rule.effectiveDate || rule.endDate && date > rule.endDate)) rule = rule.previousRule;
+  return rule;
+}
+
 export function enrolledStudents(state) {
   return students.filter(student => student.id !== 'mia' || state?.assessment?.enrolled).map(student => {
-    const schedule = state?.regularSchedules?.[student.id];
+    const schedule = resolveRegularScheduleRule(state?.regularSchedules?.[student.id]);
     if (schedule) { const day = weekdays[schedule.weekday - 1]; return { ...student, ...(student.id === 'mia' ? { status: 'active', parent: state.assessment.parent || student.parent, phone: state.assessment.phone || student.phone } : {}), tutor: schedule.tutor, day, regular: day + ' · ' + time(schedule.start) }; }
     if (student.id !== 'mia') return student;
     const booking = state.bookings?.find(item => item.studentId === 'mia' && activeBooking(item));

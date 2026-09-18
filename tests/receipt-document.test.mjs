@@ -184,3 +184,26 @@ test('declined extra dates clearly show no class in the selected role language',
   assert.match(staff, /No class on：<\/strong>29 Oct 2026/);
   assert.match(staff, /Extra lesson declined; final surplus date excluded\./);
 });
+
+test('temporary receipt reasons explain the inclusive dates and restoration in both family roles', () => {
+  const state = amendedFixture();
+  const reasons = [
+    'Extra lesson allowed after a temporary regular schedule change; no additional charge.',
+    'Extra lesson declined; final surplus date excluded.',
+    'Missing lesson retained as a make-up credit after a temporary regular schedule change.',
+    'Missing lesson accepted without a make-up credit.',
+    'Temporary regular schedule changed with the same lesson count.'
+  ];
+  for (const base of reasons) {
+    const reason = base + ' Temporary dates: 2026-10-01 through 2026-10-21 inclusive; previous timetable resumes after the final date.';
+    state.receipts[0].revisions[0].reason = reason;
+    for (const role of ['parent', 'student']) {
+      const html = renderReceiptDocument(state, 'R-101', { role });
+      assert.match(html, /暫時安排：/);
+      assert.match(html, /包括最後一天/);
+      assert.match(html, /之後恢復原有上課時間/);
+      assert.doesNotMatch(html, /Temporary dates|regular schedule change|Missing lesson|Extra lesson/);
+    }
+    assert.ok(renderReceiptDocument(state, 'R-101').includes(reason));
+  }
+});

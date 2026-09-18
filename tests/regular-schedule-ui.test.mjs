@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as model from '../dist/model.js';
 import { createRegularScheduleUI } from '../dist/regular-schedule-ui.js';
+import { getRegularSchedule } from '../dist/regular-schedule.js';
 
 // The production controller talks to a small form surface. No booking logic is
 // reimplemented here: integration cases below exercise the real schedule model.
@@ -20,7 +21,7 @@ function harness(initialState = model.seed(), factory = createRegularScheduleUI)
     nodes.set('#form-error', { textContent: '', classList: { add() {} } });
     for (const [, attributes] of html.matchAll(/<input\b([^>]*)>/g)) {
       const id = attributes.match(/\bid="([^"]+)"/)?.[1];
-      if (id) nodes.set('#' + id, { id, value: decode(attributes.match(/\bvalue="([^"]*)"/)?.[1] || '') });
+      if (id) nodes.set('#' + id, { id, value: decode(attributes.match(/\bvalue="([^"]*)"/)?.[1] || ''), checked: /\bchecked\b/.test(attributes) });
     }
     for (const [, id, body] of html.matchAll(/<select\b[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/select>/g)) {
       const options = [...body.matchAll(/<option\b([^>]*)>/g)];
@@ -41,6 +42,7 @@ function harness(initialState = model.seed(), factory = createRegularScheduleUI)
   });
   return { ui, viewer, calls, root, get state() { return state; }, get modal() { return calls.modals.at(-1); },
     set(values) { for (const [key, value] of Object.entries(values)) { const node = nodes.get('#regular-' + key); assert.ok(node, key + ' form control'); node.value = String(value); } },
+    toggleEnd(checked) { const target = nodes.get('#regular-has-end'); target.checked = checked; ui.onChange({ target }); },
     choose(value) { decision = value; ui.onChange({ target: { name: 'regular-decision', value } }); }
   };
 }
@@ -185,4 +187,82 @@ test('declining a shortfall credit records only seven scheduled lessons at the s
   assert.equal(receipt.revisions.at(-1).lessonCount, 7);
   assert.equal(receipt.revisions.at(-1).makeUpLessonCount, 0);
   assert.equal(app.state.makeups.length, creditCount);
+});
+
+test('three-week change reveals its final date, preserves it on Back, and restores the usual timetable', () => {
+  const app = harness();
+  app.ui.open('oliver');
+  assert.equal(app.root.querySelector('#regular-period'), null);
+  assert.equal(app.root.querySelector('#regular-end'), null);
+  app.set({ effective: '2026-10-01', weekday: 4, start: 840 });
+  app.toggleEnd(true);
+  assert.equal(app.root.querySelector('#regular-end').value, '2026-10-21');
+  app.ui.handleAction('regular-review');
+  assert.equal(app.modal.title, 'Review regular schedule change');
+  assert.match(app.modal.body, /From 1 Oct 2026 through 21 Oct 2026 \(inclusive\)/);
+  assert.match(app.modal.body, /Usual schedule resumes 28 Oct 2026/);
+  app.ui.handleAction('regular-back');
+  assert.equal(app.root.querySelector('#regular-has-end').checked, true);
+  assert.equal(app.root.querySelector('#regular-end').value, '2026-10-21');
+  assert.equal(app.root.querySelector('#regular-weekday').value, '4');
+  app.ui.handleAction('regular-review');
+  app.ui.handleAction('regular-apply');
+  assert.equal(app.calls.changed, 1, app.calls.errors.join(', '));
+  assert.equal(getRegularSchedule(app.state, 'oliver', '2026-10-08').weekday, 4);
+  assert.equal(getRegularSchedule(app.state, 'oliver', '2026-10-22').weekday, 3);
+  const dates = app.state.invoices.find(item => item.id === 'INV-1028').lessonPlan.lessonDates.map(item => item.date);
+  assert.ok(dates.includes('2026-10-08'));
+  assert.ok(dates.includes('2026-10-28'));
+  assert.ok(!dates.includes('2026-10-22'));
+});
+
+test('unchecking Final date removes its limit and applies a permanent change', () => {
+  const app = harness();
+  app.ui.open('oliver');
+  app.set({ effective: '2026-10-01', weekday: 4, start: 840 });
+  app.toggleEnd(true);
+  app.set({ end: '2026-10-21' });
+  app.toggleEnd(false);
+  assert.equal(app.root.querySelector('#regular-end'), null);
+  app.ui.handleAction('regular-review');
+  assert.doesNotMatch(app.modal.body, /Usual schedule resumes/);
+  app.choose('allow');
+  app.ui.handleAction('regular-apply');
+  assert.equal(app.calls.changed, 1, app.calls.errors.join(', '));
+  assert.equal(app.state.regularSchedules.oliver.endDate, undefined);
+  assert.equal(getRegularSchedule(app.state, 'oliver', '2026-12-10').weekday, 4);
+});
+
+test('the effective date chooses the paid period without a receipt selector', () => {
+  const state = model.seed();
+  state.invoices.push({ id: 'INV-next', receiptId: 'R-next', studentId: 'oliver', period: 'Dec–Jan 2026/2027', periodStart: '2026-12-01', periodEnd: '2027-01-31', lessonCount: 8, amount: 2000, description: 'Regular programme · 8 lessons' });
+  state.receipts.push({ id: 'R-next', invoiceId: 'INV-next', studentId: 'oliver', issuedDate: '2026-09-30', amount: 2000 });
+  const app = harness(state);
+  app.ui.open('oliver');
+  app.set({ effective: '2026-12-01', weekday: 4, start: 840 });
+  app.toggleEnd(true);
+  app.ui.handleAction('regular-review');
+  assert.equal(app.modal.title, 'Review regular schedule change');
+  app.ui.handleAction('regular-apply');
+  assert.equal(app.calls.changed, 1, app.calls.errors.join(', '));
+  assert.deepEqual(app.calls.receipts, ['R-next']);
+  assert.equal(state.receipts.find(item => item.id === 'R-1028').revisions, undefined);
+});
+
+test('a checked final date must be present and valid before preview or mutation', () => {
+  const app = harness(), before = structuredClone(app.state);
+  app.ui.open('oliver');
+  app.set({ effective: '2026-10-01', weekday: 4, start: 840 });
+  app.toggleEnd(true);
+  app.set({ end: '' });
+  app.ui.handleAction('regular-review');
+  assert.match(app.root.querySelector('#form-error').textContent, /Choose a final date/);
+  app.set({ end: '2026-09-30' });
+  app.ui.handleAction('regular-review');
+  assert.match(app.root.querySelector('#form-error').textContent, /final date on or after/);
+  app.set({ effective: '2027-02-01', end: '2027-02-21' });
+  app.ui.handleAction('regular-review');
+  assert.match(app.root.querySelector('#form-error').textContent, /start date within a paid tuition period/);
+  assert.equal(app.modal.title, 'Change regular schedule');
+  assert.deepEqual(app.state, before);
 });
