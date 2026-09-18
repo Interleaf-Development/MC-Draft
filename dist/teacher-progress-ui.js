@@ -1,5 +1,7 @@
 import { p6Topics, p6Worksheets, p6SupplementGroups } from './p6-curriculum.js';
-import { getP6Students, worksheetProgress, assignP6Worksheets } from './teacher-progress.js';
+import { p3Topics, p3Worksheets, p3SupplementGroups } from './p3-curriculum.js';
+import { TODAY, worksheets, time, dateLabel } from './model.js';
+import { getTeacherClasses, worksheetProgress, assignTeacherWorksheets } from './teacher-progress.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
 const statuses = {
@@ -10,7 +12,8 @@ const statuses = {
   completed: ['Completed', 'completed']
 };
 const termLabels = { first: 'First term', second: 'Second term', extended: 'Extended part' };
-const worksheetMap = new Map(p6Worksheets.map(worksheet => [worksheet.id, worksheet]));
+const worksheetMap = new Map(worksheets.map(worksheet => [worksheet.id, worksheet]));
+const grades = ['K3', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'S1', 'S2'];
 const action = (name, label, attributes = '', className = '') => '<button type="button" class="'+esc(className)+'" data-action="teacher-progress-'+name+'" '+attributes+'>'+label+'</button>';
 // Keep the compact wording familiar from the printed curriculum index.
 const compactTopics = {
@@ -27,31 +30,62 @@ const searchIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 
 export function createTeacherProgressUI({ getState, getTutorId, change, render, onStudentChange, openAssignment, openFolder, openStudentView }) {
   let selectedStudent = null;
+  let selectedClass = null;
+  let worksheetGrade = null;
   let selected = new Set();
-  let studentSearch = '';
   let worksheetSearch = '';
   let homework = false;
 
-  function students() { return getP6Students(getState(), getTutorId()); }
+  function classes() { return getTeacherClasses(getState(), getTutorId()); }
+
+  function classNearDate(list, date) {
+    return list.find(session => session.date >= date) || list.at(-1);
+  }
+
+  function currentClass() {
+    const list = classes();
+    if (!list.some(session => session.id === selectedClass)) selectedClass = classNearDate(list, TODAY)?.id || null;
+    return list.find(session => session.id === selectedClass);
+  }
+
+  function useStudent(student) {
+    selectedStudent = student?.id || null;
+    worksheetGrade = student?.level || null;
+    selected.clear();
+    worksheetSearch = '';
+    if (student) onStudentChange?.(student.id);
+  }
 
   function currentStudent() {
-    const list = students();
-    if (!list.some(student => student.id === selectedStudent)) {
-      selectedStudent = list[0]?.id || null;
-      selected.clear();
-      if (selectedStudent) onStudentChange?.(selectedStudent);
-    }
+    const list = currentClass()?.students || [];
+    if (!list.some(student => student.id === selectedStudent)) useStudent(list[0]);
     return list.find(student => student.id === selectedStudent);
   }
 
   function selectStudent(id) {
-    if (!students().some(student => student.id === id)) return false;
-    if (selectedStudent !== id) {
-      selectedStudent = id;
-      selected.clear();
-      onStudentChange?.(id);
+    let session = currentClass();
+    if (!session?.students.some(student => student.id === id)) {
+      session = classNearDate(classes().filter(item => item.students.some(student => student.id === id)), TODAY);
     }
+    const student = session?.students.find(student => student.id === id);
+    if (!student) return false;
+    selectedClass = session.id;
+    if (selectedStudent !== id) useStudent(student);
     return true;
+  }
+
+  function selectClass(id) {
+    const session = classes().find(item => item.id === id);
+    if (!session) return false;
+    selectedClass = id;
+    useStudent(session.students.find(student => student.id === selectedStudent) || session.students[0]);
+    return true;
+  }
+
+  function curriculum() {
+    if (worksheetGrade === 'P6') return { topics: p6Topics, worksheets: p6Worksheets, groups: p6SupplementGroups };
+    if (worksheetGrade === 'P3') return { topics: p3Topics, worksheets: p3Worksheets, groups: p3SupplementGroups };
+    return { topics: [], worksheets: worksheets.filter(sheet => sheet.level === worksheetGrade), groups: [] };
   }
 
   // The application replaces the workbench on render. Preserve its independently
@@ -59,7 +93,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   function preserveView(callback, options = {}) {
     if (typeof document === 'undefined') return callback();
     const root = document.querySelector('.teacher-progress');
-    const positions = ['.teacher-progress-students-list', '.teacher-progress-chart-scroll'].map(selector => {
+    const positions = ['.teacher-progress-classes-list', '.teacher-progress-students-list', '.teacher-progress-chart-scroll'].map(selector => {
       const element = root?.querySelector(selector);
       return { selector, top: element?.scrollTop || 0, left: element?.scrollLeft || 0 };
     });
@@ -68,6 +102,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
     const focusAction = active?.dataset?.action;
     const focusWorksheet = active?.dataset?.worksheet;
     const focusStudent = active?.dataset?.student;
+    const focusClass = active?.dataset?.class;
     const selection = typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
     const result = callback();
     const nextRoot = document.querySelector('.teacher-progress');
@@ -80,12 +115,22 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
       }
     });
     let target = focusId ? document.getElementById(focusId) : null;
-    if (!target && focusAction) target = [...nextRoot.querySelectorAll('[data-action]')].find(element => element.dataset.action === focusAction && (!focusWorksheet || element.dataset.worksheet === focusWorksheet) && (!focusStudent || element.dataset.student === focusStudent));
+    if (!target && focusAction) target = [...nextRoot.querySelectorAll('[data-action]')].find(element => element.dataset.action === focusAction && (!focusWorksheet || element.dataset.worksheet === focusWorksheet) && (!focusStudent || element.dataset.student === focusStudent) && (!focusClass || element.dataset.class === focusClass));
     if (target) {
       target.focus({ preventScroll: true });
       if (selection && target.setSelectionRange) target.setSelectionRange(...selection);
     }
     return result;
+  }
+
+  function revealClass() {
+    if (typeof document === 'undefined') return;
+    const list = document.querySelector('.teacher-progress-classes-list');
+    const active = list?.querySelector('.teacher-progress-class.is-active');
+    if (!active) return;
+    const listBounds = list.getBoundingClientRect(), activeBounds = active.getBoundingClientRect();
+    // Only move the class strip; selecting a worksheet must not scroll the page.
+    list.scrollLeft += activeBounds.left - listBounds.left - (list.clientWidth - activeBounds.width) / 2;
   }
 
   function statusFor(worksheetId) {
@@ -103,7 +148,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   }
 
   function topicWorksheets(topic, family) {
-    return p6Worksheets.filter(worksheet => String(worksheet.topicId ?? worksheet.topicCode) === String(topic.id) && worksheet.family === family);
+    return curriculum().worksheets.filter(worksheet => String(worksheet.topicId ?? worksheet.topicCode) === String(topic.id) && worksheet.family === family);
   }
 
   function matches(worksheet) {
@@ -113,7 +158,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   }
 
   function groupSections(family, term) {
-    return (p6SupplementGroups.find(group => group.id === family)?.sections || []).filter(section => !term || section.term === term);
+    return (curriculum().groups.find(group => group.id === family)?.sections || []).filter(section => !term || section.term === term);
   }
 
   function sectionButtons(section) {
@@ -125,18 +170,26 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   }
 
   function combinedChart() {
-    const header = '<table class="teacher-progress-table"><colgroup>'+['topic','math','excel','revision','ce','ps'].map(column => '<col class="teacher-progress-'+column+'-col">').join('')+'</colgroup><thead><tr>'+['Topic','Math 1–6','EXCEL','Revision','CE Rev','PS'].map(label => '<th scope="col">'+label+'</th>').join('')+'</tr></thead><tbody>';
+    const data = curriculum();
+    if (!data.topics.length) {
+      if (!data.worksheets.length) return '<div class="teacher-progress-empty">No '+esc(worksheetGrade)+' worksheets in this demo. Choose another grade to browse.</div>';
+      return '<table class="teacher-progress-table teacher-progress-samples"><thead><tr><th scope="col">Topic</th><th scope="col">Sample worksheets</th></tr></thead><tbody>'+data.worksheets.map(sheet => '<tr><th scope="row">'+esc(sheet.title)+'</th><td>'+worksheetButton(sheet)+'</td></tr>').join('')+'</tbody></table>';
+    }
+    const columns = [['topic','Topic'],['math','Math 1–6'],['excel','EXCEL'],['revision','Revision'], ...(data.groups.some(group => group.id === 'ce') ? [['ce','CE Rev']] : []), ['ps','PS']];
+    const banks = columns.filter(([id]) => ['ce','ps'].includes(id));
+    const header = '<table class="teacher-progress-table teacher-progress-grade-'+esc(worksheetGrade)+'"><colgroup>'+columns.map(([id]) => '<col class="teacher-progress-'+id+'-col">').join('')+'</colgroup><thead><tr>'+columns.map(([, label]) => '<th scope="col">'+label+'</th>').join('')+'</tr></thead><tbody>';
     const terms = Object.entries(termLabels).map(([term, label]) => {
-      const topics = p6Topics.filter(topic => topic.term === term);
+      const topics = data.topics.filter(topic => topic.term === term);
+      if (!topics.length) return '';
       const revisions = groupSections('revision', term);
-      return '<tr class="teacher-progress-term"><th colspan="6" scope="colgroup">'+label+'</th></tr>'+topics.map((topic, index) => {
+      return '<tr class="teacher-progress-term"><th colspan="'+columns.length+'" scope="colgroup">'+label+'</th></tr>'+topics.map((topic, index) => {
         const revision = revisions.find(section => section.topicCodes[0] === topic.code);
         const covered = revisions.some(section => section.topicCodes.includes(topic.code));
         const revisionCell = revision ? '<td rowspan="'+revision.topicCodes.length+'" class="teacher-progress-revision-cell"><div class="teacher-progress-revision-group"><strong>'+esc(revision.label)+'</strong><div class="teacher-progress-boxes">'+sectionButtons(revision)+'</div></div></td>' : covered ? '' : '<td class="teacher-progress-empty-cell"></td>';
-        return '<tr><th scope="row" title="'+esc(topic.title)+'"><span class="teacher-progress-topic-code">'+esc(topic.code)+'</span><span class="teacher-progress-topic-name">'+esc(compactTopics[topic.code] || topic.title)+'</span></th><td><div class="teacher-progress-boxes">'+topicWorksheets(topic, 'math').map(worksheetButton).join('')+'</div></td><td><div class="teacher-progress-boxes">'+topicWorksheets(topic, 'excel').map(worksheetButton).join('')+'</div></td>'+revisionCell+(index === 0 ? '<td rowspan="'+topics.length+'" class="teacher-progress-term-bank teacher-progress-ce-bank">'+termCollection('ce', term)+'</td><td rowspan="'+topics.length+'" class="teacher-progress-term-bank teacher-progress-ps-bank">'+termCollection('ps', term)+'</td>' : '')+'</tr>';
+        return '<tr><th scope="row" title="'+esc(topic.title)+'"><span class="teacher-progress-topic-code">'+esc(topic.code)+'</span><span class="teacher-progress-topic-name">'+esc(compactTopics[topic.code] || topic.title)+'</span></th><td><div class="teacher-progress-boxes">'+topicWorksheets(topic, 'math').map(worksheetButton).join('')+'</div></td><td><div class="teacher-progress-boxes">'+topicWorksheets(topic, 'excel').map(worksheetButton).join('')+'</div></td>'+revisionCell+(index === 0 ? banks.map(([id]) => '<td rowspan="'+topics.length+'" class="teacher-progress-term-bank teacher-progress-'+id+'-bank">'+termCollection(id, term)+'</td>').join('') : '')+'</tr>';
       }).join('');
     }).join('');
-    const sspa = groupSections('sspa').map(section => '<tr class="teacher-progress-sspa-row"><th scope="row">'+esc(section.label)+'</th><td colspan="5"><div class="teacher-progress-boxes">'+sectionButtons(section)+'</div></td></tr>').join('');
+    const sspa = groupSections('sspa').map(section => '<tr class="teacher-progress-sspa-row"><th scope="row">'+esc(section.label)+'</th><td colspan="'+(columns.length-1)+'"><div class="teacher-progress-boxes">'+sectionButtons(section)+'</div></td></tr>').join('');
     return header+terms+sspa+'</tbody></table>';
   }
 
@@ -146,13 +199,23 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
     return '<div class="teacher-progress-footer"><div class="teacher-progress-selection" aria-live="polite"><strong>'+chosen.length+' selected</strong><span title="'+esc(codes)+'">'+(chosen.length ? esc(codes) : 'Select worksheet boxes to send')+'</span></div><div class="teacher-progress-send-actions">'+(chosen.length ? action('clear', 'Clear', '', 'btn ghost small') : '')+'<select id="teacher-progress-purpose" aria-label="Send as"><option value="classwork"'+(!homework ? ' selected' : '')+'>Classwork</option><option value="homework"'+(homework ? ' selected' : '')+'>Homework</option></select>'+action('send', 'Send to student', 'aria-label="Send '+chosen.length+' worksheet'+(chosen.length === 1 ? '' : 's')+' to '+esc(student.name)+'"'+(!chosen.length ? ' disabled' : ''), 'btn primary')+'</div></div>';
   }
 
+  function classNavigation() {
+    const list = classes(), session = currentClass();
+    const index = list.findIndex(item => item.id === session?.id);
+    const arrow = direction => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="'+(direction === 'previous' ? 'm14 6-6 6 6 6' : 'm10 6 6 6-6 6')+'"/></svg>';
+    return '<section class="teacher-progress-classes" aria-label="Classes and students"><div class="teacher-progress-class-navigation">'+action('previous-class', arrow('previous'), 'aria-label="Previous class"'+(index <= 0 ? ' disabled' : ''), 'teacher-progress-class-arrow')+'<div class="teacher-progress-classes-list" role="group" aria-label="Past and upcoming classes">'+list.map(item => {
+      const date = dateLabel(item.date,{weekday:'short'}), hours = time(item.start)+'–'+time(item.end);
+      return action('class', '<span>'+esc(date)+(item.date === TODAY ? ' · Today' : '')+'</span><strong>'+hours+'</strong>', 'data-class="'+esc(item.id)+'" aria-pressed="'+(selectedClass === item.id)+'" aria-label="'+esc(date+' · '+hours)+'"', 'teacher-progress-class'+(selectedClass === item.id ? ' is-active' : ''));
+    }).join('')+'</div>'+action('next-class', arrow('next'), 'aria-label="Next class"'+(index < 0 || index === list.length-1 ? ' disabled' : ''), 'teacher-progress-class-arrow')+'<div class="teacher-progress-date-actions">'+action('today', 'Today', '', 'btn small')+'<input id="teacher-progress-class-date" type="date" aria-label="Find classes by date" value="'+(session?.date || TODAY)+'"></div></div><div class="teacher-progress-students-list" role="group" aria-label="Students in selected class">'+(session ? session.students.map(student => action('student', '<span>'+esc(student.name)+'</span><small>'+esc(student.level)+'</small>', 'data-student="'+esc(student.id)+'" aria-pressed="'+(selectedStudent === student.id)+'"', 'teacher-progress-student'+(selectedStudent === student.id ? ' is-active' : ''))).join('') : '<p class="teacher-progress-empty">No classes scheduled for this teacher.</p>')+'</div></section>';
+  }
+
   function renderUI() {
     const student = currentStudent();
-    const allStudents = students();
-    const query = studentSearch.trim().toLowerCase();
-    const visibleStudents = allStudents.filter(item => !query || [item.name, item.number, item.chineseName].filter(Boolean).join(' ').toLowerCase().includes(query));
-    const matchesCount = worksheetSearch.trim() ? p6Worksheets.filter(matches).length : null;
-    return '<div class="teacher-progress"><aside class="teacher-progress-students" aria-label="P6 students"><div class="teacher-progress-students-head"><strong>P6 students</strong><span>'+allStudents.length+'</span></div><label class="teacher-progress-search teacher-progress-student-search">'+searchIcon+'<input id="teacher-progress-student-search" type="search" placeholder="Find student" aria-label="Find P6 student" value="'+esc(studentSearch)+'"></label><div class="teacher-progress-students-list">'+(visibleStudents.length ? visibleStudents.map(item => action('student', '<span>'+esc(item.name)+'</span><small>'+esc(item.number)+'</small>', 'data-student="'+esc(item.id)+'" aria-pressed="'+(selectedStudent === item.id)+'"', 'teacher-progress-student'+(selectedStudent === item.id ? ' is-active' : ''))).join('') : '<p class="teacher-progress-empty">No students found.</p>')+'</div></aside><section class="teacher-progress-workbench" aria-label="P6 worksheet progress">'+(student ? '<header class="teacher-progress-header"><div class="teacher-progress-identity"><h2>'+esc(student.name)+'</h2><span>P6</span></div><div class="teacher-progress-header-actions">'+action('folder', 'Learning folder', '', 'btn small')+action('student-view', 'View student app', '', 'btn small')+'</div><div class="teacher-progress-search-area"><label class="teacher-progress-search teacher-progress-worksheet-search">'+searchIcon+'<input id="teacher-progress-worksheet-search" type="search" placeholder="Topic or code" aria-label="Find worksheet by topic or code" value="'+esc(worksheetSearch)+'"></label>'+(matchesCount === null ? '' : '<span class="teacher-progress-search-result" aria-live="polite">'+(matchesCount ? matchesCount+' matches' : 'No worksheets found')+'</span>')+'</div></header><div class="teacher-progress-chart-scroll" tabindex="0" aria-label="Worksheet chart">'+combinedChart()+'</div><div class="teacher-progress-legend" aria-label="Worksheet status legend">'+[['available','Not sent'],['sent','Sent'],['working','In progress'],['submitted','To mark'],['corrections','Corrections'],['completed','Completed']].map(([status, label]) => '<span><i class="is-'+status+'" aria-hidden="true"></i>'+label+'</span>').join('')+'</div>'+footer(student) : '<div class="teacher-progress-empty">No active P6 students for this teacher.</div>')+'</section></div>';
+    const matchesCount = worksheetSearch.trim() ? curriculum().worksheets.filter(matches).length : null;
+    const gradePicker = '<label class="teacher-progress-grade-label">Worksheets<select id="teacher-progress-grade" aria-label="Worksheet grade">'+grades.map(grade => '<option value="'+grade+'"'+(grade === worksheetGrade ? ' selected' : '')+'>'+grade+'</option>').join('')+'</select></label>';
+    const header = student ? '<header class="teacher-progress-header"><div class="teacher-progress-identity"><h2>'+esc(student.name)+'</h2><span>'+esc(student.level)+'</span></div>'+gradePicker+'<div class="teacher-progress-header-actions">'+action('folder', 'Learning folder', '', 'btn small')+action('student-view', 'View student app', '', 'btn small')+'</div><div class="teacher-progress-search-area"><label class="teacher-progress-search teacher-progress-worksheet-search">'+searchIcon+'<input id="teacher-progress-worksheet-search" type="search" placeholder="Topic or code" aria-label="Find worksheet by topic or code" value="'+esc(worksheetSearch)+'"></label>'+(matchesCount === null ? '' : '<span class="teacher-progress-search-result" aria-live="polite">'+(matchesCount ? matchesCount+' matches' : 'No worksheets found')+'</span>')+'</div></header>' : '';
+    const legend = '<div class="teacher-progress-legend" aria-label="Worksheet status legend">'+[['available','Not sent'],['sent','Sent'],['working','In progress'],['submitted','To mark'],['corrections','Corrections'],['completed','Completed']].map(([status, label]) => '<span><i class="is-'+status+'" aria-hidden="true"></i>'+label+'</span>').join('')+'</div>';
+    return '<div class="teacher-progress">'+classNavigation()+'<section class="teacher-progress-workbench" aria-label="Worksheet progress">'+(student ? header+'<div class="teacher-progress-chart-scroll" tabindex="0" aria-label="Worksheet chart">'+combinedChart()+'</div>'+legend+footer(student) : '<div class="teacher-progress-empty">Choose a class to open student progress.</div>')+'</section></div>';
   }
 
   function onClick(button) {
@@ -162,9 +225,13 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
       selectStudent(button.dataset.student);
       preserveView(render, { resetChart: true });
 
+    } else if (['teacher-progress-class', 'teacher-progress-previous-class', 'teacher-progress-next-class', 'teacher-progress-today'].includes(name)) {
+      const list = classes(), index = list.findIndex(session => session.id === currentClass()?.id);
+      const target = name === 'teacher-progress-class' ? button.dataset.class : name === 'teacher-progress-today' ? classNearDate(list, TODAY)?.id : list[index + (name === 'teacher-progress-previous-class' ? -1 : 1)]?.id;
+      if (selectClass(target)) { preserveView(render, { resetChart: true }); revealClass(); }
     } else if (name === 'teacher-progress-worksheet') {
       const id = button.dataset.worksheet;
-      if (!worksheetMap.has(id)) return true;
+      if (!currentStudent() || !curriculum().worksheets.some(sheet => sheet.id === id)) return true;
       const assignment = statusFor(id);
       if (assignment) openAssignment?.(assignment.id);
       else {
@@ -180,7 +247,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
       if (!student || !selected.size) return true;
       const chosen = [...selected];
       preserveView(() => change(() => {
-        assignP6Worksheets(getState(), { studentId: student.id, worksheetIds: chosen, homework, tutorId: getTutorId() });
+        assignTeacherWorksheets(getState(), { studentId: student.id, worksheetIds: chosen, homework, tutorId: getTutorId() });
         selected.clear();
       }, 'Worksheets sent to '+student.name+'.'));
     } else if (name === 'teacher-progress-folder') {
@@ -192,8 +259,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   }
 
   function onInput(event) {
-    if (event.target.id === 'teacher-progress-student-search') studentSearch = event.target.value;
-    else if (event.target.id === 'teacher-progress-worksheet-search') worksheetSearch = event.target.value;
+    if (event.target.id === 'teacher-progress-worksheet-search') worksheetSearch = event.target.value;
     else return false;
     preserveView(render, { resetChart: event.target.id === 'teacher-progress-worksheet-search' });
     if (event.target.id === 'teacher-progress-worksheet-search' && worksheetSearch.trim() && typeof document !== 'undefined') {
@@ -203,13 +269,22 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   }
 
   function onChange(event) {
-    if (event.target.id !== 'teacher-progress-purpose') return false;
-    homework = event.target.value === 'homework';
+    if (event.target.id === 'teacher-progress-purpose') homework = event.target.value === 'homework';
+    else if (event.target.id === 'teacher-progress-grade') {
+      if (!grades.includes(event.target.value)) return true;
+      worksheetGrade = event.target.value;
+      selected.clear();
+      worksheetSearch = '';
+      preserveView(render, { resetChart: true });
+    } else if (event.target.id === 'teacher-progress-class-date') {
+      if (!event.target.value) return true;
+      if (selectClass(classNearDate(classes(), event.target.value)?.id)) { preserveView(render, { resetChart: true }); revealClass(); }
+    } else return false;
     return true;
   }
 
-  return { render: renderUI, onClick, onInput, onChange, selectStudent,
+  return { render: renderUI, afterRender: revealClass, onClick, onInput, onChange, selectStudent,
     get selectedStudentId() { return currentStudent()?.id || null; },
-    reset() { selectedStudent = null; selected.clear(); studentSearch = ''; worksheetSearch = ''; homework = false; }
+    reset() { selectedStudent = null; selectedClass = null; worksheetGrade = null; selected.clear(); worksheetSearch = ''; homework = false; }
   };
 }

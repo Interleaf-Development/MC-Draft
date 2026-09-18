@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import * as model from '../dist/model.js';
-import { getP6Students, worksheetProgress, assignP6Worksheets, normalizeP6Progress } from '../dist/teacher-progress.js';
+import { getP6Students, getTeacherClasses, worksheetProgress, assignP6Worksheets, normalizeP6Progress } from '../dist/teacher-progress.js';
 import { createTeacherProgressUI } from '../dist/teacher-progress-ui.js';
 
 const selection = ['p6-math-603-P', 'p6-excel-601-A', 'p6-revision-6A01-A1'];
@@ -144,8 +144,11 @@ test('Hang Hau uses the same progress and assignment workflow with its own direc
   assert.equal(execFileSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8' }), 'ok');
 });
 
-function chartHarness() {
+function chartHarness({ p6 = false, prepare } = {}) {
   const state = model.seed();
+  model.seedTeacherSchedules(state);
+  model.seedBusyAfternoons(state);
+  prepare?.(state);
   normalizeP6Progress(state);
   const calls = { changes: 0, students: [], assignments: [], folders: [], studentViews: [] };
   let html = '', ui;
@@ -159,13 +162,18 @@ function chartHarness() {
     openStudentView(id) { calls.studentViews.push(id); }
   });
   render();
-  return { state, ui, calls, get html() { return html; },
+  if (p6) {
+    assert.equal(ui.selectStudent(getP6Students(state)[0].id), true);
+    render();
+  }
+  return { state, ui, calls, render, get html() { return html; },
+    change(id, value) { return ui.onChange({ target: { id, value } }); },
     click(action, data = {}) { return ui.onClick({ dataset: { action: 'teacher-progress-' + action, ...data } }); }
   };
 }
 
 test('the chart clears picked sheets on student change and sends only the new selection once', () => {
-  const app = chartHarness(), [first, second] = getP6Students(app.state);
+  const app = chartHarness({ p6: true }), [first, second] = getP6Students(app.state);
   assert.equal(app.ui.selectedStudentId, first.id);
   const before = structuredClone(app.state.assignments);
   app.click('worksheet', { worksheet: selection[0] });
@@ -194,7 +202,7 @@ test('the chart clears picked sheets on student change and sends only the new se
 });
 
 test('clicking a completed chart cell opens its saved work instead of selecting or resending it', () => {
-  const app = chartHarness(), studentId = app.ui.selectedStudentId;
+  const app = chartHarness({ p6: true }), studentId = app.ui.selectedStudentId;
   const completed = app.state.assignments.find(item => item.studentId === studentId && item.status === 'completed');
   assert.ok(completed);
   const before = structuredClone(app.state);
@@ -208,7 +216,7 @@ test('clicking a completed chart cell opens its saved work instead of selecting 
 
 
 test('the combined chart keeps every worksheet available exactly once, including extended CE and SSPA', () => {
-  const app = chartHarness();
+  const app = chartHarness({ p6: true });
   const ids = [...app.html.matchAll(/data-worksheet="([^"]+)"/g)].map(match => match[1]);
   const expected = model.worksheets.filter(sheet => sheet.level === 'P6').map(sheet => sheet.id);
   assert.equal(ids.length, expected.length);
@@ -217,4 +225,137 @@ test('the combined chart keeps every worksheet available exactly once, including
   app.ui.onInput({ target: { id: 'teacher-progress-worksheet-search', value: '6B01' } });
   assert.match(app.html, /4 matches/);
   assert.equal([...app.html.matchAll(/data-worksheet="([^"]+)"/g)].length, expected.length, 'Searching highlights matches while preserving the chart and merged topic groups');
+});
+
+function classHarness() {
+  return chartHarness({ prepare(state) {
+    const booking = (studentId, date, start) => ({ id: model.uid('lesson'), studentId, date, start, duration: 60, tutor: model.centre.managerId, status: 'scheduled' });
+    state.bookings = [
+      booking('emma', '2026-09-23', 960),
+      booking('chloe', model.TODAY, 960),
+      booking('ethan', model.TODAY, 960),
+      booking('chloe', model.TODAY, 1020),
+      booking('lucas', '2026-10-07', 960)
+    ];
+  } });
+}
+
+function displayedPupils(app) {
+  return [...app.html.matchAll(/data-student="([^"]+)"/g)].map(match => match[1]);
+}
+
+function selectedClassId(app) {
+  return app.html.match(/data-class="([^"]+)" aria-pressed="true"/)?.[1] || null;
+}
+
+function displayedGrade(app) {
+  return app.html.match(/id="teacher-progress-grade"[^>]*>([\s\S]*?)<\/select>/)?.[1].match(/value="([^"]+)" selected/)?.[1] || null;
+}
+
+test('the teacher starts at today\'s actual class with only that class\'s pupils and each pupil\'s own grade', () => {
+  const app = classHarness(), classes = getTeacherClasses(app.state);
+  assert.equal(selectedClassId(app), classes[1].id);
+  assert.deepEqual(displayedPupils(app), ['chloe', 'ethan']);
+  assert.equal(app.ui.selectedStudentId, 'chloe');
+  assert.equal(displayedGrade(app), 'P3');
+  app.click('student', { student: 'ethan' });
+  assert.equal(app.ui.selectedStudentId, 'ethan');
+  assert.equal(displayedGrade(app), 'P4');
+  assert.equal(selectedClassId(app), classes[1].id);
+  app.click('class', { class: classes[0].id });
+  assert.deepEqual(displayedPupils(app), ['emma']);
+  assert.equal(app.ui.selectedStudentId, 'emma');
+  assert.equal(displayedGrade(app), 'P2');
+});
+
+test('class arrows, date selection and Today navigate real past and upcoming classes', () => {
+  const app = classHarness(), classes = getTeacherClasses(app.state);
+  app.click('previous-class');
+  assert.equal(selectedClassId(app), classes[0].id);
+  app.click('previous-class');
+  assert.equal(selectedClassId(app), classes[0].id, 'Previous at the first class does not wrap around');
+  app.click('next-class');
+  assert.equal(selectedClassId(app), classes[1].id);
+  app.click('next-class');
+  assert.equal(selectedClassId(app), classes[2].id, 'Classes at different times on the same date remain separate');
+  assert.deepEqual(displayedPupils(app), ['chloe']);
+  app.change('teacher-progress-class-date', '2026-10-01');
+  assert.equal(selectedClassId(app), classes[3].id, 'A date without a lesson goes to the next actual class');
+  assert.equal(app.ui.selectedStudentId, 'lucas');
+  app.click('next-class');
+  assert.equal(selectedClassId(app), classes[3].id, 'Next at the final class remains on that class');
+  app.change('teacher-progress-class-date', '2027-01-01');
+  assert.equal(selectedClassId(app), classes[3].id, 'Dates after the last booking retain the latest class');
+  app.click('today');
+  assert.equal(selectedClassId(app), classes[1].id);
+  assert.equal(app.ui.selectedStudentId, 'chloe');
+  app.change('teacher-progress-class-date', '');
+  assert.equal(selectedClassId(app), classes[1].id);
+  app.click('class', { class: 'missing-class' });
+  assert.equal(selectedClassId(app), classes[1].id);
+});
+
+test('a teacher may browse another grade and send its worksheet to the selected child', () => {
+  const app = classHarness();
+  const before = app.state.assignments.length;
+  app.change('teacher-progress-grade', 'P6');
+  assert.equal(displayedGrade(app), 'P6');
+  assert.equal(app.ui.selectedStudentId, 'chloe', 'Changing the worksheet grade does not change its recipient');
+  app.click('worksheet', { worksheet: 'p6-math-603-P' });
+  app.click('send');
+  assert.equal(app.calls.changes, 1);
+  assert.equal(app.state.assignments.length, before + 1);
+  assert.equal(app.state.assignments.at(-1).studentId, 'chloe');
+  assert.equal(app.state.assignments.at(-1).worksheetId, 'p6-math-603-P');
+  app.click('student', { student: 'ethan' });
+  assert.equal(displayedGrade(app), 'P4', 'Another pupil restores their own grade');
+  app.change('teacher-progress-grade', 'P6');
+  app.click('student', { student: 'ethan' });
+  assert.equal(displayedGrade(app), 'P6', 'Selecting the same pupil retains the teacher\'s chosen grade');
+});
+
+test('grade and class changes clear worksheet selections so work cannot leak into a new context', () => {
+  const app = classHarness();
+  const before = structuredClone(app.state.assignments);
+  app.change('teacher-progress-grade', 'P6');
+  app.click('worksheet', { worksheet: selection[0] });
+  app.change('teacher-progress-grade', 'P4');
+  app.click('send');
+  assert.equal(app.calls.changes, 0);
+  assert.deepEqual(app.state.assignments, before);
+  app.click('worksheet', { worksheet: selection[1] });
+  app.click('send');
+  assert.equal(app.calls.changes, 0, 'A stale worksheet event from a different grade is ignored');
+  app.change('teacher-progress-grade', 'P6');
+  app.click('worksheet', { worksheet: selection[0] });
+  app.click('next-class');
+  assert.equal(app.ui.selectedStudentId, 'chloe', 'The same pupil appears in this next class');
+  assert.equal(displayedGrade(app), 'P3', 'Changing the class still restores the pupil\'s grade');
+  app.click('send');
+  assert.equal(app.calls.changes, 0);
+  assert.deepEqual(app.state.assignments, before);
+  app.change('teacher-progress-grade', 'not-a-grade');
+  assert.equal(displayedGrade(app), 'P3');
+});
+
+test('opening a scheduled student finds their class while an empty timetable is safe', () => {
+  const app = classHarness();
+  assert.equal(app.ui.selectStudent('lucas'), true);
+  app.render();
+  assert.equal(app.ui.selectedStudentId, 'lucas');
+  assert.deepEqual(displayedPupils(app), ['lucas']);
+  assert.equal(app.ui.selectStudent('sophie'), false, 'A regular pupil without a booking cannot invent a class');
+  assert.equal(app.ui.selectedStudentId, 'lucas');
+  const empty = chartHarness({ prepare(state) { state.bookings = []; } });
+  assert.equal(empty.ui.selectedStudentId, null);
+  assert.deepEqual(displayedPupils(empty), []);
+  assert.equal(displayedGrade(empty), null);
+  const before = structuredClone(empty.state);
+  for (const action of ['previous-class', 'next-class', 'today', 'send', 'folder', 'student-view']) empty.click(action);
+  empty.click('worksheet', { worksheet: selection[0] });
+  empty.change('teacher-progress-class-date', model.TODAY);
+  assert.equal(empty.calls.changes, 0);
+  assert.deepEqual(empty.calls.folders, []);
+  assert.deepEqual(empty.calls.studentViews, []);
+  assert.deepEqual(empty.state, before);
 });

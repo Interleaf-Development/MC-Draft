@@ -14,7 +14,7 @@ import { centreConfig } from './branch-config.js';
 import { createRegularScheduleUI } from './regular-schedule-ui.js';
 import { getRegularSchedule } from './regular-schedule.js';
 import { renderReceiptDocument } from './receipt-document.js';
-import { normalizeP6Progress, getP6Students } from './teacher-progress.js';
+import { normalizeP6Progress, getTeacherStudents } from './teacher-progress.js';
 import { createTeacherProgressUI } from './teacher-progress-ui.js';
 const STORAGE = centreConfig.storageKey;
 let state;
@@ -147,6 +147,7 @@ function render() {
   $('#app').innerHTML = '<div class="app-shell"><aside class="sidebar"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><div class="centre-label">('+t(centre.branch)+')</div><div class="nav-section">' + t({admin:'Centre',teacher:'Teaching',parent:'Family',student:'My classroom'}[ui.role]) + '</div><nav class="nav-list" aria-label="'+t('Main navigation','主要導覽')+'">' + nav.map(([id, ic, label]) => action('navigate', icon(ic) + '<span>' + t(label) + '</span>', 'nav-item' + (ui.page === id ? ' active' : ''), 'data-page="' + id + '"' + (ui.page === id ? ' aria-current="page"' : ''))).join('') + '</nav><div class="sidebar-bottom">' + sidebarDemo + '<div class="flex sidebar-identity">' + avatar(user) + '<div><div class="small strong">' + esc(user.name) + '</div><div class="user-caption">' + esc(t(user.title || user.level)) + '</div></div></div></div></aside><header class="topbar"><div class="mobile-brand">' + action('toggle-menu', icon('menu'), 'icon-btn mobile-menu', 'aria-label="'+t('Open navigation','開啟導覽')+'"') + '<span class="brand-lockup"><span class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></span><span class="brand-branch">('+t(centre.branch)+')</span></span></div>' + headerControls + '</header><main class="main ' + (['parent','student'].includes(ui.role) ? 'family-main' : '') + '" id="main-content">' + page() + '</main><nav class="mobile-bottom-nav" aria-label="'+t('Mobile navigation','手機導覽')+'">' + (ui.role === 'parent' ? parentBottomNav() : nav.slice(0,5).map(([id,ic,label]) => action('navigate', icon(ic) + '<span>' + t(label === 'Billing & reconciliation' ? 'Billing' : ({'My classroom':'Classroom','My work':'My work','My schedule':'Schedule'}[label]||label)) + '</span>', ui.page === id ? 'active' : '', 'data-page="' + id + '"')).join('')) + '</nav></div>';
   attachDrawing();
   if(ui.page==='messages')conversationUI.afterRender();
+  if(ui.role==='teacher'&&['progress','library'].includes(ui.page))teacherProgressUI.afterRender();
   if(paperScroll&&$('.paper-wrap')){$('.paper-wrap').scrollTop=paperScroll.top;$('.paper-wrap').scrollLeft=paperScroll.left;}
   if(pageKey!==lastPageKey){window.scrollTo(0,0);lastPageKey=pageKey;}
 }
@@ -584,7 +585,7 @@ function assessmentOverview(){
  return heading('入學評估',childSwitch())+'<div class="family-grid"><section class="panel"><div class="panel-head"><h3>入學評估報告</h3>'+tag('Completed','green')+'</div><div class="panel-body"><p class="small muted">'+dateLabel(a.assessmentDate)+' · 小二數學</p><p class="mt-16 muted">'+esc(content(a.report))+'</p><div class="mt-24 flex">'+action('enrol-mia','為 Mia 報名','btn primary')+action('navigate','聯絡中心','btn','data-page="messages"')+'</div></div></section><aside class="panel panel-body"><h3>評估費</h3><p class="small muted mt-16">已於 '+dateLabel(a.assessmentDate)+' 繳付 HK$200。</p><div class="notice mt-16">10 月 3 日或之前報名，可於首次學費扣減 HK$200 評估費。</div></aside></div>';
 }
 const childSwitch=()=>{
- const demoStudents=ui.role==='student'?getP6Students(state).filter(student=>state.assignments.some(assignment=>assignment.studentId===student.id)||student.id===ui.familyStudent):[];
+ const demoStudents=ui.role==='student'?getTeacherStudents(state).filter(student=>!['chloe','mia'].includes(student.id)&&(state.assignments.some(assignment=>assignment.studentId===student.id)||student.id===ui.familyStudent)):[];
  return '<select class="btn" data-change="family-student" aria-label="'+t(ui.role==='student'?'Student':'Child',ui.role==='student'?'學生':'子女')+'"><option value="chloe"'+(ui.familyStudent==='chloe'?' selected':'')+'>Chloe Chan · '+t('P3')+'</option><option value="mia"'+(ui.familyStudent==='mia'?' selected':'')+'>Mia Cheung · '+t(state.assessment.enrolled?'P2':'Assessment')+'</option>'+demoStudents.map(student=>'<option value="'+student.id+'"'+(ui.familyStudent===student.id?' selected':'')+'>'+esc(student.name)+' · '+t(student.level)+'</option>').join('')+'</select>';
 };
 

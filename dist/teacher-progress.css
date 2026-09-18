@@ -1,12 +1,13 @@
 .teacher-progress {
   display: grid;
-  grid-template-columns: 144px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
   height: calc(100dvh - 40px);
   min-height: 540px;
   font-size: 13px;
 }
-.teacher-progress-students,
+.teacher-progress-classes,
 .teacher-progress-workbench {
   min-width: 0;
   min-height: 0;
@@ -15,29 +16,40 @@
   background: #fff;
   overflow: hidden;
 }
-.teacher-progress-students { display: flex; flex-direction: column; }
-.teacher-progress-students-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 17px 14px 12px; }
-.teacher-progress-students-head strong { font-size: 13px; }
-.teacher-progress-students-head > span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .teacher-progress-search { display: flex; align-items: center; gap: 7px; min-width: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); padding: 0 9px; }
 .teacher-progress-search svg { width: 15px; height: 15px; color: var(--muted); flex: none; }
 .teacher-progress-search input { width: 100%; min-width: 0; border: 0; border-radius: 6px; background: transparent; outline-offset: 2px; padding: 8px 0; font-size: 12px; }
 .teacher-progress-search input:focus-visible { outline: none; }
 .teacher-progress-search:focus-within { outline: 2px solid #dd9b56; outline-offset: 2px; }
-.teacher-progress-student-search { margin: 0 10px 12px; }
-.teacher-progress-students-list { overflow-y: auto; min-height: 0; flex: 1; overscroll-behavior: contain; border-top: 1px solid var(--line); padding: 5px; }
-.teacher-progress-student { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 10px 10px; border-radius: 7px; min-height: 58px; }
+.teacher-progress-class-navigation { display: flex; align-items: center; gap: 4px; padding: 5px 7px; }
+.teacher-progress-classes-list { display: flex; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; overscroll-behavior: contain; gap: 3px; }
+.teacher-progress-class { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 123px; padding: 6px 10px; border-radius: 6px; text-align: left; white-space: nowrap; }
+.teacher-progress-class span { color: var(--muted); font-size: 10px; }
+.teacher-progress-class strong { font-size: 12px; font-weight: 600; }
+.teacher-progress-class:hover { background: var(--soft); }
+.teacher-progress-class.is-active { background: var(--red-soft); box-shadow: inset 0 -2px var(--red); }
+.teacher-progress-class.is-active strong { color: var(--red-dark); }
+.teacher-progress-class-arrow { width: 27px; min-height: 38px; flex: none; border-radius: 5px; }
+.teacher-progress-class-arrow svg { width: 16px; height: 16px; }
+.teacher-progress-class-arrow:hover { background: var(--soft); }
+.teacher-progress-class-arrow:disabled { opacity: .3; cursor: default; }
+.teacher-progress-date-actions { display: flex; align-items: center; gap: 5px; border-left: 1px solid var(--line); padding-left: 8px; margin-left: 3px; }
+.teacher-progress-date-actions .btn { font-size: 11px; padding: 6px 9px; }
+.teacher-progress-date-actions input { width: 128px; padding: 6px; font-size: 11px; border: 1px solid var(--line); border-radius: 6px; }
+.teacher-progress-students-list { display: flex; align-items: center; gap: 4px; overflow-x: auto; min-width: 0; overscroll-behavior: contain; border-top: 1px solid var(--line); padding: 6px 10px; }
+.teacher-progress-student { display: inline-flex; align-items: center; flex: none; gap: 7px; text-align: left; padding: 7px 10px; border-radius: 6px; }
 .teacher-progress-student > span { font-weight: 600; font-size: 12px; }
-.teacher-progress-student > small { color: var(--muted); font-size: 10px; }
+.teacher-progress-student > small { color: var(--muted); font-size: 11px; }
 .teacher-progress-student:hover { background: var(--soft); }
-.teacher-progress-student.is-active { background: var(--red-soft); box-shadow: inset 3px 0 0 var(--red); }
-.teacher-progress-student.is-active > span { color: var(--red-dark); }
+.teacher-progress-student.is-active { background: var(--red-soft); color: var(--red-dark); }
 .teacher-progress-workbench { display: flex; flex-direction: column; }
-.teacher-progress-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 12px; flex: none; border-bottom: 1px solid var(--line); }
+.teacher-progress-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 12px; flex: none; border-bottom: 1px solid var(--line); }
 .teacher-progress-identity { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
 .teacher-progress-identity h2 { font-size: 17px; line-height: 1.3; letter-spacing: -.3px; }
 .teacher-progress-identity > span { color: var(--muted); font-size: 12px; white-space: nowrap; }
-.teacher-progress-header-actions { display: flex; gap: 7px; flex: none; }
+.teacher-progress-header-actions { display: flex; gap: 7px; flex: none; margin-left: auto; }
+.teacher-progress-grade-label { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+.teacher-progress-grade-label select { color: var(--ink); font-weight: 600; border: 1px solid var(--line); border-radius: 6px; background: #fff; padding: 6px; min-height: 32px; }
 .teacher-progress-header .btn { padding: 6px 9px; min-height: 32px; font-size: 11px; }
 .teacher-progress-worksheet-search { width: 153px; flex: none; background: #fff; }
 .teacher-progress-worksheet-search input { padding: 6px 0; font-size: 11px; }
@@ -93,7 +105,7 @@
 .role-teacher .main:has(.teacher-progress) { padding: 20px; max-width: none; }
 .teacher-progress-search-area { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .teacher-progress-search-result { color: var(--muted); font-size: 10px; }
-.teacher-progress-header-actions { margin-left: auto; }
+
 .teacher-progress-table .teacher-progress-term-bank { vertical-align: top; padding: 5px; background: #fcfcfd; }
 .teacher-progress-table .teacher-progress-revision-cell { padding: 0 4px; }
 .teacher-progress-revision-group { display: flex; align-items: center; gap: 3px; }
@@ -110,20 +122,31 @@
 .teacher-progress-box.is-match { outline: 2px solid #d18c27; outline-offset: -1px; }
 .teacher-progress-box.is-selected { opacity: 1; }
 @media (max-width: 1200px) and (min-width: 761px) {
-  .teacher-progress { grid-template-columns: 120px minmax(0, 1fr); gap: 8px; }
+  .teacher-progress { height: calc(100dvh - 28px); gap: 8px; }
   .role-teacher .main:has(.teacher-progress) { padding: 14px; }
   .teacher-progress-header { flex-wrap: wrap; gap: 6px 10px; }
   .teacher-progress-search-area { margin-left: auto; }
+  .teacher-progress-header-actions { margin-left: 0; }
 }
 @media (max-width: 760px) {
-  .teacher-progress { grid-template-columns: 1fr; height: auto; min-height: 0; }
-  .teacher-progress-students { max-height: 210px; }
+  .teacher-progress { height: auto; min-height: 0; }
+  .teacher-progress-class-navigation { flex-wrap: wrap; }
+  .teacher-progress-classes-list { min-width: 60%; }
+  .teacher-progress-date-actions { width: 100%; justify-content: flex-end; border-left: 0; }
   .teacher-progress-workbench { height: 760px; max-height: calc(100dvh - 90px); min-height: 490px; }
-  .teacher-progress-students-list { display: flex; overflow-x: auto; }
-  .teacher-progress-student { width: 150px; flex: none; }
+
   .teacher-progress-header-actions { flex-wrap: wrap; }
   .teacher-progress-legend { gap: 6px 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .teacher-progress-box { transition: none; }
 }
+
+.teacher-progress-grade-P3 .teacher-progress-topic-col { width: 28%; }
+.teacher-progress-grade-P3 .teacher-progress-math-col { width: 21%; }
+.teacher-progress-grade-P3 .teacher-progress-excel-col { width: 15%; }
+.teacher-progress-grade-P3 .teacher-progress-revision-col { width: 18%; }
+.teacher-progress-grade-P3 .teacher-progress-ps-col { width: 18%; }
+.teacher-progress-samples { min-width: 0; font-size: 12px; }
+.teacher-progress-samples th, .teacher-progress-samples td { height: 42px; padding: 8px 12px; }
+.teacher-progress-samples .teacher-progress-box { width: auto; min-width: 72px; height: 26px; font-size: 11px; padding: 0 7px; }
