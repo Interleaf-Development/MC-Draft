@@ -14,10 +14,12 @@ import { centreConfig } from './branch-config.js';
 import { createRegularScheduleUI } from './regular-schedule-ui.js';
 import { getRegularSchedule } from './regular-schedule.js';
 import { renderReceiptDocument } from './receipt-document.js';
+import { normalizeP6Progress, getP6Students } from './teacher-progress.js';
+import { createTeacherProgressUI } from './teacher-progress-ui.js';
 const STORAGE = centreConfig.storageKey;
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
-seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);
+seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeP6Progress(state);
 const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:centre.managerId, scheduleBookingId:null, scheduleRemarkDrafts:{}, date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Invoices', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:centre.managerId };
 const t = (en, zh) => isFamilyRole(ui.role) ? (zh ?? familyText(en, ui.role)) : en;
 const content = value => familyContent(value, ui.role);
@@ -104,7 +106,7 @@ function modal(title, body, footer = '', wide = false) {
 }
 const NAV = {
  admin: [['schedule','calendar','Schedule'],['students','users','Students'],['billing','wallet','Billing & reconciliation'],['messages','message','Conversations']],
- teacher: [['classroom','users','My classroom'],['schedule','calendar','My schedule'],['library','book','Worksheet library'],['notes','file','Lesson records'],['messages','message','Conversations']],
+ teacher: [['progress','book','Progress chart'],['classroom','users','My classroom'],['schedule','calendar','My schedule'],['notes','file','Lesson records'],['messages','message','Conversations']],
  parent: [['overview','home','Overview'],['lessons','calendar','Lessons'],['handbook','file','課堂報告'],['homework','book','功課'],['payments','wallet','Payments'],['messages','message','Messages']],
  student: [['work','edit','My work'],['past','folder','Past work']]
 };
@@ -112,6 +114,7 @@ const requestedRole = roleFromUrl(new URL(location.href));
 if (Object.hasOwn(NAV, requestedRole)) {
  ui.role = requestedRole;
  ui.page = NAV[requestedRole][0][0];
+ if (requestedRole === 'student' && students.some(student => student.id === state.demoWorksheetStudent)) ui.familyStudent = state.demoWorksheetStudent;
 }
 const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre director', initials: centre.initials, colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: centre.initials, colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
 const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),persist:()=>{previousState=null;persist();},render:()=>render(),modal,closeModal,toast,childSwitch:()=>childSwitch()});
@@ -119,6 +122,13 @@ const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,s
 const receiptsUI = createReceiptsUI({getState:()=>state,render:()=>render(),openReceipt:receiptDialog,openProof,openReview:openPaymentReview});
 const regularScheduleUI = createRegularScheduleUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,modal,closeModal,openReceipt:receiptDialog});
 const bankCheckUI = createBankCheckUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,render:()=>render(),modal,closeModal,toast,openMatch:openPaymentReview});
+const teacherProgressUI = createTeacherProgressUI({
+ getState:()=>state, getTutorId:()=>centre.managerId, change, render:()=>render(),
+ onStudentChange:id=>{ui.selectedStudent=id;},
+ openAssignment:id=>{ui.previousPage='progress';ui.assignmentId=id;ui.readonly=false;ui.showOriginal=false;ui.page='worksheet';ui.pen='pen';ui.workNotes=false;ui.expanded=false;ui.ink='#ce424b';render();},
+ openFolder:id=>{ui.page='classroom';ui.selectedStudent=id;ui.standaloneFolder=true;collection('folder-work').page=1;render();},
+ openStudentView:id=>{state.demoWorksheetStudent=id;persist();ui.role='student';ui.familyStudent=id;ui.assignmentId=null;ui.page='work';render();}
+});
 function render() {
   finishScheduleDrag(false);
   closeScheduleColourMenu();
@@ -146,7 +156,7 @@ function page() {
   if (ui.role === 'admin' && ui.page === 'billing') return billingPage();
   if (ui.page === 'messages') return messagesPage();
   if (ui.role === 'teacher' && ui.page === 'classroom') return classroomPage();
-  if (ui.role === 'teacher' && ui.page === 'library') return libraryPage();
+  if (ui.role === 'teacher' && ['progress','library'].includes(ui.page)) return heading('Progress chart') + teacherProgressUI.render();
   if (ui.role === 'teacher' && ui.page === 'notes') return notesPage();
   if (ui.role === 'parent' && ui.page === 'overview') return parentOverview();
   if (ui.role === 'parent' && ui.page === 'lessons') return parentLessons();
@@ -542,7 +552,7 @@ const assignmentStatus = status => ({upcoming:['Up next','blue'],'in-progress':[
 const thumbnail = w => '<span class="sheet-thumb '+w.colour+'"><span class="symbol">'+({Fractions:'½',Division:'÷','Word problems':'+','Number sense':'123',Decimals:'.5'}[w.topic] || '∑')+'</span><span class="line"></span><span class="line"></span></span>';
 function assignmentRow(a, readonly=false){
  const w=worksheetById(a.worksheetId),st=assignmentStatus(a.status);
- return '<div class="worksheet-row">'+thumbnail(w)+'<div class="grow"><div class="row-title">'+t(w.title)+'</div><div class="row-meta">'+w.code+' · '+t(w.level)+(a.homework?' · '+t('Homework'):'')+'</div></div>'+tag(st[0],st[1])+action('open-assignment',ui.role==='teacher'&&['submitted','corrections'].includes(a.status)?'Review':'Open','btn small','data-id="'+a.id+'"'+(readonly?' data-readonly="true"':''))+'</div>';
+ return '<div class="worksheet-row">'+thumbnail(w)+'<div class="grow"><div class="row-title">'+t(w.title,w.titleZh)+'</div><div class="row-meta">'+w.code+' · '+t(w.level)+(a.homework?' · '+t('Homework'):'')+'</div></div>'+tag(st[0],st[1])+action('open-assignment',ui.role==='teacher'&&['submitted','corrections'].includes(a.status)?'Review':'Open','btn small','data-id="'+a.id+'"'+(readonly?' data-readonly="true"':''))+'</div>';
 }
 function classroomPage(){
  const lessonStudents=teachingBookings();
@@ -553,7 +563,7 @@ function classroomPage(){
  const note=state.lessonNotes.filter(n=>n.studentId===s.id&&n.published).at(-1),workPage=collectionPage('folder-work',visible,12);
  return (ui.standaloneFolder?heading('Student folder',action('back-classroom','Back to my class','btn')+action('write-note',icon('edit')+' Lesson record','btn primary','data-id="'+s.id+'"'),s.number+' · '+s.level):heading('My classroom',classSelector()+action('mark-class-present',icon('check')+' Mark attendance','btn')+action('write-note',icon('edit')+' Lesson record','btn primary','data-id="'+s.id+'"'),dateLabel(ui.classDate,{weekday:'long'})+' · '+time(ui.classStart)+'–'+time(ui.classStart+60))+
  '<div class="class-students">'+lessonStudents.map(b=>{const st=studentById(b.studentId);return '<button class="student-card '+(s.id===st.id?'selected':'')+'" data-action="select-student" data-id="'+st.id+'">'+avatar(st)+(b.attendance==='present'?'<span class="attendance-check">'+icon('circlecheck','sm')+'</span>':'')+'<div class="name">'+st.name+'</div><div class="meta">'+st.level+' · '+b.duration+' minutes</div>'+tag(b.attendance==='present'?'Present':'Not checked in',b.attendance==='present'?'green':'')+'</button>';}).join('')+'</div>')+
- '<div class="folder-layout"><section><div class="folder-heading">'+avatar(s,'large')+'<div class="grow"><h2>'+s.name+'’s folder</h2><p class="small muted">'+s.number+' · '+s.level+' · '+s.focus+'</p></div>'+action('navigate',icon('plus')+' Add work','btn','data-page="library"')+'</div>'+tabs(['All work','Upcoming','In progress','Corrections','Completed'],ui.folderTab,'folder-tab')+'<div class="panel">'+(visible.length?workPage.items.map(a=>assignmentRow(a)).join('')+pager('folder-work',workPage,true):empty('No worksheets here','Assign a worksheet from the library.'))+'</div></section><aside class="folder-side stack"><section class="panel"><div class="panel-head"><h3>Last lesson</h3><span class="small muted">'+(note?dateLabel(note.date):'—')+'</span></div><div class="panel-body">'+(note?'<p class="strong small">'+esc(note.topics)+'</p><p class="small muted mt-8" style="line-height:1.8">'+esc(note.comment)+'</p>':'<p class="small muted">No lesson record yet.</p>')+'</div></section><div class="helper-art"><div><h4>Ready for the next step</h4><p>Keep unfinished work and corrections in the student’s folder.</p></div>'+art(10)+'</div></aside></div>';
+ '<div class="folder-layout"><section><div class="folder-heading">'+avatar(s,'large')+'<div class="grow"><h2>'+s.name+'’s folder</h2><p class="small muted">'+s.number+' · '+s.level+' · '+s.focus+'</p></div>'+action('navigate',icon('plus')+' Add work','btn','data-page="progress"')+'</div>'+tabs(['All work','Upcoming','In progress','Corrections','Completed'],ui.folderTab,'folder-tab')+'<div class="panel">'+(visible.length?workPage.items.map(a=>assignmentRow(a)).join('')+pager('folder-work',workPage,true):empty('No worksheets here','Select worksheets from the progress chart.'))+'</div></section><aside class="folder-side stack"><section class="panel"><div class="panel-head"><h3>Last lesson</h3><span class="small muted">'+(note?dateLabel(note.date):'—')+'</span></div><div class="panel-body">'+(note?'<p class="strong small">'+esc(note.topics)+'</p><p class="small muted mt-8" style="line-height:1.8">'+esc(note.comment)+'</p>':'<p class="small muted">No lesson record yet.</p>')+'</div></section><div class="helper-art"><div><h4>Ready for the next step</h4><p>Keep unfinished work and corrections in the student’s folder.</p></div>'+art(10)+'</div></aside></div>';
 }
 function libraryPage(){
  const query=ui.search.toLowerCase();const list=worksheets.filter(w=>(ui.libraryFilter==='All topics'||w.topic===ui.libraryFilter)&&(!query||(w.title+' '+w.code+' '+w.level).toLowerCase().includes(query)));
@@ -573,7 +583,10 @@ function assessmentOverview(){
  const a=state.assessment;
  return heading('入學評估',childSwitch())+'<div class="family-grid"><section class="panel"><div class="panel-head"><h3>入學評估報告</h3>'+tag('Completed','green')+'</div><div class="panel-body"><p class="small muted">'+dateLabel(a.assessmentDate)+' · 小二數學</p><p class="mt-16 muted">'+esc(content(a.report))+'</p><div class="mt-24 flex">'+action('enrol-mia','為 Mia 報名','btn primary')+action('navigate','聯絡中心','btn','data-page="messages"')+'</div></div></section><aside class="panel panel-body"><h3>評估費</h3><p class="small muted mt-16">已於 '+dateLabel(a.assessmentDate)+' 繳付 HK$200。</p><div class="notice mt-16">10 月 3 日或之前報名，可於首次學費扣減 HK$200 評估費。</div></aside></div>';
 }
-const childSwitch=()=>'<select class="btn" data-change="family-student" aria-label="'+t('Child')+'"><option value="chloe"'+(ui.familyStudent==='chloe'?' selected':'')+'>Chloe Chan · '+t('P3')+'</option><option value="mia"'+(ui.familyStudent==='mia'?' selected':'')+'>Mia Cheung · '+t(state.assessment.enrolled?'P2':'Assessment')+'</option></select>';
+const childSwitch=()=>{
+ const demoStudents=ui.role==='student'?getP6Students(state).filter(student=>state.assignments.some(assignment=>assignment.studentId===student.id)||student.id===ui.familyStudent):[];
+ return '<select class="btn" data-change="family-student" aria-label="'+t(ui.role==='student'?'Student':'Child',ui.role==='student'?'學生':'子女')+'"><option value="chloe"'+(ui.familyStudent==='chloe'?' selected':'')+'>Chloe Chan · '+t('P3')+'</option><option value="mia"'+(ui.familyStudent==='mia'?' selected':'')+'>Mia Cheung · '+t(state.assessment.enrolled?'P2':'Assessment')+'</option>'+demoStudents.map(student=>'<option value="'+student.id+'"'+(ui.familyStudent===student.id?' selected':'')+'>'+esc(student.name)+' · '+t(student.level)+'</option>').join('')+'</select>';
+};
 
 function nextLessons(studentId){return state.bookings.filter(b=>b.studentId===studentId&&activeBooking(b)&&b.date>=TODAY).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start);}
 function lessonRow(b,allowLeave=false){
@@ -629,12 +642,13 @@ function studentWork(){
  return heading(past?t('Past work','已完成的工作紙'):t('Hi, '+s.name.split(' ')[0]+'.',s.name.split(' ')[0]+'，你好！'),childSwitch())+'<div class="family-work-grid">'+assignments.map(a=>{
   const w=worksheetById(a.worksheetId),st=assignmentStatus(a.status);
   const label=a.status==='corrections'?t('Make corrections','改正答案'):a.status==='in-progress'?t('Continue working','繼續作答'):a.status==='submitted'||past?t('View work','查看工作紙'):t('Start worksheet','開始作答');
-  return '<article class="work-card">'+thumbnail(w)+'<h3>'+esc(t(w.title))+'</h3><p class="small muted mb-16">'+esc(a.homework?t('Homework','家課'):t(w.topic))+' · '+esc(t(w.level))+'</p>'+tag(ui.role==='student'&&a.status==='submitted'?t('With your teacher','待老師批改'):t(st[0]),st[1])+action('open-assignment',label,'btn '+(a.status==='in-progress'||a.status==='corrections'?'primary':''),'data-id="'+a.id+'"')+'</article>';
+  return '<article class="work-card">'+thumbnail(w)+'<h3>'+esc(t(w.title,w.titleZh))+'</h3><p class="small muted mb-16">'+(w.demoContent?esc(w.code)+' · ':'')+esc(a.homework?t('Homework','家課'):w.demoContent?t('Classwork','課堂練習'):t(w.topic,w.topicZh))+' · '+esc(t(w.level))+'</p>'+tag(ui.role==='student'&&a.status==='submitted'?t('With your teacher','待老師批改'):t(st[0]),st[1])+action('open-assignment',label,'btn '+(a.status==='in-progress'||a.status==='corrections'?'primary':''),'data-id="'+a.id+'"')+'</article>';
  }).join('')+'</div>'+(!assignments.length?'<div class="panel">'+empty(past?t('Your completed work will live here','已完成的工作紙會顯示在這裏'):t('All caught up!','全部完成！'),past?t('Keep learning, one worksheet at a time.','每完成一份工作紙，都在進步。'):t('Your teacher will choose what comes next.','老師會為你安排下一份工作紙。'),past?7:18)+'</div>':'')+(!past?'<div class="student-past"><div class="flex">'+icon('folder')+'<span class="small">'+t('Looking for something you’ve finished?','想重溫已完成的工作紙？')+'</span></div>'+action('navigate',t('Past work','已完成的工作紙')+' '+icon('arrow','sm'),'inline-link','data-page="past"')+'</div>':'');
 }
 function fraction(n,d){return '<span class="fraction"><span>'+n+'</span><span>'+d+'</span></span>';}
 function paperQuestions(w){
  const q=(n,title,body)=>'<div class="question"><div class="question-title"><span class="q-number">'+n+'</span><span>'+title+'</span></div>'+body+'</div>';
+ if(w.demoContent)return (w.questions||[]).map((item,index)=>q(index+1,esc(t(item.prompt,item.promptZh)),'<div class="working-lines"></div>')).join('');
  if(w.topic==='Fractions')return q(1,t('Complete the equivalent fractions.','完成以下等值分數。'),'<div class="fraction-row">'+fraction(1,2)+'<span>=</span>'+fraction('<span class="answer-box"></span>',4)+'<span style="margin-left:12px">'+fraction(2,3)+'</span><span>=</span>'+fraction('<span class="answer-box"></span>',6)+'</div>')+q(2,t('Shade the second bar to show the same amount.','在第二個長方形內塗色，表示相同的份量。'),'<div class="fraction-bars"><div class="fraction-bar"><i class="fill"></i><i></i></div><div class="fraction-bar"><i></i><i></i><i></i><i></i></div></div><div class="working-lines" style="height:6.4cqw"></div>')+q(3,t('Chloe shares a pizza equally with a friend. What fraction does each person get? Explain your thinking.','Chloe 把一個薄餅與一位朋友平均分，每人分得整個薄餅的幾分之幾？說明你的想法。'),'<div class="working-lines"></div>')+q(4,t('Write two different fractions that are equal to one half.','寫出兩個不同的分數，它們的值都等於二分之一。'),'<div class="working-lines"></div>');
  if(w.topic==='Division')return q(1,t('Work out 84 ÷ 4. Show each step.','計算 84 ÷ 4，並列出每個步驟。'),'<div class="working-lines"></div>')+q(2,t('Share 96 stickers equally between 6 children. How many does each child get?','把 96 張貼紙平均分給 6 個小朋友，每人可分得多少張？'),'<div class="working-lines"></div>')+q(3,t('Find 135 ÷ 5. Check your answer with multiplication.','計算 135 ÷ 5，並用乘法驗算。'),'<div class="working-lines"></div>');
  if(w.topic==='Decimals')return q(1,t('Write one half as a decimal.','把二分之一寫成小數。'),'<div class="working-lines" style="height:7.8cqw"></div>')+q(2,t('Work out 0.5 + 0.2. Explain with a drawing.','計算 0.5 + 0.2，並畫圖說明。'),'<div class="working-lines"></div>')+q(3,t('Put these in order, from smallest to largest: 0.7, 0.25, 0.5.','把以下小數由小至大排列：0.7、0.25、0.5。'),'<div class="working-lines"></div>');
@@ -648,9 +662,9 @@ function worksheetPage(){
  const status=a?assignmentStatus(a.status):null;
  const noteText=a&&['assignment-chloe-3','assignment-lucas'].includes(a.id)?content(a.note):a?.note||'';
  const tools=editable?action('pen-tool',icon('edit'),'tool-btn '+(ui.pen==='pen'?'active':''),'data-tool="pen" aria-label="'+t('Pen','筆')+'"')+action('pen-tool',icon('eraser'),'tool-btn '+(ui.pen==='eraser'?'active':''),'data-tool="eraser" aria-label="'+t('Eraser','橡皮擦')+'"')+action('pen-tool',icon('move')+'<span>'+t('Move page','移動頁面')+'</span>','tool-btn pan-tool '+(ui.pen==='pan'?'active':''),'data-tool="pan" aria-label="'+t('Move page','移動頁面')+'"')+action('undo-ink',icon('undo'),'tool-btn','aria-label="'+t('Undo last stroke','撤銷上一筆')+'"')+['#35475f','#4167ab','#ce424b'].map(c=>action('ink-colour','','colour-tool '+(ui.ink===c?'active':''),'style="--ink-colour:'+c+'" data-colour="'+c+'" aria-label="'+(c==='#35475f'?t('Graphite ink','深灰色筆'):c==='#4167ab'?t('Blue ink','藍色筆'):t('Red ink','紅色筆'))+'"')).join(''):'<span class="small muted flex">'+icon('file')+(ui.showOriginal?t('Original submission','首次提交的版本'):t('Worksheet preview','工作紙預覽'))+'</span>';
- return heading(t(w.title),action('back-work',icon('left')+' '+t('Back','返回'),'btn')+(teacher?action('return-corrections','Request corrections','btn','data-id="'+a.id+'"')+action('complete-work',icon('check')+' Mark complete','btn primary','data-id="'+a.id+'"'):ui.role==='student'&&editable?action('submit-work',icon('check')+' '+t('Hand in','交功課'),'btn primary','data-id="'+a.id+'"'):''),s.name+' · '+w.code)+
+ return heading(t(w.title,w.titleZh),action('back-work',icon('left')+' '+t('Back','返回'),'btn')+(teacher?action('return-corrections','Request corrections','btn','data-id="'+a.id+'"')+action('complete-work',icon('check')+' Mark complete','btn primary','data-id="'+a.id+'"'):ui.role==='student'&&editable?action('submit-work',icon('check')+' '+t('Hand in','交功課'),'btn primary','data-id="'+a.id+'"'):''),s.name+' · '+w.code)+
  (ui.role==='student'&&a?.note?'<div class="notice blue worksheet-feedback"><strong>'+t('Your teacher: ','老師評語：')+'</strong>'+esc(noteText)+'</div>':'')+'<div class="worksheet-layout '+(ui.expanded?'expanded':'')+'"><section class="panel"><div class="drawing-tools">'+tools+'<div class="grow"></div>'+(a?.submissions?.length?action('toggle-original',ui.showOriginal?t('Latest work','最新版本'):t('Original submission','首次提交的版本'),'btn small'):'')+(ui.role==='student'?action('toggle-work-notes',icon('message')+' '+t('Notes','筆記'),'btn','aria-expanded="'+!!ui.workNotes+'" aria-controls="worksheet-notes"'):action('expand-work',icon('expand'),'tool-btn','aria-label="'+t('Expand worksheet','放大工作紙')+'"'))+'</div>'+
- '<div class="paper-wrap"><div class="paper"><div class="paper-content"><div class="paper-label">MathConcept · '+esc(t(w.level))+'</div><div class="paper-title">'+esc(t(w.title))+'</div><div class="paper-caption">'+w.code+' · '+esc(t(w.topic))+'</div><div class="paper-rule"><span>'+t('Name: ','姓名：')+esc(s.name)+'</span><span>'+dateLabel(TODAY,{year:'numeric',month:'long'})+'</span></div>'+paperQuestions(w)+'<div class="paper-foot"><span>MathConcept · '+t('Demonstration worksheet','示範工作紙')+'</span><span>1 / 1</span></div></div><canvas id="ink-canvas" class="ink-canvas" aria-label="'+(editable?t('Handwriting and rough working area','手寫及草稿區'):t('Student worksheet and annotations','學生工作紙及批註'))+'"'+(!editable?' style="pointer-events:none"':'')+'></canvas></div></div></section>'+
+ '<div class="paper-wrap"><div class="paper"><div class="paper-content"><div class="paper-label">MathConcept · '+esc(t(w.level))+'</div><div class="paper-title">'+esc(t(w.title,w.titleZh))+'</div><div class="paper-caption">'+w.code+' · '+esc(t(w.topic,w.topicZh))+'</div>'+ (w.demoContent?'<p class="paper-demo-note">'+t('Sample questions · original worksheet not yet uploaded','示範題目 · 尚未上載正式工作紙')+'</p>':'') +'<div class="paper-rule"><span>'+t('Name: ','姓名：')+esc(s.name)+'</span><span>'+dateLabel(TODAY,{year:'numeric',month:'long'})+'</span></div>'+paperQuestions(w)+'<div class="paper-foot"><span>MathConcept · '+t('Demonstration worksheet','示範工作紙')+'</span><span>1 / 1</span></div></div><canvas id="ink-canvas" class="ink-canvas" aria-label="'+(editable?t('Handwriting and rough working area','手寫及草稿區'):t('Student worksheet and annotations','學生工作紙及批註'))+'"'+(!editable?' style="pointer-events:none"':'')+'></canvas></div></div></section>'+
  '<aside class="work-side" id="worksheet-notes">'+(ui.role==='student'?'<div class="between notes-heading"><h2>'+t('Notes & working','筆記與作答')+'</h2>'+action('toggle-work-notes',icon('x'),'icon-btn','aria-label="'+t('Close notes','關閉筆記')+'"')+'</div>':'')+(a?'<section class="panel"><div class="panel-head"><h3>'+(teacher?'Teacher feedback':t('Your worksheet','工作紙'))+'</h3></div><div class="panel-body">'+tag(t(status[0]),status[1])+(teacher?'<div class="field mt-16"><label for="work-feedback">Comment</label><textarea id="work-feedback" placeholder="Add a hint or comment…">'+esc(a.note)+'</textarea></div>':a.note?'<p class="small mt-16">'+esc(noteText)+'</p>':'<p class="small muted mt-16">'+(editable?t('Write with your pen or finger. Choose Move page to scroll. Your work saves as you go.','用觸控筆或手指作答，選擇「移動頁面」便可捲動。作答內容會自動儲存。'):t('Your work is saved in your folder.','你的作答已儲存在學習資料夾。'))+'</p>')+'</div></section>'+
  '<section class="panel"><div class="panel-head"><h3>'+t('Written working','解題步驟')+'</h3></div><div class="panel-body"><div class="field"><label class="small muted" for="student-working">'+(editable&&ui.role==='student'?t('You can type your explanation here, too.','也可以在這裏輸入你的解題方法。'):t('Student’s explanation','學生的解題說明'))+'</label><textarea id="student-working" '+(ui.role!=='student'||!editable?'readonly':'')+' placeholder="'+t('Explain your thinking…','說明你的解題方法…')+'">'+esc(ui.showOriginal?a.submissions?.[0]?.working||'':a.working)+'</textarea></div></div></section>':'')+'<div class="helper-art">'+art(10)+'<div><h4>'+t('Show your thinking','列出解題過程')+'</h4><p>'+t('Your working is just as useful as your answer.','解題過程和答案一樣重要。')+'</p></div></div></aside></div>';
 }
@@ -691,11 +705,12 @@ document.addEventListener('click', e => {
     return;
   }
   const a=button.dataset.action, id=button.dataset.id;
+  if (ui.role==='teacher' && teacherProgressUI.onClick(button)) return;
   if (a.startsWith('wa-')) {conversationUI.handleAction(a,id,button);return;}
   if (a==='schedule-colour') {setScheduleColour(id,button.dataset.colour);return;}
   if (proofUI.handleAction(a,id,button)||bankCheckUI.handleAction(a,id,button)||(ui.role==='admin'&&receiptsUI.handleAction(a,id,button)))return;
-  if (a==='navigate') { ui.page=button.dataset.page;if(ui.page==='classroom')ui.standaloneFolder=false; ui.assignmentId=null; ui.search=''; render(); }
-  else if (a==='role') { closeModal(); ui.standaloneFolder=false;ui.role=button.dataset.role; ui.page=NAV[ui.role][0][0]; ui.moveId=null; ui.assignmentId=null; render(); }
+  if (a==='navigate') { ui.page=button.dataset.page;if(ui.page==='progress')teacherProgressUI.selectStudent(ui.selectedStudent);if(ui.page==='classroom')ui.standaloneFolder=false; ui.assignmentId=null; ui.search=''; render(); }
+  else if (a==='role') { closeModal(); ui.standaloneFolder=false;ui.role=button.dataset.role;if(ui.role==='student'&&state.demoWorksheetStudent)ui.familyStudent=state.demoWorksheetStudent;else if(ui.role==='parent'&&!['chloe','mia'].includes(ui.familyStudent))ui.familyStudent='chloe'; ui.page=NAV[ui.role][0][0]; ui.moveId=null; ui.assignmentId=null; render(); }
   else if (a==='close-modal') closeModal();
   else if (a==='toggle-menu') $('.sidebar').classList.toggle('open');
   else if (a==='calendar-view') {ui.scheduleView=button.dataset.view;render();}
@@ -712,7 +727,7 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>'+t('This is a front-end prototype with fictional students and payments. Changes stay in this browser. No messages, payments or reports are sent to an external service.','這是使用虛構學生及付款資料的介面示範。修改只儲存在此瀏覽器，不會向外傳送訊息、付款或報告。')+'</p><p class="mt-16 muted">'+t('The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.','示範課堂日期為 2026 年 9 月 30 日。銀行交易樣本包含跨月例子，可試用入賬日期調整及對賬流程。')+'</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>'+t('Restore the original fictional students, lessons and payments. Your demo edits and handwriting in this browser will be cleared.','還原最初的虛構學生、課堂及付款資料。你在此瀏覽器的示範修改及手寫內容將被清除。')+'</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);conversationUI.reset();bankCheckUI.reset();receiptsUI.reset();regularScheduleUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeP6Progress(state);conversationUI.reset();bankCheckUI.reset();receiptsUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent='chloe';ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Invoices',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeupPreferences(id,justConfirmed=false){
@@ -980,6 +995,7 @@ function handleAction(a,id,button){
 
 }
 document.addEventListener('change',e=>{
+ if(ui.role==='teacher'&&teacherProgressUI.onChange(e))return;
  if(regularScheduleUI.onChange(e))return;
  if(conversationUI.onChange(e)||proofUI.onChange(e)||bankCheckUI.onChange(e)||(ui.role==='admin'&&receiptsUI.onChange(e)))return;
  const target=e.target,type=target.dataset.change;
@@ -1005,6 +1021,7 @@ document.addEventListener('keydown',e=>{if(conversationUI.onKeyDown(e))return;if
 document.addEventListener('submit',e=>{if(e.target.id==='student-profile-form'){e.preventDefault();handleAction('save-profile-edit',e.target.dataset.studentId);}});
 let searchTimer;
 document.addEventListener('input',e=>{
+ if(ui.role==='teacher'&&teacherProgressUI.onInput(e))return;
  if(conversationUI.onInput(e)||bankCheckUI.onInput(e)||(ui.role==='admin'&&receiptsUI.onInput(e)))return;
  if(updateScheduleRemarkDraft(e.target))return;
  if(e.target.dataset.profileField){updateProfileDraft(e.target);return;}

@@ -52,10 +52,20 @@ The demo includes **700 enrolled fictional students** (plus Mia's assessment), s
 - **Student record:** student identity, Chinese name, date of birth, school/grade, enrolment date, parent relationship/contact/language/address, remarks, FPS remark, regular lessons and reminder preference. Student information is the first workbench tab. The other tabs replace the entire workbench with recorded lessons and attendance, invoices/receipts, or e-coupons and referrals; the selected student and tab bar stay visible. Names and contact details are fictional; missing information is shown as a dash. No coupon activity is fabricated.
 - **Edit details:** edit contact details and remarks in the profile. Unsaved drafts stay with their student when switching tabs or records; Save persists locally and Cancel discards that draft. Core identity, enrolment status and recurring lessons remain read-only. The learning folder opens independently of the teacher's current class, and moving a lesson from history opens its teacher's calendar.
 - **Add lesson / Lesson records:** use the searchable student picker; no 700-option dropdown.
-- **Teacher → Worksheet library → Assign:** defaults to the current class. Switch to **Whole centre** to find more students. Selections persist across searches/pages; **Review** shows only selected students before assignment.
+- **Teacher → Progress chart:** the P6 mock-up opens first. Pick a student from the teacher’s P6 list, select worksheet boxes, and send them together as classwork or homework. Existing assignments open from their status-coloured boxes.
 - **Billing, bank matching, conversations and director review:** bounded lists with search/filter or pagination as appropriate. Report totals and exports cover the complete report, across all pages. The schedule stays scoped by date and teacher; pending request queues and folder histories are also paginated.
 
 The QR contains an opaque demo token, with no student name or contact details. This remains a browser-local demonstration: a production scanner, server validation and authentication are not connected. The 700-student dataset demonstrates the interface at that volume; sample teacher timetables illustrate daily operation without generating a full annual schedule for every student.
+
+## P6 progress chart and digital worksheets
+
+Teacher opens on a compact P6 progress chart, transcribed from the supplied PRIMARY 6 Content index. The left student list stays visible; the chart shows topics 601–633 with the actual available Math 1–6 and EXCEL letters. Revision, CE Rev, PS and SSPA collections are available in the same workbench. All 336 worksheet identifiers stay distinct across collections.
+
+- Choose a P6 student, select any unassigned boxes (including across collections), then **Send to student**. **Classwork / Homework** sets the destination type. Switching student clears the selection to prevent sending it to the wrong child.
+- Box colours show Sent, In progress, To mark, Corrections and Completed. Clicking an assigned box opens that student's existing worksheet rather than creating a duplicate.
+- **Learning folder** opens the student's work history. **View student app** opens the selected student's tablet demo, where the assigned sheets show their exact worksheet codes and Traditional Chinese sample questions. Hand in / mark complete updates the same chart. Student entry remembers the last demonstrated P6 student in this browser; Parent keeps its original family examples.
+- The supplied images are curriculum indexes, not question files. All opened P6 sheets explicitly say **Sample questions · original worksheet not yet uploaded** (or the Traditional Chinese equivalent). Letter variants currently share topic-specific original demo questions. Real PDFs/question content must be connected later.
+- Both branches share this feature and use their own existing teacher/student fixtures and local storage. Sending is immediate within this browser's demo state; there is no cross-device delivery or backend.
 
 ## Teacher schedules
 

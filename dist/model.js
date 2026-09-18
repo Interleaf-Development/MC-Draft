@@ -1,4 +1,5 @@
 import { centreConfig } from './branch-config.js';
+import { p6Worksheets } from './p6-curriculum.js';
 
 export const TODAY = '2026-09-30';
 export const centre = { ...centreConfig.centre };
@@ -289,7 +290,7 @@ export function seedCentreVolume(state) {
   });
   return normalizeBillingMessages(state);
 }
-export const worksheets = [
+const originalWorksheets = [
   { id: 'fractions-01', code: 'FR · 031', title: 'Equivalent fractions', topic: 'Fractions', level: 'P3', pages: 1, minutes: 15, colour: 'rose' },
   { id: 'fractions-02', code: 'FR · 032', title: 'Comparing fractions', topic: 'Fractions', level: 'P3', pages: 1, minutes: 20, colour: 'amber' },
   { id: 'division-01', code: 'DV · 041', title: 'Long division', topic: 'Division', level: 'P4', pages: 1, minutes: 20, colour: 'blue' },
@@ -297,6 +298,7 @@ export const worksheets = [
   { id: 'numbers-01', code: 'NS · 012', title: 'Number patterns', topic: 'Number sense', level: 'P2', pages: 1, minutes: 15, colour: 'violet' },
   { id: 'decimals-01', code: 'DC · 042', title: 'Understanding decimals', topic: 'Decimals', level: 'P4', pages: 1, minutes: 20, colour: 'teal' }
 ];
+export const worksheets = [...originalWorksheets, ...p6Worksheets];
 export const worksheetById = id => worksheets.find(w => w.id === id) || worksheets[0];
 // Keep these original session examples recognizable when upgrading saved demos.
 function coreWeekExamples() {
@@ -330,7 +332,7 @@ export function seed() {
     { id: 'assignment-chloe-1', studentId: 'chloe', worksheetId: 'fractions-01', status: 'in-progress', homework: false, strokes: [], feedback: [], note: '', working: '', assignedDate: TODAY },
     { id: 'assignment-chloe-2', studentId: 'chloe', worksheetId: 'fractions-02', status: 'upcoming', homework: true, strokes: [], feedback: [], note: '', working: '', assignedDate: TODAY },
     { id: 'assignment-chloe-3', studentId: 'chloe', worksheetId: 'numbers-01', status: 'completed', homework: false, strokes: [], feedback: [], note: 'Great work identifying the pattern.', working: '4, 8, 12, 16, 20', assignedDate: '2026-09-16' },
-    ...students.slice(1, 6).map((s, i) => ({ id: 'assignment-' + s.id, studentId: s.id, worksheetId: worksheets[(i + 2) % worksheets.length].id, status: i === 1 ? 'corrections' : 'upcoming', homework: false, strokes: [], feedback: [], note: i === 1 ? 'Please show your working for question 2.' : '', working: '', assignedDate: TODAY }))
+    ...students.slice(1, 6).map((s, i) => ({ id: 'assignment-' + s.id, studentId: s.id, worksheetId: originalWorksheets[(i + 2) % originalWorksheets.length].id, status: i === 1 ? 'corrections' : 'upcoming', homework: false, strokes: [], feedback: [], note: i === 1 ? 'Please show your working for question 2.' : '', working: '', assignedDate: TODAY }))
   ];
   return normalizeParentLeave({
     version: 4, bookings, assignments,
