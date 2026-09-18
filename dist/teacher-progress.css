@@ -1,7 +1,7 @@
 .teacher-progress {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: 174px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 10px;
   height: calc(100dvh - 40px);
   min-height: 540px;
@@ -21,27 +21,30 @@
 .teacher-progress-search input { width: 100%; min-width: 0; border: 0; border-radius: 6px; background: transparent; outline-offset: 2px; padding: 8px 0; font-size: 12px; }
 .teacher-progress-search input:focus-visible { outline: none; }
 .teacher-progress-search:focus-within { outline: 2px solid #dd9b56; outline-offset: 2px; }
-.teacher-progress-class-navigation { display: flex; align-items: center; gap: 4px; padding: 5px 7px; }
-.teacher-progress-classes-list { display: flex; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; overscroll-behavior: contain; gap: 3px; }
-.teacher-progress-class { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 123px; padding: 6px 10px; border-radius: 6px; text-align: left; white-space: nowrap; }
-.teacher-progress-class span { color: var(--muted); font-size: 10px; }
-.teacher-progress-class strong { font-size: 12px; font-weight: 600; }
+.teacher-progress-classes { display: flex; flex-direction: column; }
+.teacher-progress-classes-heading { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 12px 10px 5px; }
+.teacher-progress-classes-heading > strong { font-size: 12px; font-weight: 650; }
+.teacher-progress-classes-heading .btn { font-size: 10px; padding: 4px 6px; min-height: 25px; }
+.teacher-progress-date-actions { padding: 0 10px 8px; }
+.teacher-progress-date-actions input { width: 100%; min-width: 0; padding: 7px 6px; font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.teacher-progress-class-navigation { display: grid; grid-template-columns: 22px minmax(0, 1fr) 22px; align-items: center; gap: 2px; padding: 0 6px 10px; flex: none; }
+.teacher-progress-classes-list { display: flex; min-width: 0; overflow-x: auto; scrollbar-width: none; overscroll-behavior: contain; }
+.teacher-progress-classes-list::-webkit-scrollbar { display: none; }
+.teacher-progress-class { flex: 0 0 100%; min-width: 0; min-height: 33px; display: flex; align-items: center; justify-content: center; padding: 6px 2px; border-radius: 5px; white-space: nowrap; }
+.teacher-progress-class:not(.is-active) { display: none; }
+.teacher-progress-class strong { font-size: 11px; font-weight: 600; }
 .teacher-progress-class:hover { background: var(--soft); }
-.teacher-progress-class.is-active { background: var(--red-soft); box-shadow: inset 0 -2px var(--red); }
-.teacher-progress-class.is-active strong { color: var(--red-dark); }
-.teacher-progress-class-arrow { width: 27px; min-height: 38px; flex: none; border-radius: 5px; }
-.teacher-progress-class-arrow svg { width: 16px; height: 16px; }
+.teacher-progress-class.is-active { background: var(--red-soft); color: var(--red-dark); }
+.teacher-progress-class-arrow { width: 22px; min-height: 33px; border-radius: 5px; }
+.teacher-progress-class-arrow svg { width: 14px; height: 14px; }
 .teacher-progress-class-arrow:hover { background: var(--soft); }
 .teacher-progress-class-arrow:disabled { opacity: .3; cursor: default; }
-.teacher-progress-date-actions { display: flex; align-items: center; gap: 5px; border-left: 1px solid var(--line); padding-left: 8px; margin-left: 3px; }
-.teacher-progress-date-actions .btn { font-size: 11px; padding: 6px 9px; }
-.teacher-progress-date-actions input { width: 128px; padding: 6px; font-size: 11px; border: 1px solid var(--line); border-radius: 6px; }
-.teacher-progress-students-list { display: flex; align-items: center; gap: 4px; overflow-x: auto; min-width: 0; overscroll-behavior: contain; border-top: 1px solid var(--line); padding: 6px 10px; }
-.teacher-progress-student { display: inline-flex; align-items: center; flex: none; gap: 7px; text-align: left; padding: 7px 10px; border-radius: 6px; }
-.teacher-progress-student > span { font-weight: 600; font-size: 12px; }
-.teacher-progress-student > small { color: var(--muted); font-size: 11px; }
+.teacher-progress-students-list { display: flex; flex-direction: column; align-items: stretch; gap: 3px; overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; overscroll-behavior: contain; border-top: 1px solid var(--line); padding: 7px 5px; }
+.teacher-progress-student { display: flex; align-items: baseline; justify-content: space-between; flex: none; gap: 6px; width: 100%; text-align: left; padding: 11px 8px; border-radius: 6px; }
+.teacher-progress-student > span { min-width: 0; font-weight: 600; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.teacher-progress-student > small { flex: none; color: var(--muted); font-size: 10px; }
 .teacher-progress-student:hover { background: var(--soft); }
-.teacher-progress-student.is-active { background: var(--red-soft); color: var(--red-dark); }
+.teacher-progress-student.is-active { background: var(--red-soft); color: var(--red-dark); box-shadow: inset 2px 0 var(--red); }
 .teacher-progress-workbench { display: flex; flex-direction: column; }
 .teacher-progress-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 12px; flex: none; border-bottom: 1px solid var(--line); }
 .teacher-progress-identity { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
@@ -122,17 +125,18 @@
 .teacher-progress-box.is-match { outline: 2px solid #d18c27; outline-offset: -1px; }
 .teacher-progress-box.is-selected { opacity: 1; }
 @media (max-width: 1200px) and (min-width: 761px) {
-  .teacher-progress { height: calc(100dvh - 28px); gap: 8px; }
+  .teacher-progress { grid-template-columns: 160px minmax(0, 1fr); height: calc(100dvh - 28px); gap: 8px; }
   .role-teacher .main:has(.teacher-progress) { padding: 14px; }
   .teacher-progress-header { flex-wrap: wrap; gap: 6px 10px; }
   .teacher-progress-search-area { margin-left: auto; }
   .teacher-progress-header-actions { margin-left: 0; }
 }
 @media (max-width: 760px) {
-  .teacher-progress { height: auto; min-height: 0; }
-  .teacher-progress-class-navigation { flex-wrap: wrap; }
-  .teacher-progress-classes-list { min-width: 60%; }
-  .teacher-progress-date-actions { width: 100%; justify-content: flex-end; border-left: 0; }
+  .teacher-progress { grid-template-columns: 150px minmax(0, 1fr); height: auto; min-height: 0; }
+  .teacher-progress-student { flex-direction: column; gap: 1px; }
+  .teacher-progress-class-navigation { grid-template-columns: 18px minmax(0, 1fr) 18px; padding-inline: 4px; }
+  .teacher-progress-class-arrow { width: 18px; }
+  .teacher-progress-class strong { font-size: 10px; }
   .teacher-progress-workbench { height: 760px; max-height: calc(100dvh - 90px); min-height: 490px; }
 
   .teacher-progress-header-actions { flex-wrap: wrap; }
