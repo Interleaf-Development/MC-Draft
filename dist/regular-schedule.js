@@ -75,6 +75,73 @@ function invoicePlan(state, invoice, period, rule) {
   }));
   return { lessons, makeUpLessonCount, expected, explicit: Boolean(explicit) };
 }
+
+// The demo calendar only seeds a representative week. Paid invoice plans supply
+// the remaining dates; recorded lessons and their make-up chains supply reality.
+export function getRemainingStudentLessons(state, studentId, asOf = TODAY) {
+  requireStudent(studentId);
+  if (!validDate(asOf)) throw new Error('Choose a valid date.');
+  const periods = getSchedulePeriods(state, studentId).filter(period => {
+    const receipt = state.receipts.find(item => item.id === period.receiptId);
+    return !receipt.issuedDate || receipt.issuedDate <= asOf;
+  });
+  if (!periods.length) return { lessons: [], pendingMinutes: 0, periodLabel: null, hasPaidPeriod: false };
+  const rule = getRegularSchedule(state, studentId), bookings = state.bookings.filter(item => item.studentId === studentId);
+  const makeups = (state.makeups || []).filter(item => item.studentId === studentId);
+  const bookingById = new Map(bookings.map(item => [item.id, item]));
+  const relatedBookings = new Set(), relatedCases = new Set(), planned = [], labels = new Set();
+  for (const period of periods) {
+    const invoice = state.invoices.find(item => item.id === period.id), plan = invoicePlan(state, invoice, period, rule);
+    if (period.end >= asOf) labels.add(period.label);
+    for (const lesson of plan.lessons) {
+      if (!validDate(lesson.date) || lesson.date < period.start || lesson.date > period.end) continue;
+      let booking = bookingById.get(lesson.bookingId);
+      // Unamended fixture dates sometimes use a different time from the directory
+      // rule. A unique recorded original on that date still consumes that lesson.
+      if (!booking && !plan.explicit) {
+        const sameDate = bookings.filter(item => !item.sourceId && item.date === lesson.date);
+        if (sameDate.length === 1) booking = sameDate[0];
+      }
+      if (booking) relatedBookings.add(booking.id);
+      else if (lesson.date >= asOf) planned.push(fields(lesson));
+    }
+    for (const makeup of makeups) {
+      if (makeup.invoiceId === invoice.id || !makeup.invoiceId && makeup.period === period.label) relatedCases.add(makeup.id);
+    }
+  }
+  // Cases can be split into several shorter lessons and a replacement can itself
+  // be missed. Follow every generation, retaining each entitlement only once.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const makeup of makeups) {
+      if (!relatedCases.has(makeup.id) && (relatedBookings.has(makeup.sourceId) || relatedCases.has(makeup.parentCaseId))) {
+        relatedCases.add(makeup.id); changed = true;
+      }
+    }
+    for (const booking of bookings) {
+      if (!relatedBookings.has(booking.id) && (relatedBookings.has(booking.sourceId) || relatedCases.has(booking.caseId))) {
+        relatedBookings.add(booking.id); changed = true;
+      }
+    }
+  }
+  const lessons = new Map();
+  for (const lesson of planned) {
+    if (!['present', 'absent'].includes(lesson.attendance) && activeBooking(lesson)) lessons.set(key(lesson), lesson);
+  }
+  for (const booking of bookings.filter(item => relatedBookings.has(item.id))) {
+    if (!validDate(booking.date) || booking.date < asOf || !activeBooking(booking) || ['present', 'absent'].includes(booking.attendance)) continue;
+    lessons.set(key(booking), { ...fields(booking), bookingId: booking.id });
+    const makeup = makeups.find(item => item.id === booking.caseId);
+    if (makeup?.period) labels.add(makeup.period);
+  }
+  const pendingMinutes = makeups.filter(item => relatedCases.has(item.id) && (!item.expiry || item.expiry >= asOf)).reduce((total, makeup) => {
+    const remaining = Math.max(0, Number(makeup.minutes || 0) - Number(makeup.used || 0));
+    if (remaining && makeup.period) labels.add(makeup.period);
+    return total + remaining;
+  }, 0);
+  return { lessons: sortLessons([...lessons.values()]), pendingMinutes, periodLabel: [...labels].join(' · ') || null, hasPaidPeriod: periods.some(period => period.end >= asOf) || lessons.size > 0 || pendingMinutes > 0 };
+}
 function fingerprint(state, input) {
   const value = JSON.stringify({ input, bookings: state.bookings, invoices: state.invoices.filter(item => item.studentId === input.studentId), receipts: state.receipts.filter(item => item.studentId === input.studentId), staff: state.staff, staffLeave: state.staffLeave, makeups: state.makeups.filter(item => item.studentId === input.studentId), regularSchedules: state.regularSchedules, centreHolidays: state.centreHolidays, holidays: state.holidays, closures: state.closures });
   let hash = 2166136261;

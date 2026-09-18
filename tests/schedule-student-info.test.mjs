@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import * as model from '../dist/model.js';
 import { getStudentProfile, saveStudentProfile } from '../dist/student-profile.js';
+import { getRemainingStudentLessons } from '../dist/regular-schedule.js';
 
 const source = await readFile(new URL('../dist/app.js', import.meta.url), 'utf8');
 function functionSource(name) {
@@ -32,7 +33,7 @@ function renderer() {
     note.dataset.bookingId = ui.scheduleBookingId;
   };
   context = vm.createContext({
-    ...model, state, ui, getStudentProfile, previousState: null, esc: escape,
+    ...model, state, ui, getStudentProfile, getRemainingStudentLessons, previousState: null, esc: escape,
     t: value => value, content: value => value,
     action: (name, label, cls = '', attrs = '') => '<button data-action="' + name + '" class="' + cls + '" ' + attrs + '>' + label + '</button>',
     icon: () => '', avatar: student => '<span>' + escape(student.initials) + '</span>',
