@@ -447,8 +447,12 @@
 .schedule-student-facts dd,
 .schedule-lesson-info dd { min-width: 0; margin: 0; color: var(--ink); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
 .schedule-lesson-info { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
-.schedule-lesson-info h4,
+.schedule-lesson-info summary,
 .schedule-profile-note h4 { margin: 0; color: #647084; font-size: 12px; font-weight: 650; line-height: 1.5; }
+.schedule-lesson-info summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; cursor: pointer; list-style: none; }
+.schedule-lesson-info summary::-webkit-details-marker { display: none; }
+.schedule-lesson-info summary .icon { flex-shrink: 0; transform: rotate(-90deg); }
+.schedule-lesson-info[open] summary .icon { transform: rotate(0); }
 .schedule-lesson-info dl { margin-top: 10px; }
 .schedule-profile-note { min-width: 0; margin-top: 15px; }
 .schedule-profile-note p { margin-top: 5px; color: var(--ink); font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -457,7 +461,8 @@
 .schedule-student-info #schedule-booking-note { min-height: 62px; padding: 8px 10px; font-size: 13px; line-height: 1.5; resize: vertical; }
 .schedule-student-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .schedule-student-actions .btn { min-height: 32px; padding: 6px 10px; font-size: 12px; }
-.schedule-student-actions .inline-link { min-height: 32px; padding: 5px 0; font-size: 12px; }
+.schedule-student-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
+.schedule-student-footer .inline-link { min-height: 32px; padding: 5px 0; font-size: 12px; }
 
 @media print {
   .schedule-main .calendar-scroll { max-height: none; }

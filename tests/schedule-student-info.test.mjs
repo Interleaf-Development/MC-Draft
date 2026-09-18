@@ -136,15 +136,14 @@ test('selection and remark writes are guarded by admin role, schedule page, and 
   assert.equal(app.calls.rail, renders); assert.equal(app.calls.persisted.length, 0); assert.deepEqual(app.state, before);
 });
 
-test('inactive bookings have no Move action; teacher and directory clicks retain their existing dialogs', () => {
+test('the schedule rail has no Move action for any booking status; teacher and directory clicks retain their existing dialogs', () => {
   const app = renderer();
-  for (const status of ['moved', 'absent', 'cancelled']) {
+  for (const status of ['scheduled', 'moved', 'absent', 'cancelled']) {
     app.state.bookings[0].status = status;
     app.call('selectScheduleBooking', 'lesson-a');
     assert.doesNotMatch(app.panel.innerHTML, /data-action="begin-move"/);
   }
   app.state.bookings[0].status = 'scheduled'; app.call('selectScheduleBooking', 'lesson-a');
-  assert.match(app.panel.innerHTML, /data-action="begin-move"[^>]*data-id="lesson-a"/);
   const before = model.clone(app.state), railCount = app.calls.rail;
   app.ui.role = 'teacher'; app.call('bookingDetail', 'lesson-a');
   assert.equal(app.calls.modal.at(-1)[0], 'Chloe Chan');
