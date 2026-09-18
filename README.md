@@ -59,7 +59,7 @@ The QR contains an opaque demo token, with no student name or contact details. T
 
 ## Teacher schedules
 
-**Leave bin:** Admin and Teacher schedules have a drop area above Pending make-ups. Drag an unattended lesson there to record leave without choosing a replacement time; the original booking is crossed out and the linked make-up remains in the follow-up queue. Teachers see their own cases; Admin can contact the parent and arrange the make-up later. The same action is available from the selected lesson as **Record leave · arrange later**. An immediate Undo restores the lesson. Staff can also record a past missed lesson, retaining its original entitlement and deadline. Receipts and payment amounts are unchanged.
+**Leave bin:** Admin and Teacher schedules have a drop area above Pending make-ups. Drag an unattended lesson there to record leave without choosing a replacement time; the original booking is crossed out and the linked make-up remains in the follow-up queue. Teachers see their own cases; Admin can contact the parent and arrange the make-up later. Pending entries show only the student name, grade and original lesson date. Admin can click a strip to arrange its make-up. An immediate Undo restores the lesson. Staff can also record a past missed lesson, retaining its original entitlement and deadline. Receipts and payment amounts are unchanged.
 
 - Tabs for **Koko, Ming, Oscar, Peter, Polly, Shileen, Tiffany and Winky**, with day and week views for **Monday–Sunday, 09:00–19:00**. The centre opens seven days a week; each teacher’s roster still controls their availability.
 - Hang Hau uses **Rico, John, Leo, Amy, Melissa and Jason**. Its names, staffing, class bookings and parent-facing teacher labels all follow the branch configuration.

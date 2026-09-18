@@ -515,3 +515,29 @@
 .schedule-leave-dropzone.is-dragging { border-color: #b27832; background: #fffaf0; }
 .schedule-leave-dropzone.drag-over { border: 2px solid #b27832; padding: 13px 11px; background: #fff0d4; color: #946323; }
 @media (prefers-reduced-motion: reduce) { .schedule-leave-dropzone { transition: none; } }
+
+/* Keep the holding list as compact as the lesson chips. */
+.makeup-strip {
+ display: flex;
+ align-items: center;
+ gap: 4px;
+ width: 100%;
+ min-width: 0;
+ min-height: 27px;
+ margin-bottom: 5px;
+ padding: 3px 6px;
+ border: 1px solid var(--line);
+ border-left: 3px solid #c2cbd6;
+ border-radius: 4px;
+ background: #fafbfc;
+ color: var(--ink);
+ font-size: 12px;
+ line-height: 19px;
+ text-align: left;
+}
+.makeup-strip:last-child { margin-bottom: 0; }
+.makeup-strip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.makeup-strip-grade { flex-shrink: 0; }
+.makeup-strip-date { margin-left: auto; padding-left: 6px; flex-shrink: 0; color: var(--muted); font-size: 11px; }
+button.makeup-strip:hover { background: #f0f3f6; border-color: #bbc5d2; }
+button.makeup-strip:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
