@@ -1,6 +1,6 @@
 // Bump this version when changing the offline asset set or cache policy.
 const CACHE_PREFIX = 'mathconcept-static-';
-const CACHE_NAME = CACHE_PREFIX + 'v30-p6-progress-chart';
+const CACHE_NAME = CACHE_PREFIX + 'v31-combined-p6-chart';
 const shells = { '/index.html': '/', '/parent/index.html': '/parent/', '/student/index.html': '/student/', '/hh/index.html': '/hh/', '/hh/parent/index.html': '/hh/parent/', '/hh/student/index.html': '/hh/student/' };
 function shellPath(path) {
   if (path === '/' || path === '/index.html') return '/index.html';

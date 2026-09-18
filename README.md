@@ -59,7 +59,7 @@ The QR contains an opaque demo token, with no student name or contact details. T
 
 ## P6 progress chart and digital worksheets
 
-Teacher opens on a compact P6 progress chart, transcribed from the supplied PRIMARY 6 Content index. The left student list stays visible; the chart shows topics 601–633 with the actual available Math 1–6 and EXCEL letters. Revision, CE Rev, PS and SSPA collections are available in the same workbench. All 336 worksheet identifiers stay distinct across collections.
+Teacher opens on a compact P6 progress chart, transcribed from the supplied PRIMARY 6 Content index. The left student list stays visible; the chart shows topics 601–633 with the actual available Math 1–6 and EXCEL letters. Math 1–6, EXCEL, Revision, CE Rev and PS sit side by side in one continuous chart, with SSPA below. Revision cells span their related topics, and CE/PS are grouped by term. Search highlights matching worksheets without breaking these groups. All 336 worksheet identifiers stay distinct across collections.
 
 - Choose a P6 student, select any unassigned boxes (including across collections), then **Send to student**. **Classwork / Homework** sets the destination type. Switching student clears the selection to prevent sending it to the wrong child.
 - Box colours show Sent, In progress, To mark, Corrections and Completed. Clicking an assigned box opens that student's existing worksheet rather than creating a duplicate.

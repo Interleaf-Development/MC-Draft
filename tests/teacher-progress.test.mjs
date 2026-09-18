@@ -169,15 +169,13 @@ test('the chart clears picked sheets on student change and sends only the new se
   assert.equal(app.ui.selectedStudentId, first.id);
   const before = structuredClone(app.state.assignments);
   app.click('worksheet', { worksheet: selection[0] });
-  app.click('tab', { tab: 'revision' });
   app.click('worksheet', { worksheet: selection[2] });
-  assert.deepEqual(app.state.assignments, before, 'Picking cells and changing collection does not send work');
+  assert.deepEqual(app.state.assignments, before, 'Picking cells from different collections does not send work');
   app.click('student', { student: second.id });
   assert.equal(app.ui.selectedStudentId, second.id);
   app.click('send');
   assert.equal(app.calls.changes, 0, 'The first student selection must not leak into the second student');
   assert.deepEqual(app.state.assignments, before);
-  app.click('tab', { tab: 'core' });
   app.click('worksheet', { worksheet: selection[1] });
   app.ui.onChange({ target: { id: 'teacher-progress-purpose', value: 'homework' } });
   app.click('send');
@@ -206,4 +204,17 @@ test('clicking a completed chart cell opens its saved work instead of selecting 
   assert.equal(app.calls.changes, 0);
   assert.deepEqual(app.state, before);
   assert.equal(app.ui.onClick({ dataset: { action: 'unrelated-action' } }), false);
+});
+
+
+test('the combined chart keeps every worksheet available exactly once, including extended CE and SSPA', () => {
+  const app = chartHarness();
+  const ids = [...app.html.matchAll(/data-worksheet="([^"]+)"/g)].map(match => match[1]);
+  const expected = model.worksheets.filter(sheet => sheet.level === 'P6').map(sheet => sheet.id);
+  assert.equal(ids.length, expected.length);
+  assert.deepEqual(new Set(ids), new Set(expected));
+  for (const worksheet of ['p6-ce-P6-01', 'p6-sspa-6B-6', 'p6-ps-54']) assert.ok(ids.includes(worksheet));
+  app.ui.onInput({ target: { id: 'teacher-progress-worksheet-search', value: '6B01' } });
+  assert.match(app.html, /4 matches/);
+  assert.equal([...app.html.matchAll(/data-worksheet="([^"]+)"/g)].length, expected.length, 'Searching highlights matches while preserving the chart and merged topic groups');
 });
