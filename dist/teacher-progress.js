@@ -36,19 +36,19 @@ export function worksheetProgress(state, studentId, worksheetId) {
   return (state.assignments || []).findLast(assignment => assignment.studentId === studentId && assignment.worksheetId === worksheetId);
 }
 
-export function assignP6Worksheets(state, { studentId, worksheetIds, homework = false, tutorId = centre.managerId }) {
+export function assignP6Worksheets(state, { studentId, worksheetIds, homework = false, prepared = false, tutorId = centre.managerId }) {
   const student = getP6Students(state, tutorId).find(student => student.id === studentId);
   if (!student) throw new Error('Choose a P6 student from your list.');
-  return assignWorksheets(state, { student, worksheetIds, homework, tutorId, worksheetCatalog: catalog });
+  return assignWorksheets(state, { student, worksheetIds, homework, prepared, tutorId, worksheetCatalog: catalog });
 }
 
-export function assignTeacherWorksheets(state, { studentId, worksheetIds, homework = false, tutorId = centre.managerId }) {
+export function assignTeacherWorksheets(state, { studentId, worksheetIds, homework = false, prepared = false, tutorId = centre.managerId }) {
   const student = getTeacherStudents(state, tutorId).find(student => student.id === studentId);
   if (!student) throw new Error('Choose a student from your classes.');
-  return assignWorksheets(state, { student, worksheetIds, homework, tutorId, worksheetCatalog: teacherCatalog });
+  return assignWorksheets(state, { student, worksheetIds, homework, prepared, tutorId, worksheetCatalog: teacherCatalog });
 }
 
-function assignWorksheets(state, { student, worksheetIds, homework, tutorId, worksheetCatalog }) {
+function assignWorksheets(state, { student, worksheetIds, homework, prepared, tutorId, worksheetCatalog }) {
   const studentId = student.id;
   const ids = [...new Set(worksheetIds || [])];
   if (!ids.length) throw new Error('Select at least one worksheet.');
@@ -59,15 +59,16 @@ function assignWorksheets(state, { student, worksheetIds, homework, tutorId, wor
   for (const worksheetId of ids) {
     if (worksheetProgress(state, studentId, worksheetId)) { skipped.push(worksheetId); continue; }
     const assignment = {
-      id: uid('assignment'), studentId, worksheetId, status: 'upcoming', homework: Boolean(homework),
-      strokes: [], feedback: [], working: '', note: '', assignedDate: TODAY, assignedBy: tutorId
+      id: uid('assignment'), studentId, worksheetId, status: prepared ? 'prepared' : 'upcoming', homework: Boolean(homework),
+      strokes: [], feedback: [], working: '', note: '', assignedDate: TODAY, assignedBy: tutorId,
+      ...(prepared ? { preparedDate: TODAY } : { releasedDate: TODAY, releasedBy: tutorId })
     };
     state.assignments.push(assignment);
     assigned.push(assignment);
   }
   if (assigned.length) {
     state.demoWorksheetStudent = studentId;
-    record(state, 'Sent ' + assigned.map(item => worksheetCatalog.get(item.worksheetId).code).join(', ') + ' to ' + student.name);
+    record(state, (prepared ? 'Prepared ' : 'Sent ') + assigned.map(item => worksheetCatalog.get(item.worksheetId).code).join(', ') + (prepared ? ' for ' : ' to ') + student.name);
   }
   return { assigned, skipped };
 }

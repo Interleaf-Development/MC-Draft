@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import * as model from '../dist/model.js';
 import { isFamilyRole, familyText, familyContent, familyDate } from '../dist/family-locale.js';
+import { canStudentOpenAssignment, canStudentEditAssignment } from '../dist/student-work.js';
+import { renderStudentBinder } from '../dist/student-binder-ui.js';
 
 const source = await readFile(new URL('../dist/app.js', import.meta.url), 'utf8');
 const worksheetSource = source.slice(source.indexOf('function studentWork(){'), source.indexOf('let canvasObserver;'));
@@ -16,7 +18,7 @@ function renderer() {
   const state = model.seed();
   const escape = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
   const context = vm.createContext({
-    ...model, ui, state,
+    ...model, ui, state, isFamilyRole, canStudentOpenAssignment, canStudentEditAssignment, renderStudentBinder,
     t: (en, zh) => isFamilyRole(ui.role) ? zh ?? familyText(en, ui.role) : en,
     content: value => familyContent(value, ui.role), dateLabel: (date, options) => familyDate(date, ui.role, options), esc: escape,
     heading: (title, actions = '') => '<h1>' + escape(title) + '</h1>' + actions,
@@ -62,7 +64,7 @@ test('the same worksheet renders Chinese for students and parents, with staff En
       assert.match(html, /Teacher feedback/); assert.doesNotMatch(html, /完成以下等值分數。/);
     }
     if (role === 'student') {
-      assert.match(html, /data-action="submit-work"[^>]*>\s*交功課/);
+      assert.match(html, /data-action="submit-work"[^>]*>\s*交給老師/);
       assert.match(html, /aria-label="移動頁面"/);
     } else if (role === 'parent') {
       assert.match(html, /工作紙預覽/); assert.doesNotMatch(html, /data-action="submit-work"/);
@@ -89,7 +91,7 @@ test('worksheet questions across the seeded curriculum are translated without ch
 });
 
 test('only known seed feedback is translated; copied/custom teacher notes and student answers stay verbatim', () => {
-  const app = renderer(); app.ui.assignmentId = 'assignment-lucas';
+  const app = renderer(); app.ui.assignmentId = 'assignment-lucas'; app.ui.familyStudent = 'lucas';
   assert.match(app.render(), /請列出第 2 題的計算步驟。/);
   const seedAssignment = app.state.assignments.find(item => item.id === app.ui.assignmentId);
   const custom = { ...structuredClone(seedAssignment), id: 'new-teacher-assignment', working: 'Equivalent fractions: 1 < 2 & 3 > 2', submissions: [{ working: 'Number patterns', strokes: [], date: model.TODAY }] };
@@ -111,11 +113,12 @@ test('only known seed feedback is translated; copied/custom teacher notes and st
   assert.equal(seedAssignment.note, 'Please keep my new note <unchanged>.');
 });
 
-test('student work cards show translated progress and keep operational IDs intact', () => {
+test('student binder uses Chinese worksheet cues and keeps operational IDs intact', () => {
   const app = renderer(), assignment = app.state.assignments.find(item => item.id === app.ui.assignmentId);
   assignment.status = 'submitted'; const before = JSON.stringify(app.state);
   const html = app.cards();
-  assert.match(html, /待老師批改/); assert.match(html, /查看工作紙/); assert.match(html, /家課/);
+  assert.match(html, /交給老師了/); assert.match(html, /看看已交的功課/); assert.match(html, /家課/);
+  for (const label of ['做好了', '現在做', '稍後做']) assert.ok(html.includes(label));
   assert.ok(html.includes('data-id="' + assignment.id + '"')); assert.ok(html.includes('data-action="open-assignment"'));
   app.ui.page = 'past'; assert.match(app.cards(), /數字規律/);
   assert.equal(JSON.stringify(app.state), before);

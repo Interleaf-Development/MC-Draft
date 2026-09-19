@@ -1,0 +1,279 @@
+/* Opening a sheet clears the binder away: the page gets all available space. */
+.role-student.worksheet-open {
+  --writing-toolbar-height: 52px;
+  height: 100dvh;
+  overflow: hidden;
+  background: #fff;
+}
+
+.role-student.worksheet-open .app-shell {
+  display: block;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.role-student.worksheet-open :is(.sidebar, .topbar, .mobile-bottom-nav, .worksheet-feedback) {
+  display: none;
+}
+
+.role-student.worksheet-open .main {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.student-writing-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: calc(var(--writing-toolbar-height) + env(safe-area-inset-top, 0px));
+  padding: calc(4px + env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) 3px max(8px, env(safe-area-inset-left, 0px));
+  background: #fff;
+  border-bottom: 1px solid #e6e9ed;
+  z-index: 2;
+}
+
+.student-writing-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.student-writing-title :is(h1, strong, span, small) {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-writing-title h1 {
+  font-size: 14px;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+.student-writing-title :is(small, .muted) {
+  margin-top: 2px;
+  color: #788293;
+  font-size: 11px;
+}
+
+.student-writing-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.role-student .student-writing-toolbar :is(.tool-btn, .icon-btn, .colour-tool) {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  flex: none;
+  margin: 0;
+}
+
+.role-student .student-writing-toolbar .tool-btn {
+  border-color: transparent;
+  border-radius: 7px;
+}
+
+.role-student .student-writing-toolbar .tool-btn.active {
+  border-color: #ecc9cb;
+}
+
+.role-student .student-writing-toolbar .pan-tool {
+  width: auto;
+  padding: 0 10px;
+}
+
+.role-student .student-writing-toolbar .btn {
+  flex: none;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.student-writing-options {
+  position: relative;
+  flex: none;
+}
+
+.student-writing-options > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  list-style: none;
+  cursor: pointer;
+  border-radius: 7px;
+}
+
+.student-writing-options > summary::-webkit-details-marker { display: none; }
+.student-writing-options[open] > summary { background: #f3f4f6; }
+.student-writing-options > summary:focus-visible { outline: 3px solid #e89a48; outline-offset: -3px; }
+
+.student-writing-popover {
+  position: absolute;
+  z-index: 45;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 240px;
+  max-width: calc(100vw - 16px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #e6e9ed;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #25304126;
+}
+
+.student-writing-popover .student-colour-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.student-writing-popover label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.student-writing-popover select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  color: #263246;
+  background: #fff;
+  border: 1px solid #dfe4eb;
+  border-radius: 7px;
+}
+
+.role-student.worksheet-open .worksheet-layout {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin: 0;
+}
+
+.role-student.worksheet-open .worksheet-layout > section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.role-student.worksheet-open .paper-wrap {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-height: none;
+  padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  border: 0;
+  border-radius: 0;
+}
+
+/* Keep the worksheet's proportions and scroll it; never shrink it to fit its height. */
+.role-student.worksheet-open .paper,
+.role-student.worksheet-open .worksheet-layout.expanded .paper {
+  width: calc(100% * var(--student-paper-zoom, 1));
+  min-width: 100%;
+  max-width: none;
+  margin: 0;
+  box-shadow: none;
+}
+
+.role-student.worksheet-open .work-side {
+  display: none;
+  position: fixed;
+  z-index: 40;
+  top: calc(var(--writing-toolbar-height) + env(safe-area-inset-top, 0px));
+  right: 0;
+  bottom: 0;
+  width: min(360px, 100%);
+  max-height: none;
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: #fafbfc;
+  border: 0;
+  border-left: 1px solid #e6e9ed;
+  border-radius: 0;
+  box-shadow: -12px 0 32px #2530411c;
+}
+
+.role-student.worksheet-open.work-notes-open .work-side {
+  display: block;
+}
+
+.role-student.worksheet-open .work-side .notes-heading {
+  align-items: center;
+}
+
+.role-student.worksheet-open .work-side .notes-heading h2 {
+  font-size: 18px;
+}
+
+.role-student.worksheet-open #notifications {
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 1000px) {
+  .student-writing-tools .pan-tool span { display: none; }
+  .role-student .student-writing-toolbar .pan-tool { width: 44px; padding: 0; }
+}
+
+@media (max-width: 600px) {
+  .role-student.worksheet-open { --writing-toolbar-height: 100px; }
+  .student-writing-toolbar {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px 44px auto;
+    grid-template-rows: 44px 44px;
+    gap: 4px;
+  }
+  .student-writing-tools {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    justify-content: center;
+    overflow-x: auto;
+  }
+  .student-writing-title { grid-column: 2; grid-row: 1; }
+  .student-writing-toolbar > [data-action="back-work"] { grid-column: 1; grid-row: 1; }
+  .student-writing-toolbar > .student-writing-options { grid-column: 3; grid-row: 1; }
+  .student-writing-toolbar > [data-action="toggle-work-notes"] { grid-column: 4; grid-row: 1; }
+  .student-writing-toolbar > [data-action="submit-work"] { grid-column: 5; grid-row: 1; }
+  .student-writing-popover { position: fixed; top: calc(52px + env(safe-area-inset-top, 0px)); right: 8px; }
+  .role-student .student-writing-toolbar .btn { padding: 0 10px; gap: 5px; }
+}
+
+@media (max-width: 350px) {
+  .student-writing-tools { justify-content: flex-start; }
+}

@@ -80,6 +80,8 @@
 .teacher-progress-legend i { color: #536175; background: #fff; border: 1px solid #dce2e9; }
 .teacher-progress-box { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 21px; height: 18px; padding: 0 2px; border-radius: 2px; font-size: 10px; font-weight: 550; line-height: 1; transition: background .12s, border-color .12s, box-shadow .12s; }
 .teacher-progress-box:hover { border-color: #91a0b4; box-shadow: 0 1px 3px #27324516; }
+.teacher-progress-box.is-prepared,
+.teacher-progress-legend i.is-prepared { background: #f0f1f4; border-color: #aeb7c4; border-style: dashed; color: #667388; }
 .teacher-progress-box.is-sent,
 .teacher-progress-legend i.is-sent { background: #edf3fc; border-color: #bdd0ec; color: #42668f; }
 .teacher-progress-box.is-working,
@@ -95,11 +97,11 @@
 .teacher-progress-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 6px 10px; border-top: 1px solid var(--line); color: #7b8595; flex: none; }
 .teacher-progress-legend > span { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; white-space: nowrap; }
 .teacher-progress-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
-.teacher-progress-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex: none; padding: 8px 10px; border-top: 1px solid var(--line); background: #fff; }
+.teacher-progress-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; flex: none; padding: 8px 10px; border-top: 1px solid var(--line); background: #fff; }
 .teacher-progress-selection { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
 .teacher-progress-selection strong { font-size: 12px; font-weight: 650; }
 .teacher-progress-selection > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; font-size: 10px; color: var(--muted); }
-.teacher-progress-send-actions { display: flex; align-items: center; gap: 7px; flex: none; }
+.teacher-progress-send-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 7px; flex: none; max-width: 100%; margin-left: auto; }
 .teacher-progress-send-actions .btn { min-height: 35px; font-size: 11px; padding: 7px 10px; }
 .teacher-progress-send-actions select { border: 1px solid var(--line); border-radius: 7px; padding: 8px; min-height: 35px; background: #fff; font-size: 11px; color: var(--ink); }
 .teacher-progress-empty { margin: 0; padding: 24px 15px; font-size: 12px; color: var(--muted); }

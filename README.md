@@ -36,7 +36,7 @@ The app shell and local artwork are cached after the first successful online vis
 Parent and Student screens use **Hong Kong Traditional Chinese (`zh-HK`)**, including new features going forward. Admin and Teacher screens remain English. Shared components select their language by role; user-authored messages, notes and worksheet answers retain their original text. See `AGENTS.md` for the development convention.
 
 - **Parent: mobile first.** Three home shortcuts (上課時間、課堂報告、功課) lead into a seven-day lesson list grouped by date. The bottom bar contains 主頁、課堂、訊息、繳費 and a raised MathConcept icon opening the attendance QR. Homepage lesson cards are read-only; leave requests are available under 課堂. Homework opens read-only for parents. A single-column layout, 44px minimum action targets, 16px form inputs, safe-area spacing and bottom-sheet dialogs support phones. The Demo menu contains presentation controls. The same narrow layout is kept on desktop for client review.
-- **Student: large tablet first.** Designed around iPad Pro-size portrait and landscape viewports (1024 × 1366 and 1366 × 1024). A full-width worksheet replaces the desktop sidebar; 48px writing tools and Hand in stay visible while the page scrolls. Notes and typed working open in a side panel. Use Pen to write or Move page to scroll across the sheet.
+- **Student: large tablet first.** Designed around iPad Pro-size portrait and landscape viewports (1024 × 1366 and 1366 × 1024). Students browse a visual paper binder. Opening a worksheet removes the binder, navigation and decorative margins, leaving a full-width writing surface with a slim toolbar. Notes and typed working open only when requested; **更多工具 → 紙張大小** provides zoom. Use Pen to write or Move page to scroll across the sheet.
 - **Admin / Teacher: desktop first.** Denser operational views retain their sidebar and tables.
 
 These are browser prototypes of the intended app experiences, not native builds. Actual Apple Pencil behaviour, palm rejection, on-screen keyboard behaviour, offline sync and device performance require validation on real hardware before native implementation. The demo tracks one active drawing pointer to prevent a second touch from replacing or ending an existing stroke.
@@ -61,11 +61,17 @@ The QR contains an opaque demo token, with no student name or contact details. T
 
 Teacher opens on the first class on or after the demo date (or the most recent past class). Classes come from the selected teacher’s actual bookings, grouped by date and start time, excluding moved/cancelled/absent lessons. A slim left panel keeps the date picker and previous/next class controls above a vertical list of that class’s students. Class navigation stays horizontal within the panel, and the worksheet chart uses the full height beside it. Selecting a different student resets the chart to their grade. P3 and P6 charts are transcribed from the supplied PRIMARY 3 and PRIMARY 6 indexes, with topics 301–335 and 601–633 and the actual available Math 1–6 and EXCEL letters. Math 1–6, EXCEL, Revision, CE Rev and PS sit side by side in one continuous chart, with SSPA below. Revision cells span their related topics, and CE/PS are grouped by term. Search highlights matching worksheets without breaking these groups. All 336 P6 and 294 P3 worksheet identifiers stay distinct across collections. P3 has Revision and PS but no CE Rev or SSPA. Other grades use existing sample worksheets where available; missing grades show an explicit demo empty state. Browsing a different worksheet grade never changes the student recipient.
 
-- Choose a class and student, select any unassigned boxes (including across collections), then **Send to student**. **Classwork / Homework** sets the destination type. Switching student, class or worksheet grade clears the selection to prevent sending stale choices. Teachers can send an appropriate worksheet from another grade without changing the student’s enrolment grade.
-- Box colours show Sent, In progress, To mark, Corrections and Completed. Clicking an assigned box opens that student's existing worksheet rather than creating a duplicate.
+- Choose a class and student, select any unassigned boxes (including across collections), then **Send to student** to make the work available now or **Prepare for later** to keep it locked. **Classwork / Homework** sets the destination type. Switching student, class or worksheet grade clears the selection to prevent sending stale choices. Teachers can send an appropriate worksheet from another grade without changing the student’s enrolment grade.
+- Box colours show Prepared, Sent, In progress, To mark, Corrections and Completed. Clicking an assigned box opens that student's existing worksheet rather than creating a duplicate. A prepared worksheet has a **Release to student** action; release preserves its notes and annotations.
 - **Learning folder** opens the student's work history. **View student app** opens the selected student's tablet demo, where the assigned sheets show their exact worksheet codes and Traditional Chinese sample questions. Hand in / mark complete updates the same chart. Student entry remembers the last demonstrated student in this browser; Parent keeps its original family examples.
 - The supplied images are curriculum indexes, not question files. All opened P3/P6 chart sheets explicitly say **Sample questions · original worksheet not yet uploaded** (or the Traditional Chinese equivalent). Letter variants currently share topic-specific original demo questions. Real PDFs/question content must be connected later.
 - Both branches share this feature and use their own existing teacher/student fixtures and local storage. Sending is immediate within this browser's demo state; there is no cross-device delivery or backend.
+
+### Student binder
+
+The three physical-style dividers are **做好了** (past), **現在做** (current, shown first) and **稍後做** (future). Current work appears as paper previews, with teacher sticky notes on corrections. Submitted sheets stay here as **交給老師了**, read-only while awaiting review. Teacher-approved completed work moves to Past and stays available for read-only revisiting.
+
+Future work sits in a sealed pocket with no worksheet preview or answering access, including through the parent homework screen. Only a teacher's release moves prepared work into Current; finishing another sheet never unlocks it automatically. Previously sent work remains accessible. Opening a page gives the writing area the full screen below its slim toolbar, with notes and zoom available on demand.
 
 ## Teacher schedules
 
@@ -88,8 +94,8 @@ Teacher opens on the first class on or after the demo date (or the most recent p
 
 ### 1. Paperless lesson
 
-1. **Teacher → My classroom:** mark attendance, open Chloe's folder, or assign a worksheet from the library.
-2. **Student → My work:** open Equivalent fractions, write on the page or type an explanation, then hand it in.
+1. **Teacher → My classroom:** mark attendance and open Chloe's folder. Use **Progress chart** to send work now or prepare it for later.
+2. **Student → 現在做:** open Equivalent fractions, write on the page or type an explanation in the notes panel, then choose **交給老師**.
 3. **Teacher:** open Chloe's submitted work, add annotations and feedback, then request corrections or mark it complete.
 4. **Student:** make the requested corrections. Original submissions remain available.
 5. **Teacher → Lesson record:** write a summary and share it.

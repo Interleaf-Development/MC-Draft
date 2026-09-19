@@ -5,6 +5,7 @@ import { getTeacherClasses, worksheetProgress, assignTeacherWorksheets } from '.
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
 const statuses = {
+  prepared: ['Prepared', 'prepared'],
   upcoming: ['Sent', 'sent'],
   'in-progress': ['In progress', 'working'],
   submitted: ['To mark', 'submitted'],
@@ -196,7 +197,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   function footer(student) {
     const chosen = [...selected].map(id => worksheetMap.get(id)).filter(Boolean);
     const codes = chosen.map(worksheet => worksheet.code).join(', ');
-    return '<div class="teacher-progress-footer"><div class="teacher-progress-selection" aria-live="polite"><strong>'+chosen.length+' selected</strong><span title="'+esc(codes)+'">'+(chosen.length ? esc(codes) : 'Select worksheet boxes to send')+'</span></div><div class="teacher-progress-send-actions">'+(chosen.length ? action('clear', 'Clear', '', 'btn ghost small') : '')+'<select id="teacher-progress-purpose" aria-label="Send as"><option value="classwork"'+(!homework ? ' selected' : '')+'>Classwork</option><option value="homework"'+(homework ? ' selected' : '')+'>Homework</option></select>'+action('send', 'Send to student', 'aria-label="Send '+chosen.length+' worksheet'+(chosen.length === 1 ? '' : 's')+' to '+esc(student.name)+'"'+(!chosen.length ? ' disabled' : ''), 'btn primary')+'</div></div>';
+    return '<div class="teacher-progress-footer"><div class="teacher-progress-selection" aria-live="polite"><strong>'+chosen.length+' selected</strong><span title="'+esc(codes)+'">'+(chosen.length ? esc(codes) : 'Select worksheet boxes')+'</span></div><div class="teacher-progress-send-actions">'+(chosen.length ? action('clear', 'Clear', '', 'btn ghost small') : '')+'<select id="teacher-progress-purpose" aria-label="Send as"><option value="classwork"'+(!homework ? ' selected' : '')+'>Classwork</option><option value="homework"'+(homework ? ' selected' : '')+'>Homework</option></select>'+action('prepare', 'Prepare for later', 'aria-label="Prepare '+chosen.length+' worksheet'+(chosen.length === 1 ? '' : 's')+' for '+esc(student.name)+'"'+(!chosen.length ? ' disabled' : ''), 'btn small')+action('send', 'Send to student', 'aria-label="Send '+chosen.length+' worksheet'+(chosen.length === 1 ? '' : 's')+' to '+esc(student.name)+'"'+(!chosen.length ? ' disabled' : ''), 'btn primary')+'</div></div>';
   }
 
   function classNavigation() {
@@ -214,7 +215,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
     const matchesCount = worksheetSearch.trim() ? curriculum().worksheets.filter(matches).length : null;
     const gradePicker = '<label class="teacher-progress-grade-label">Worksheets<select id="teacher-progress-grade" aria-label="Worksheet grade">'+grades.map(grade => '<option value="'+grade+'"'+(grade === worksheetGrade ? ' selected' : '')+'>'+grade+'</option>').join('')+'</select></label>';
     const header = student ? '<header class="teacher-progress-header"><div class="teacher-progress-identity"><h2>'+esc(student.name)+'</h2><span>'+esc(student.level)+'</span></div>'+gradePicker+'<div class="teacher-progress-header-actions">'+action('folder', 'Learning folder', '', 'btn small')+action('student-view', 'View student app', '', 'btn small')+'</div><div class="teacher-progress-search-area"><label class="teacher-progress-search teacher-progress-worksheet-search">'+searchIcon+'<input id="teacher-progress-worksheet-search" type="search" placeholder="Topic or code" aria-label="Find worksheet by topic or code" value="'+esc(worksheetSearch)+'"></label>'+(matchesCount === null ? '' : '<span class="teacher-progress-search-result" aria-live="polite">'+(matchesCount ? matchesCount+' matches' : 'No worksheets found')+'</span>')+'</div></header>' : '';
-    const legend = '<div class="teacher-progress-legend" aria-label="Worksheet status legend">'+[['available','Not sent'],['sent','Sent'],['working','In progress'],['submitted','To mark'],['corrections','Corrections'],['completed','Completed']].map(([status, label]) => '<span><i class="is-'+status+'" aria-hidden="true"></i>'+label+'</span>').join('')+'</div>';
+    const legend = '<div class="teacher-progress-legend" aria-label="Worksheet status legend">'+[['available','Not sent'],['prepared','Prepared'],['sent','Sent'],['working','In progress'],['submitted','To mark'],['corrections','Corrections'],['completed','Completed']].map(([status, label]) => '<span><i class="is-'+status+'" aria-hidden="true"></i>'+label+'</span>').join('')+'</div>';
     return '<div class="teacher-progress">'+classNavigation()+'<section class="teacher-progress-workbench" aria-label="Worksheet progress">'+(student ? header+'<div class="teacher-progress-chart-scroll" tabindex="0" aria-label="Worksheet chart">'+combinedChart()+'</div>'+legend+footer(student) : '<div class="teacher-progress-empty">Choose a class to open student progress.</div>')+'</section></div>';
   }
 
@@ -242,14 +243,15 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
     } else if (name === 'teacher-progress-clear') {
       selected.clear();
       preserveView(render);
-    } else if (name === 'teacher-progress-send') {
+    } else if (name === 'teacher-progress-send' || name === 'teacher-progress-prepare') {
       const student = currentStudent();
       if (!student || !selected.size) return true;
       const chosen = [...selected];
+      const prepared = name === 'teacher-progress-prepare';
       preserveView(() => change(() => {
-        assignTeacherWorksheets(getState(), { studentId: student.id, worksheetIds: chosen, homework, tutorId: getTutorId() });
+        assignTeacherWorksheets(getState(), { studentId: student.id, worksheetIds: chosen, homework, prepared, tutorId: getTutorId() });
         selected.clear();
-      }, 'Worksheets sent to '+student.name+'.'));
+      }, 'Worksheets '+(prepared ? 'prepared for ' : 'sent to ')+student.name+'.'));
     } else if (name === 'teacher-progress-folder') {
       if (currentStudent()) openFolder?.(selectedStudent);
     } else if (name === 'teacher-progress-student-view') {

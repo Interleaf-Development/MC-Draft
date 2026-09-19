@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import * as model from '../dist/model.js';
-import { familyText, familyContent, familyDate } from '../dist/family-locale.js';
+import { isFamilyRole, familyText, familyContent, familyDate } from '../dist/family-locale.js';
+import { canStudentOpenAssignment, canStudentEditAssignment } from '../dist/student-work.js';
 
 const source = await readFile(new URL('../dist/app.js', import.meta.url), 'utf8');
 
@@ -21,7 +22,7 @@ function renderer() {
   const ui = { role: 'parent', page: 'overview', familyStudent: 'chloe', selectedStudent: 'chloe', assignmentId: null, readonly: false, showOriginal: false, pen: 'pen', ink: '#35475f' };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   const context = vm.createContext({
-    ...model, state, ui,
+    ...model, state, ui, isFamilyRole, canStudentOpenAssignment, canStudentEditAssignment,
     t: (en, zh) => zh ?? familyText(en, ui.role),
     content: value => familyContent(value, ui.role),
     dateLabel: (date, options) => familyDate(date, ui.role, options),
@@ -89,18 +90,19 @@ test('the Parent home keeps usable report, homework and timetable routes with a 
   assert.deepEqual(app.state, before);
 });
 
-test('Parent homework includes assigned homework and excludes classroom work and another child’s work', () => {
+test('Parent homework includes released homework and excludes prepared, classroom and another child’s work', () => {
   const app = renderer(), example = app.state.assignments.find(item => item.id === 'assignment-chloe-2');
   app.state.assignments.push(
     { ...model.clone(example), id: 'other-child-homework', studentId: 'mia' },
     { ...model.clone(example), id: 'classroom-work', homework: false },
+    { ...model.clone(example), id: 'prepared-homework', status: 'prepared' },
     { ...model.clone(example), id: 'unclassified-work', homework: undefined },
     { ...model.clone(example), id: 'nonboolean-work', homework: 'true' }
   );
   const before = model.clone(app.state), html = app.call('parentHomework');
   assert.match(html, /data-id="assignment-chloe-2"/);
   assert.match(html, /data-readonly="true"/);
-  for (const id of ['assignment-chloe-1', 'assignment-chloe-3', 'other-child-homework', 'classroom-work', 'unclassified-work', 'nonboolean-work']) assert.ok(!html.includes('data-id="' + id + '"'), id);
+  for (const id of ['assignment-chloe-1', 'assignment-chloe-3', 'other-child-homework', 'classroom-work', 'prepared-homework', 'unclassified-work', 'nonboolean-work']) assert.ok(!html.includes('data-id="' + id + '"'), id);
   assert.deepEqual(app.state, before);
   app.ui.assignmentId = example.id; app.ui.page = 'worksheet';
   // Parent role must remain read-only even if the optional UI flag was not set.
