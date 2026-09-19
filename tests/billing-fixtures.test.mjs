@@ -57,7 +57,7 @@ test('sample import adds new real ledger rows and leaves just the deliberate rec
   const state = fresh();
   submitPaymentProof(state, 'INV-1024', { scenario: 'pass', reference: '910277', paymentDate: TODAY });
   const rows = demoStatementRows(state), batch = importBankStatement(state, { name: 'Demo statement', rows });
-  assert.equal(batch.added, 7); assert.equal(batch.duplicates, 1); assert.equal(batch.ignored, 1);
+  assert.equal(batch.added, 8); assert.equal(batch.duplicates, 1); assert.equal(batch.ignored, 0); assert.equal(batch.addedDebits, 1);
   assert.equal(batch.counts.autoMatched, 3); assert.equal(batch.counts.ambiguous, 1); assert.equal(batch.counts.amountMismatch, 1); assert.equal(batch.counts.missing, 0);
   for (const row of rows) assert.ok(row.date <= TODAY);
   for (const id of ['R-1025', 'R-1026']) {

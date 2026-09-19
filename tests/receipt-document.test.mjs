@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { clone } from '../dist/model.js';
-import { renderReceiptDocument } from '../dist/receipt-document.js';
+import { renderReceiptDocument, isPaymentAcknowledgement } from '../dist/receipt-document.js';
 
 const lesson = (date, start = 960) => ({ date, start, duration: 60, tutor: 'chan' });
 function fixture() {
@@ -206,4 +206,52 @@ test('temporary receipt reasons explain the inclusive dates and restoration in b
     }
     assert.ok(renderReceiptDocument(state, 'R-101').includes(reason));
   }
+});
+
+
+test('proof acknowledgement remains unchanged after bank matching and retains lesson amendments', () => {
+  const state = amendedFixture();
+  state.invoices[0].proof = true;
+  state.invoices[0].paymentMethod = 'fps';
+  state.invoices[0].claimedPaymentDate = '2026-09-22';
+  state.invoices[0].proofPayer = 'Chan & Wong';
+  state.receipts[0].documentType = 'payment-acknowledgement';
+  state.receipts[0].bankId = null;
+  const before = renderReceiptDocument(state, 'R-101', { role: 'parent' });
+  assert.match(before, /修訂付款確認/);
+  assert.match(before, /付款確認編號/);
+  assert.match(before, /<dt>發出日期<\/dt><dd>2026年9月24日<\/dd>/);
+  assert.match(before, /<dt>收到付款證明日期<\/dt><dd>2026年9月23日<\/dd>/);
+  assert.match(before, /<dt>交易日期<\/dt><dd>2026年9月22日<\/dd>/);
+  assert.match(before, /<dt>付款戶口姓名<\/dt><dd>Chan &amp; Wong<\/dd>/);
+  assert.match(before, /銀行入賬會由中心另行核對/);
+  assert.match(before, /課堂安排 · 9 堂/);
+  assert.match(before, /付款確認版本/);
+  assert.doesNotMatch(before, /收據|銀行入賬日期/);
+  state.receipts[0].bankId = 'BANK-101';
+  assert.equal(renderReceiptDocument(state, 'R-101', { role: 'parent' }), before);
+  const admin = renderReceiptDocument(state, 'R-101');
+  assert.match(admin, /Amended payment acknowledgement/);
+  assert.match(admin, /Acknowledgement no\./);
+  assert.doesNotMatch(admin, /Bank credit date/);
+  assert.match(admin, /<dt>Transaction date<\/dt><dd>22 Sept 2026<\/dd>/);
+  assert.match(admin, /<dt>Name on paying account<\/dt><dd>Chan &amp; Wong<\/dd>/);
+});
+
+test('remote legacy proofs are acknowledgements while cash and cheque keep receipt wording', () => {
+  const state = fixture(), receipt = state.receipts[0];
+  state.invoices[0].proof = true;
+  assert.equal(isPaymentAcknowledgement(state, receipt), true);
+  assert.match(renderReceiptDocument(state, receipt.id), /Payment acknowledgement/);
+  assert.doesNotMatch(renderReceiptDocument(state, receipt.id), /Transaction date|Name on paying account/);
+  state.invoices[0].proofReview = { extracted: { paymentDate: '2026-09-22', payer: 'Chan Tai Man' } };
+  assert.match(renderReceiptDocument(state, receipt.id), /<dt>Transaction date<\/dt><dd>22 Sept 2026<\/dd>/);
+  assert.match(renderReceiptDocument(state, receipt.id), /<dt>Name on paying account<\/dt><dd>Chan Tai Man<\/dd>/);
+  for (const method of ['cash', 'cheque']) {
+    state.invoices[0].paymentMethod = method;
+    assert.equal(isPaymentAcknowledgement(state, receipt), false);
+    assert.match(renderReceiptDocument(state, receipt.id), /<span class="eyebrow">Receipt<\/span>/);
+    assert.doesNotMatch(renderReceiptDocument(state, receipt.id), /Transaction date|Name on paying account/);
+  }
+  assert.equal(isPaymentAcknowledgement(state, null), false);
 });

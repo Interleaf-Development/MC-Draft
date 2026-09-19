@@ -745,13 +745,16 @@ export function issueReceipt(state, invoiceId, issuedDate = TODAY) {
 }
 export function reconciliation(state, receipt) {
   const bank = state.bankTransactions.find(b => b.id === receipt.bankId);
-  if (!bank) return { status: 'Unmatched', adjustment: null, bank: null, month: null, difference: null };
+  if (!bank || ['debit', 'outgoing'].includes(bank.direction) || !(bank.amount > 0)) return { status: 'Unmatched', adjustment: null, bank: null, month: null, difference: null };
   return { status: bank.amount === receipt.amount ? 'Matched' : 'Difference', adjustment: bank.date < receipt.issuedDate ? 'Date back' : bank.date > receipt.issuedDate ? 'Date forward' : null, bank, month: bank.date.slice(0, 7), difference: receipt.amount - bank.amount };
 }
 export function matchReceipt(state, receiptId, bankId) {
   const receipt = state.receipts.find(r => r.id === receiptId);
   const bank = state.bankTransactions.find(b => b.id === bankId);
   if (!receipt || !bank) throw new Error('Select a receipt and bank transaction.');
+  if (['debit', 'outgoing'].includes(bank.direction) || !(bank.amount > 0)) throw new Error('Only incoming bank credits can confirm a payment.');
+  const invoice = state.invoices.find(item => item.id === receipt.invoiceId);
+  if (['cash', 'cheque', 'check'].includes(String(invoice?.paymentMethod || receipt.paymentMethod || '').trim().toLowerCase())) throw new Error('Use the cash or cheque workflow for this payment.');
   if (state.receipts.some(r => r.id !== receiptId && r.bankId === bankId)) throw new Error('This bank transaction is already linked to another receipt.');
   receipt.bankId = bankId;
   record(state, receiptId + ' linked to ' + bankId + ' · ' + reconciliation(state, receipt).status, 'Accounts administrator');
@@ -761,7 +764,7 @@ export function matchReceipt(state, receiptId, bankId) {
 export function reportingTotals(state, month) {
   const entries = state.receipts.map(r => ({ receipt: r, ...reconciliation(state, r) }));
   const matched = entries.filter(e => e.status === 'Matched' && e.month === month);
-  return { total: matched.reduce((n, e) => n + e.bank.amount, 0), matched, unresolved: entries.filter(e => e.status !== 'Matched'), unmatchedBank: state.bankTransactions.filter(b => b.date.startsWith(month) && !state.receipts.some(r => r.bankId === b.id)) };
+  return { total: matched.reduce((n, e) => n + e.bank.amount, 0), matched, unresolved: entries.filter(e => e.status !== 'Matched'), unmatchedBank: state.bankTransactions.filter(b => b.date.startsWith(month) && !['debit', 'outgoing'].includes(b.direction) && b.amount > 0 && !state.receipts.some(r => r.bankId === b.id)) };
 }
 export function assessmentCredit(assessment, enrolDate) {
   const days = (Date.parse(enrolDate) - Date.parse(assessment.assessmentDate)) / 86400000;

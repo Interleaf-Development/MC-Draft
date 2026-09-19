@@ -110,23 +110,21 @@ Staff can still arrange the exceptional split make-up after discussing it with t
 
 An ordinary move can also be done by dragging a booking, or by opening it and choosing **Move lesson**. Original bookings stay struck through. Capacity is checked across overlapping time intervals. A move after expiry requires a reason and a manager-approved extension. Undo is available after an ordinary move.
 
-### 3. Automatic receipts and bank reconciliation
+### 3. Payment acknowledgements and bank reconciliation
 
-1. **Parent → Payments → Submit payment proof:** choose a local image/PDF (up to 2 MB) or **Use demo proof**. The **Demo check** selector simulates valid, wrong-recipient, wrong-amount, unreadable, non-payment and duplicate-proof outcomes. It does not run real OCR or AI against uploaded files.
-2. Submit a valid proof: a receipt is issued immediately and is available to the parent. No bank match is created at this step. Failed or uncertain checks remain visible for review and corrected-proof submission.
-3. **Admin → Billing & reconciliation → Receipts & reconciliation → Upload statement:** use the fictional sample or a local CSV. Preview rows, then **Import & check**. Clear, unique matches link automatically; Koko reviews ambiguous deposits, amount differences and missing matches. Re-importing the same statement does not duplicate deposits or receipts.
-4. The sample includes **Ethan / R-1025** (receipt 1 August, bank 31 July → date back), **Lucas / R-1026** (receipt 31 July, bank 2 August → date forward), **Emma / R-1027** (HK$200 short), an ambiguous payment and an unidentified deposit. Chloe’s default proof reference matches her sample deposit.
-5. **HQ report:** choose a bank-credit month, inspect the matched ledger and export CSV. Receipt dates stay unchanged; unmatched receipts have no assumed reporting month. Open **Details** for the proof and bank dates; changing an existing match is a separate action.
+1. **Parent → Payments → Submit payment proof:** enter the name on the paying account, transaction date and payment method, then choose a local image/PDF (up to 2 MB) or **Use demo proof**. The collapsible demonstration controls simulate valid, wrong-recipient, wrong-amount, unreadable, non-payment and duplicate-proof outcomes. Uploaded images are displayed, but real OCR/AI is not connected.
+2. A valid proof immediately creates a **Payment acknowledgement** in the parent's Payments screen. No bank match is created at this step. Failed or uncertain checks remain available for review and corrected-proof submission. The document confirms accepted proof and retains the invoice's lesson plan; it does not claim bank settlement.
+3. **Admin → Billing & reconciliation → Payments:** the **Non-face-to-face / Cash / Cheque** tabs separate payment channels. Non-face-to-face opens on **Pending**, showing acknowledgements awaiting bank reconciliation across all months. Search by student, invoice, payer or reference. **Reconciled** shows the saved matches. Cash and cheque have separate views; their collection, banking and clearance workflows are deferred.
+4. **Upload bank statement:** choose a local CSV or the fictional sample, preview, then import and reconcile. Clear, unique matches move out of Pending; ambiguous entries, amount differences and missing deposits remain for staff review. The imported statement is shared by all channels; re-importing it does not duplicate bank movements or acknowledgements.
+5. **Unmatched bank credits** lists money without a linked payment. **Bank ledger** records incoming and outgoing bank movements and any linked acknowledgement. **Statement history** keeps import results. This internal ledger does not generate a second parent document. Parent issue dates and content stay unchanged when a bank match is saved.
+6. The sample includes **Ethan / R-1025** (acknowledgement 1 August, bank 31 July), **Lucas / R-1026** (acknowledgement 31 July, bank 2 August), **Emma / R-1027** (HK$200 short), an ambiguous payment, an unidentified credit and an outgoing supplies payment. Chloe's default demonstration reference matches her sample deposit.
+7. **HQ report:** select a bank-credit month, inspect matched deposits and export CSV. Unmatched payments have no assumed bank month. The bank match review keeps selected deposit and unsaved notes when opening proof or acknowledgement and returning.
 
-**Admin → Billing & reconciliation → Receipts & reconciliation:** browse a Monday–Sunday board with seven date columns, jump to a week, or search by student, parent, receipt or payment reference. Every receipt appears under its date sent, showing the student and amount. Green cards have a saved bank match; yellow cards need review and appear first within each day. Suggested matches remain neutral until the bank check confirms them. Select an entry to inspect its bank match, receipt and payment proof together. Busy days scroll within the board without hiding later days behind pagination. This demo issues and sends receipts together, so the register uses the original receipt issue date; bank date-forward/back adjustments do not move a receipt between groups. Saved uploads open as images/PDFs, while fixture evidence is explicitly labeled as fictional.
+Billing fixtures represent 700 enrolled students. Saved invoices, proofs, issued documents, bank links and schedule amendments survive this UI change. Older unresolved payments stay in the pending queue until matched; there is no calendar-month cutoff.
 
-The weekly receipt board and reconciliation share one tab. **Upload statement** checks receipts and updates their colours and order in place. The status filter applies to the displayed week; **Needs review · all dates** opens unresolved receipts from any week so older cases are not hidden. **Unmatched deposits** and **Statement history** open on demand. Opening a receipt or proof from a bank review retains the selected deposit and unsaved note when returning.
+CSV imports support `Date`, `Description`, `Debit`, `Credit`, and optional `Ledger Balance (HKD) (DR=Debit)`, as well as the existing `Date`, `Amount`, `Reference`, `Payer`, `Transaction ID`, `Direction` format. Raw descriptions are retained. Outgoing entries appear in the bank ledger and cannot settle tuition payments. PDF/image statement extraction is not connected; the screen explains this without claiming to read those files.
 
-Billing fixtures represent 700 enrolled students, with current October–November invoices for active students and historical invoices for paused students. Ethan and Lucas also have separate current invoices alongside their historical date-adjustment examples. Most received proofs already have receipts and bank matches; a small number deliberately illustrate an unreadable proof, missing deposits, an amount difference and ambiguous deposits. Adult payer names, receipt/proof amounts and invoice dates are consistent. Completed payment events do not occur after the fixed demo date (30 September); future due dates remain valid. Existing saved interactions survive a guarded, versioned fixture upgrade.
-
-CSV columns: `Date`, `Amount`, `Reference`, `Payer`, `Transaction ID`, `Direction`. Dates use `YYYY-MM-DD`. Date, Amount and either Reference or Transaction ID are required. Direction is optional (credit/debit); outgoing rows are ignored. Quoted commas/newlines are supported. PDF/image statement extraction is not connected; the screen offers a fictional sample without claiming it read an uploaded document.
-
-Automatic bank matches require an exact amount, strong reference/full-payer identity and a date within seven days of the proof’s payment date. The seven-day window is a demo assumption to confirm with Koko. A surname or amount alone is insufficient; competing candidates stay unlinked. Original bank transaction IDs are used for deduplication when available.
+Automatic bank matches require an exact amount, strong reference/full-payer identity and a date within seven days of the proof's payment date. The seven-day window is a demo assumption to confirm with Koko. A surname or amount alone is insufficient; competing candidates stay unlinked. Original bank transaction IDs are used for deduplication when available. Statement import date is independent of payment and bank dates, so older submissions can match later uploads.
 
 ### 4. Enrolment and staff leave
 
@@ -186,11 +184,11 @@ dist/student-profile.js     Fictional profile fields and validated local edits
 dist/conversations.js        Local chat model and viewer scoping
 dist/conversations-ui.js     Chat list, messages and composer interactions
 dist/conversations.css       WhatsApp-style desktop and mobile chat layout
-dist/billing-automation.js   Proof screening, receipt automation and statement matching
+dist/billing-automation.js   Proof screening, acknowledgement issuance and statement matching
 dist/billing-proof-ui.js     Parent proof upload and review flow
-dist/receipts-ui.js          Weekly receipts with matching indicators and proof access
+dist/receipts-ui.js          Retained legacy receipt-register helpers
 dist/receipts.css            Shared receipt register layout
-dist/bank-check-ui.js        Statement preview, exception review and import history
+dist/bank-check-ui.js        Payment queues, statement preview, shared bank ledger and history
 dist/statement-csv.js        Validated local CSV statement parser
 dist/billing-automation.css  Mobile proof and desktop reconciliation layouts
 dist/checkin.js       Local lesson passes and attendance demo

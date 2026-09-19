@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { seed, seedCentreVolume, clone, reconciliation, matchReceipt } from '../dist/model.js';
-import { PROOF_SCENARIOS, normalizeBillingAutomation, previewPaymentProof, submitPaymentProof, analyzeStatement, importBankStatement, demoStatementRows } from '../dist/billing-automation.js';
+import { seed, seedCentreVolume, clone, reconciliation, matchReceipt, reportingTotals } from '../dist/model.js';
+import { PROOF_SCENARIOS, normalizeBillingAutomation, previewPaymentProof, submitPaymentProof, analyzeStatement, importBankStatement, demoStatementRows, paymentChannel } from '../dist/billing-automation.js';
 
 const setup = () => normalizeBillingAutomation(seed());
 const proof = overrides => ({ scenario: 'pass', reference: 'FPS 910277', paymentDate: '2026-09-30', ...overrides });
@@ -112,7 +112,8 @@ test('wrong amount and outgoing transfers never auto-link', () => {
   assert.equal(mismatch.status, 'amount-mismatch');
   assert.equal(mismatch.difference, 200);
   const batch = importBankStatement(state, { name: 'Amount review', rows: [deposit({ amount: 1800 }), deposit({ id: 'OUT', direction: 'debit', reference: 'OUTGOING 111111' })] });
-  assert.equal(batch.ignored, 1);
+  assert.equal(batch.ignored, 0);
+  assert.equal(batch.addedDebits, 1);
   assert.equal(batch.counts.autoMatched, 0);
   assert.equal(state.receipts[0].bankId, null);
 });
@@ -165,7 +166,8 @@ test('demo statement shows same-day, date-back, date-forward, amount difference,
   assert.equal(result('R-1027').status, 'amount-mismatch');
   assert.ok(batch.receiptResults.some(item => item.status === 'ambiguous'));
   assert.ok(batch.unmatchedDeposits.some(bank => bank.transactionId === 'DEMO-UNALLOCATED-001'));
-  assert.equal(batch.ignored, 1);
+  assert.equal(batch.ignored, 0);
+  assert.equal(batch.addedDebits, 1);
   assert.deepEqual(state.receipts.map(receipt => [receipt.id, receipt.issuedDate]), dates);
   assert.equal(state.receipts.find(receipt => receipt.id === 'R-1028').bankId, 'BANK-104');
   const again = importBankStatement(state, { name: 'Repeated fictional statement', rows });
@@ -186,4 +188,93 @@ test('resolving the sample ambiguity does not change subsequent sample deposits'
   assert.equal(again.added, 0);
   assert.equal(again.counts.autoMatched, 0);
   assert.equal(state.receipts.find(receipt => receipt.id === 'R-5005').bankId, selectedBankId);
+});
+
+
+test('payer name and method persist independently of bank confirmation and affect proof identity', () => {
+  const state = singleReceipt();
+  const options = proof({ payerName: '  William Chan  ', paymentMethod: 'bank-transfer' });
+  const result = submitPaymentProof(state, 'INV-1024', options);
+  assert.equal(result.invoice.proofPayer, 'William Chan');
+  assert.equal(result.invoice.paymentMethod, 'bank-transfer');
+  assert.equal(result.review.extracted.payer, 'William Chan');
+  assert.equal(result.receipt.documentType, 'payment-acknowledgement');
+  assert.equal(result.receipt.bankId, null);
+  assert.equal(state.receipts.length, 1);
+  assert.notEqual(previewPaymentProof(state, 'INV-1024', { ...options, payerName: 'Someone Else' }).fingerprint, result.review.fingerprint);
+  assert.notEqual(previewPaymentProof(state, 'INV-1024', { ...options, paymentMethod: 'payme' }).fingerprint, result.review.fingerprint);
+  assert.equal(analyzeStatement(state, [deposit({ payer: 'William Chan', reference: 'OTHER TRANSFER' })]).receipts[0].autoEligible, true);
+  assert.equal(analyzeStatement(state, [deposit({ payer: 'Elaine Chan', reference: 'OTHER TRANSFER' })]).receipts[0].autoEligible, false, 'An explicitly supplied account name replaces the household default');
+  for (const invalid of [{ payerName: '' }, { payerName: null }, { payerName: 'a'.repeat(121) }, { paymentMethod: 'bitcoin' }]) {
+    const before = clone(state);
+    assert.throws(() => submitPaymentProof(state, 'INV-1024', proof(invalid)));
+    assert.deepEqual(state, before);
+  }
+});
+
+test('payment channels defer cash and cheque, and legacy receipts remain non-face-to-face', () => {
+  const state = singleReceipt(), receipt = state.receipts[0];
+  assert.equal(paymentChannel(state, receipt), 'non-face-to-face');
+  for (const method of ['cash', 'cheque']) {
+    state.invoices[0].paymentMethod = method;
+    assert.equal(paymentChannel(state, receipt), method);
+    const batch = importBankStatement(state, { name: 'Shared statement', rows: [deposit()] });
+    assert.equal(batch.counts.autoMatched, 0);
+    assert.equal(batch.counts.missing, 0);
+    assert.equal(batch.receiptResults[0].status, 'deferred');
+    assert.equal(state.receipts[0].bankId, null);
+    assert.throws(() => matchReceipt(state, receipt.id, 'BANK-TEST'), /cash or cheque workflow/);
+  }
+  state.invoices[0].paymentMethod = 'fps';
+  const matched = importBankStatement(state, { name: 'Same statement', rows: [deposit()] });
+  assert.equal(matched.added, 0);
+  assert.equal(matched.counts.autoMatched, 1);
+});
+
+test('outgoing ledger movements are retained once and cannot match manually or through legacy links', () => {
+  const state = singleReceipt(), rows = [deposit({ id: 'OUT', direction: 'debit' })];
+  const imported = importBankStatement(state, { name: 'Bank movements', rows });
+  assert.equal(imported.added, 1);
+  assert.equal(state.bankTransactions[0].direction, 'debit');
+  assert.equal(imported.counts.autoMatched, 0);
+  assert.equal(importBankStatement(state, { name: 'Repeat', rows }).duplicates, 1);
+  assert.throws(() => matchReceipt(state, state.receipts[0].id, 'OUT'), /incoming bank credits/);
+  state.receipts[0].bankId = 'OUT';
+  assert.equal(reconciliation(state, state.receipts[0]).status, 'Unmatched');
+  assert.equal(analyzeStatement(state).receipts[0].status, 'missing');
+  assert.equal(reportingTotals(state, '2026-09').total, 0);
+  assert.equal(reportingTotals(state, '2026-09').unmatchedBank.length, 0);
+});
+
+test('same-looking distinct entries survive import while repeated imports retain their multiplicity', () => {
+  const state = singleReceipt(), row = deposit();
+  delete row.id;
+  const batch = importBankStatement(state, { name: 'Two deposits', rows: [row, row] });
+  assert.equal(batch.added, 2);
+  assert.equal(batch.receiptResults[0].status, 'ambiguous');
+  assert.equal(importBankStatement(state, { name: 'Same export', rows: [row, row] }).duplicates, 2);
+  assert.equal(state.bankTransactions.length, 2);
+  const reversed = [{ ...row, direction: 'debit' }, row];
+  assert.equal(importBankStatement(state, { name: 'Including withdrawal', rows: reversed }).added, 1);
+  assert.equal(state.bankTransactions.length, 3);
+});
+
+test('failed imports do not enrich old rows, link receipts or retain earlier rows', () => {
+  const state = singleReceipt();
+  importBankStatement(state, { name: 'Original', rows: [deposit({ transactionId: 'original', payer: '' })] });
+  const before = clone(state);
+  assert.throws(() => importBankStatement(state, { name: 'Conflict', rows: [deposit({ transactionId: 'original', payer: 'New Payer' }), deposit({ id: 'NEW', transactionId: 'new' }), deposit({ transactionId: 'original', direction: 'debit' })] }));
+  assert.deepEqual(state, before);
+});
+
+test('raw bank descriptions match a full supplied payer name without inventing payer or initiation date fields', () => {
+  const state = singleReceipt();
+  submitPaymentProof(state, 'INV-1024', proof({ payerName: 'William Chan' }));
+  const description = 'FPS PAYMENT WILLIAM CHAN 888999 29/09/2026';
+  const batch = importBankStatement(state, { name: 'Bank CSV', rows: [deposit({ reference: description, description, payer: '' })] });
+  assert.equal(batch.counts.autoMatched, 1);
+  assert.equal(state.bankTransactions[0].description, description);
+  assert.equal(state.bankTransactions[0].payer, '');
+  assert.equal(state.bankTransactions[0].date, '2026-09-30');
+  assert.equal(state.receipts[0].issuedDate, '2026-09-30');
 });

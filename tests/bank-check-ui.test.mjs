@@ -14,7 +14,7 @@ function reviewState(count = 28) {
     studentId:index===0?'ethan':'chloe', amount:2000,
     issuedDate:index===0?'2026-07-31':'2026-09-30', bankId:null
   }));
-  state.invoices = state.receipts.map(receipt => ({id:receipt.invoiceId,studentId:receipt.studentId,amount:receipt.amount,receiptId:receipt.id}));
+  state.invoices = state.receipts.map(receipt => ({id:receipt.invoiceId,studentId:receipt.studentId,amount:receipt.amount,receiptId:receipt.id,claimedPaymentDate:receipt.issuedDate}));
   return state;
 }
 
@@ -60,17 +60,17 @@ test('combined actions count all dates, hide unnecessary checks and distinguish 
   const [oldReceipt, recentReceipt] = app.state.receipts;
   oldReceipt.bankId = 'BANK-OLD';
   app.state.bankTransactions.push({id:'BANK-OLD',date:'2026-07-31',amount:2000,reference:'PAID 888888'});
-  assert.match(app.ui.renderPrimaryActions(), /Upload statement/);
-  assert.match(app.ui.renderSecondaryActions(), /Needs review · all dates \(1\)/);
-  assert.doesNotMatch(app.ui.renderSecondaryActions(), /Run bank check/);
+  assert.match(app.ui.renderPrimaryActions(), /Upload bank statement/);
+  assert.match(app.ui.renderSecondaryActions(), /Pending payments · all dates \(1\)/);
+  assert.doesNotMatch(app.ui.renderSecondaryActions(), /Reconcile imported entries/);
   recentReceipt.bankId = 'BANK-RECENT';
   app.state.bankTransactions.push({id:'BANK-RECENT',date:'2026-09-30',amount:2000,reference:'PAID 999999'});
-  assert.doesNotMatch(app.ui.renderSecondaryActions(), /Needs review|Run bank check/);
+  assert.doesNotMatch(app.ui.renderSecondaryActions(), /Pending payments|Reconcile imported entries/);
   recentReceipt.bankId = null;
   app.state.invoices.find(invoice=>invoice.id===recentReceipt.invoiceId).proofReference='999999';
-  assert.match(app.ui.renderSecondaryActions(), /Run bank check/);
-  assert.doesNotMatch(app.ui.renderSecondaryActions(), /Needs review/);
-  assert.match(app.ui.renderSecondaryActions(), /Unmatched deposits \(1\)/);
+  assert.match(app.ui.renderSecondaryActions(), /Reconcile imported entries/);
+  assert.match(app.ui.renderSecondaryActions(), /Pending payments · all dates \(1\)/);
+  assert.match(app.ui.renderSecondaryActions(), /Unmatched bank credits \(1\)/);
   assert.match(app.ui.renderSecondaryActions(), /Statement history/);
 });
 
@@ -78,13 +78,13 @@ test('review queue includes historical receipts, paginates in the modal and rese
   const app = harness(reviewState());
   globalThis.document = app.document;
   app.ui.openReviewQueue();
-  assert.equal(app.modal.title,'Receipts needing review');
+  assert.equal(app.modal.title,'Pending payments');
   assert.match(app.modal.body,/R-QUEUE-00/);
   assert.match(app.modal.body,/31 Jul/);
-  assert.match(app.modal.body,/<option value="review" selected/);
+  assert.match(app.modal.body,/<option value="pending" selected/);
   assert.match(app.modal.body,/1–25 of 28/);
-  assert.doesNotMatch(app.modal.body+app.modal.footer,/Upload statement|Statement history/);
-  assert.match(app.modal.footer,/Unmatched deposits \(0\)/);
+  assert.doesNotMatch(app.modal.body+app.modal.footer,/Upload bank statement|Statement history/);
+  assert.match(app.modal.footer,/Unmatched bank credits \(0\)/);
   app.ui.handleAction('bankcheck-page',null,{dataset:{kind:'receipts',page:'2'}});
   assert.match(app.modal.body,/26–28 of 28/);
   assert.match(app.modal.body,/R-QUEUE-27/);
@@ -112,13 +112,13 @@ test('queue search and status filter refresh the modal while preserving control 
   assert.equal(app.document.activeElement,refreshed);
   assert.equal(refreshed.selectionStart,2);assert.equal(refreshed.selectionEnd,7);
   assert.equal(input.isConnected,false);
-  app.ui.onChange({target:{id:'bankcheck-status',value:'matched'}});
-  assert.match(app.modal.body,/<option value="matched" selected/);
-  assert.match(app.modal.body,/No matching receipts/);
+  app.ui.onChange({target:{id:'bankcheck-status',value:'reconciled'}});
+  assert.match(app.modal.body,/<option value="reconciled" selected/);
+  assert.match(app.modal.body,/No matching payments/);
   assert.equal(app.document.activeElement,app.document.querySelector('#bankcheck-status'));
   assert.equal(app.calls.renders,0);
   app.ui.openReviewQueue();
-  assert.match(app.modal.body,/<option value="review" selected/);
+  assert.match(app.modal.body,/<option value="pending" selected/);
   assert.match(app.modal.body,/id="bankcheck-search" type="search" value=""/);
   assert.match(app.modal.body,/R-QUEUE-01/);
   app.ui.reset();
@@ -153,7 +153,7 @@ test('statement import updates matching, closes its dialog and refreshes the sha
   assert.equal(app.calls.renders,1);
   assert.ok(analyzeStatement(app.state).receipts.filter(row=>row.linked&&row.status==='matched').length>matchedBefore);
   assert.deepEqual(app.state.receipts.map(receipt=>[receipt.id,receipt.issuedDate]),issued);
-  assert.match(app.calls.toasts.at(-1)[0],/receipts matched/);
+  assert.match(app.calls.toasts.at(-1)[0],/payments reconciled/);
 });
 
 test('recheck uses existing ready entries, refreshes the board and removes the completed action', () => {
@@ -161,12 +161,12 @@ test('recheck uses existing ready entries, refreshes the board and removes the c
   globalThis.document = app.document;
   app.state.invoices[0].proofReference='111222';
   app.state.bankTransactions.push({id:'BANK-READY',date:'2026-07-31',amount:2000,reference:'FPS 111222'});
-  assert.match(app.ui.renderSecondaryActions(),/Run bank check/);
+  assert.match(app.ui.renderSecondaryActions(),/Reconcile imported entries/);
   app.ui.handleAction('bankcheck-rerun');
   assert.equal(app.state.receipts[0].bankId,'BANK-READY');
   assert.equal(app.state.receipts[0].issuedDate,'2026-07-31');
   assert.equal(app.calls.renders,1);
-  assert.doesNotMatch(app.ui.renderSecondaryActions(),/Run bank check|Needs review/);
+  assert.doesNotMatch(app.ui.renderSecondaryActions(),/Reconcile imported entries|Pending payments/);
 });
 
 test('bank controls guard non-admin viewers and reject unknown actions without modifying records', () => {
@@ -182,7 +182,7 @@ test('bank controls guard non-admin viewers and reject unknown actions without m
     app.ui.handleAction('bankcheck-queue');
     app.ui.handleAction('bankcheck-rerun');
     app.ui.onInput({target:{id:'bankcheck-search',value:'hidden'}});
-    app.ui.onChange({target:{id:'bankcheck-status',value:'all'}});
+    app.ui.onChange({target:{id:'bankcheck-status',value:'pending'}});
   }
   assert.equal(app.calls.modals.length,0);assert.equal(app.calls.changes,0);
   app.viewer.role='admin';
@@ -194,4 +194,99 @@ test('bank controls guard non-admin viewers and reject unknown actions without m
   app.ui.handleAction('bankcheck-page',null,{dataset:{kind:'other',page:'2'}});
   assert.match(app.calls.toasts.at(-1)[0],/Unknown receipt list/);
   assert.deepEqual(app.state,before);
+});
+
+test('payment workspace separates channel queues and reconciled history without hiding older pending acknowledgements', () => {
+  const app = harness(reviewState(4));
+  globalThis.document = app.document;
+  app.state.invoices[1].paymentMethod = 'cash';
+  app.state.invoices[2].paymentMethod = 'cheque';
+  app.state.receipts[3].bankId = 'BANK-SETTLED';
+  app.state.bankTransactions.push({id:'BANK-SETTLED',date:'2026-09-30',amount:2000,reference:'SETTLED'});
+  const pending = app.ui.render();
+  assert.match(pending,/Non-face-to-face/);
+  assert.match(pending,/data-id="non-face-to-face" aria-pressed="true"/);
+  assert.match(pending,/R-QUEUE-00/);
+  assert.doesNotMatch(pending,/R-QUEUE-01|R-QUEUE-02|R-QUEUE-03/);
+  assert.match(pending,/Upload bank statement/);
+  assert.match(pending,/Payment date/);
+  app.ui.onChange({target:{id:'bankcheck-status',value:'reconciled'}});
+  assert.match(app.ui.render(),/R-QUEUE-03/);
+  assert.doesNotMatch(app.ui.render(),/R-QUEUE-00/);
+  app.ui.onChange({target:{id:'bankcheck-status',value:'pending'}});
+  app.ui.handleAction('bankcheck-channel','cash');
+  const cash = app.ui.render();
+  assert.match(cash,/R-QUEUE-01/);
+  assert.doesNotMatch(cash,/R-QUEUE-00|R-QUEUE-02|R-QUEUE-03/);
+  assert.match(cash,/Cash collection and deposit handling will be defined separately/);
+  assert.match(cash,/data-id="R-QUEUE-01">Details/);
+  app.ui.handleAction('bankcheck-channel','cheque');
+  assert.match(app.ui.render(),/R-QUEUE-02/);
+  assert.doesNotMatch(app.ui.render(),/R-QUEUE-00|R-QUEUE-01|R-QUEUE-03/);
+  app.ui.reset();
+  assert.match(app.ui.render(),/data-id="non-face-to-face" aria-pressed="true"/);
+});
+
+test('payment queue shows the claimed transaction date rather than acknowledgement issue date and searches the payer', async () => {
+  const app = harness(reviewState(2));
+  globalThis.document = app.document;
+  app.state.invoices[0].claimedPaymentDate = '2026-07-25';
+  app.state.invoices[0].proofPayer = 'MRS CHAN ACCOUNT';
+  app.ui.openReviewQueue();
+  assert.match(app.modal.body,/25 Jul/);
+  assert.doesNotMatch(app.modal.body,/31 Jul/);
+  const input = app.document.querySelector('#bankcheck-search');
+  input.value='MRS CHAN ACCOUNT';
+  app.ui.onInput({target:input});
+  await new Promise(resolve=>setTimeout(resolve,180));
+  assert.match(app.modal.body,/R-QUEUE-00/);
+  assert.doesNotMatch(app.modal.body,/R-QUEUE-01/);
+  app.ui.reset();
+});
+
+test('shared unmatched credits and bank ledger retain outgoing entries without counting them as a payment candidate', () => {
+  const app = harness(reviewState(1));
+  globalThis.document = app.document;
+  app.state.bankTransactions = [
+    {id:'CREDIT',date:'2026-09-29',amount:500,reference:'Unclaimed transfer',direction:'credit'},
+    {id:'DEBIT',date:'2026-09-29',amount:250,reference:'Office supplies',direction:'debit'}
+  ];
+  assert.match(app.ui.render(),/Unclaimed transfer/);
+  assert.doesNotMatch(app.ui.render(),/Office supplies/);
+  app.ui.handleAction('bankcheck-channel','cash');
+  assert.match(app.ui.render(),/Unclaimed transfer/,'Unmatched credits stay visible across channels');
+  app.ui.handleAction('bankcheck-ledger');
+  assert.equal(app.modal.title,'Bank ledger');
+  assert.match(app.modal.body,/Money in/);
+  assert.match(app.modal.body,/Money out/);
+  assert.match(app.modal.body,/Unclaimed transfer/);
+  assert.match(app.modal.body,/Office supplies/);
+  assert.match(app.modal.body,/Outgoing/);
+  app.ui.handleAction('bankcheck-rerun');
+  assert.equal(app.state.bankTransactions.length,2,'Rechecking must not duplicate or turn debit entries into credits');
+  assert.equal(app.state.bankTransactions.find(row=>row.id==='DEBIT').direction,'debit');
+  assert.equal(app.state.receipts[0].bankId,null);
+});
+
+test('upload uses CSV only and failed PDF selection cannot import simulated contents', () => {
+  const app = harness(reviewState(1));
+  globalThis.document = app.document;
+  app.ui.openUpload();
+  assert.match(app.modal.body,/accept="\.csv,text\/csv"/);
+  assert.match(app.modal.body,/Date, Description, Debit, Credit/);
+  app.ui.onChange({target:{id:'bankcheck-file',files:[{name:'statement.pdf',type:'application/pdf',size:1200}]}});
+  assert.match(app.modal.body,/This file has not been read/);
+  assert.match(app.modal.footer,/data-bank-import disabled/);
+  assert.equal(app.state.bankStatementImports?.length || 0,0);
+});
+
+
+test('closing a review queue with the shared modal close control returns filters to the page', () => {
+  const app = harness(reviewState(2));
+  globalThis.document = app.document;
+  app.ui.openReviewQueue();
+  app.document.querySelector = () => null; // The app's shared modal close button removes the dialog.
+  app.ui.onChange({target:{id:'bankcheck-status',value:'reconciled'}});
+  assert.equal(app.calls.modals.length,1,'Filtering the page must not reopen a dismissed review dialog');
+  assert.equal(app.calls.renders,1);
 });

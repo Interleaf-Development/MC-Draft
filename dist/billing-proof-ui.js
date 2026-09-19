@@ -1,6 +1,7 @@
-import { money, studentById, centre, TODAY } from './model.js';
+import { money, studentById, centre, TODAY, billingPayerName } from './model.js';
 import { PROOF_SCENARIOS, previewPaymentProof, submitPaymentProof } from './billing-automation.js';
 import { familyText, familyDate, familyContent } from './family-locale.js';
+import { isPaymentAcknowledgement } from './receipt-document.js';
 
 const COPY = {
   'This payment record is not available for this account.': '此帳戶無法查看這項繳費紀錄。',
@@ -19,6 +20,16 @@ const COPY = {
   'Choose a demonstration scenario.': '請選擇示範情況。',
   'Enter a payment date between the invoice date and today.': '付款日期須介乎繳費通知發出當日至今天。',
   'Enter a payment reference.': '請輸入轉賬參考編號。',
+  'Enter the name on the paying account (up to 120 characters).': '請輸入付款戶口姓名（不超過 120 個字）。',
+  'Choose a valid payment method.': '請選擇有效的付款方式。',
+  'Name on paying account': '付款戶口姓名', 'Payment method': '付款方式',
+  'Transaction date': '交易日期', 'Bank transfer': '銀行轉賬', 'FPS': '轉數快',
+  'AlipayHK': 'AlipayHK', 'PayMe': 'PayMe',
+  'Payment acknowledgement issued': '已發出付款確認',
+  'Open payment acknowledgement': '查看付款確認',
+  'Proof accepted. Payment acknowledgement issued automatically.': '付款證明已獲接納，付款確認已自動發出。',
+  'Payment proof accepted. Bank reconciliation is recorded separately.': '付款證明已獲接納，銀行入賬會由中心另行核對。',
+  'A payment acknowledgement has not been issued for this invoice.': '這張繳費通知尚未發出付款確認。',
   'Record payment proof first.': '請先提交付款證明。',
   'Valid payment proof': '有效付款證明',
   'Wrong recipient': '收款人不符',
@@ -78,6 +89,7 @@ const icons = {
   receipt: svg('<path d="M5 3v18l3-2 4 2 4-2 3 2V3l-3 2-4-2-4 2ZM8 9h8M8 13h8"/>')
 };
 const button = (action, label, className = 'btn', attrs = '') => `<button type="button" class="${className}" data-action="proof-${action}" ${attrs}>${label}</button>`;
+const PAYMENT_METHODS = [['fps', 'FPS'], ['bank-transfer', 'Bank transfer'], ['alipayhk', 'AlipayHK'], ['payme', 'PayMe']];
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf']);
 const safeAttachment = file => file && MIME_TYPES.has(file.mimeType) && typeof file.dataUrl === 'string' && file.dataUrl.startsWith(`data:${file.mimeType};base64,`);
@@ -115,7 +127,9 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
       <div><dt>${t('Recipient')}</dt><dd>${esc(extracted.recipient ? detailText(extracted.recipient) : t('Not readable'))}</dd></div>
       <div><dt>${t('Amount')}</dt><dd>${Number.isFinite(extracted.amount) ? money(extracted.amount) : t('Not readable')}</dd></div>
       <div><dt>${t('Reference')}</dt><dd>${esc(extracted.reference || t('Not readable'))}</dd></div>
-      <div><dt>${t('Payment date')}</dt><dd>${safeDate(extracted.paymentDate)}</dd></div>
+      <div><dt>${t('Transaction date')}</dt><dd>${safeDate(extracted.paymentDate)}</dd></div>
+      <div><dt>${t('Name on paying account')}</dt><dd>${esc(extracted.payer || t('Not readable'))}</dd></div>
+      ${extracted.paymentMethod ? `<div><dt>${t('Payment method')}</dt><dd>${esc(t(PAYMENT_METHODS.find(([id]) => id === extracted.paymentMethod)?.[1] || extracted.paymentMethod))}</dd></div>` : ''}
     </dl>`;
   }
 
@@ -146,7 +160,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
 
   function draftOptions() {
     return {
-      scenario: draft.scenario, reference: draft.reference, paymentDate: draft.paymentDate,
+      scenario: draft.scenario, reference: draft.reference || undefined, paymentDate: draft.paymentDate, payerName: draft.payerName, paymentMethod: draft.paymentMethod,
       ...(draft.file ? { file: draft.file } : {})
     };
   }
@@ -156,9 +170,13 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
     const reference = document.getElementById('proof-reference');
     const paymentDate = document.getElementById('proof-payment-date');
     const scenario = document.getElementById('proof-scenario');
+    const payerName = document.getElementById('proof-payer-name');
+    const paymentMethod = document.getElementById('proof-payment-method');
     if (reference) draft.reference = reference.value.trim();
     if (paymentDate) draft.paymentDate = paymentDate.value;
     if (scenario) draft.scenario = scenario.value;
+    if (payerName) draft.payerName = payerName.value.trim();
+    if (paymentMethod) draft.paymentMethod = paymentMethod.value;
   }
 
   function validDraft() {
@@ -177,8 +195,9 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
     const upload = `<input id="proof-file" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf" aria-label="${t('Choose payment proof image or PDF')}">
       ${hasEvidence ? attachmentPreview(draft.file, review, invoice, draft.sample) : `<div class="proof-dropzone">${icons.upload}<strong>${t('Upload payment proof')}</strong><span>${t('Image or PDF · up to 2 MB')}</span></div>`}
       <div class="proof-upload-actions">${button('choose-file', icons.upload + ' ' + t(hasEvidence ? 'Replace file' : 'Choose file'))}${button('sample', t('Use demo proof'), 'btn ghost')}${hasEvidence ? button('remove-file', t('Remove'), 'btn ghost small') : ''}</div>`;
-    const controls = hasEvidence ? `<section class="proof-demo-controls"><div class="field"><label for="proof-scenario">${t('Demo check')}</label><select id="proof-scenario">${PROOF_SCENARIOS.map(s => `<option value="${esc(s.id)}"${s.id === draft.scenario ? ' selected' : ''}>${esc(t(s.label))}</option>`).join('')}</select></div><p class="small muted">${t('Checks are simulated from this selection. Uploaded files are not read by AI in this demo.')}</p><div class="two-columns"><div class="field"><label for="proof-reference">${t('Demo transfer reference')}</label><input id="proof-reference" value="${esc(draft.reference)}" maxlength="120" autocomplete="off"></div><div class="field"><label for="proof-payment-date">${t('Payment date')}</label><input id="proof-payment-date" type="date" value="${esc(draft.paymentDate)}"></div></div><div class="proof-check-preview"><h3 class="proof-section-title">${t('Simulated extracted details')}</h3>${detailFields(review.extracted)}${checks(review)}${previewError ? `<p class="proof-validation-error" role="alert">${esc(t(previewError))}</p>` : ''}</div></section>` : '';
-    modal(t('Submit payment proof'), `<div class="proof-flow" data-proof-editor="${esc(invoice.id)}">${invoiceSummary(invoice)}${upload}${draft.loading ? `<p class="small muted" role="status">${t('Opening file…')}</p>` : ''}${controls}</div>`,
+    const payerFields = `<div class="field"><label for="proof-payer-name">${t('Name on paying account')}</label><input id="proof-payer-name" value="${esc(draft.payerName)}" maxlength="120" autocomplete="name" required></div><div class="two-columns"><div class="field"><label for="proof-payment-method">${t('Payment method')}</label><select id="proof-payment-method">${PAYMENT_METHODS.map(([id, label]) => `<option value="${id}"${id === draft.paymentMethod ? ' selected' : ''}>${t(label)}</option>`).join('')}</select></div><div class="field"><label for="proof-payment-date">${t('Transaction date')}</label><input id="proof-payment-date" type="date" value="${esc(draft.paymentDate)}" min="${esc(invoice.issued)}" max="${TODAY}" required></div></div>`;
+    const controls = hasEvidence ? `<p class="small muted">${t('Checks are simulated from this selection. Uploaded files are not read by AI in this demo.')}</p><details class="proof-demo-controls proof-check-details"><summary>${t('Demo proof checks')}</summary><div class="proof-check-details-content"><div class="field"><label for="proof-scenario">${t('Demo check')}</label><select id="proof-scenario">${PROOF_SCENARIOS.map(s => `<option value="${esc(s.id)}"${s.id === draft.scenario ? ' selected' : ''}>${esc(t(s.label))}</option>`).join('')}</select></div><div class="field"><label for="proof-reference">${t('Demo transfer reference')}</label><input id="proof-reference" value="${esc(draft.reference)}" maxlength="120" autocomplete="off"></div><div class="proof-check-preview"><h3 class="proof-section-title">${t('Simulated extracted details')}</h3>${detailFields(review.extracted)}${checks(review)}${previewError ? `<p class="proof-validation-error" role="alert">${esc(t(previewError))}</p>` : ''}</div></div></details>` : '';
+    modal(t('Submit payment proof'), `<div class="proof-flow" data-proof-editor="${esc(invoice.id)}">${invoiceSummary(invoice)}${payerFields}${upload}${draft.loading ? `<p class="small muted" role="status">${t('Opening file…')}</p>` : ''}${controls}</div>`,
       button('close', t('Cancel')) + button('submit', t('Submit proof'), 'btn primary', `data-id="${esc(invoice.id)}"${!hasEvidence || draft.loading ? ' disabled' : ''}`));
     document.querySelector('.modal')?.classList.add('proof-modal');
   }
@@ -187,7 +206,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
     return safely(() => {
       const invoice = invoiceFor(invoiceId);
       if (invoice.receiptId) return openProof(invoiceId);
-      draft = { invoiceId, viewer: viewerKey(), scenario: 'pass', reference: invoice.proofReference || (invoice.id === 'INV-1024' ? 'FPS 910277' : `FPS-${invoice.id.replace(/^INV-/, '')}`), paymentDate: TODAY, sample: false, file: null, loading: false, readVersion: 0 };
+      draft = { invoiceId, viewer: viewerKey(), scenario: 'pass', reference: invoice.proofReference || (invoice.id === 'INV-1024' ? 'FPS 910277' : `FPS-${invoice.id.replace(/^INV-/, '')}`), paymentDate: invoice.claimedPaymentDate || TODAY, payerName: invoice.proofPayer || billingPayerName(getState(), invoice.studentId), paymentMethod: PAYMENT_METHODS.some(([id]) => id === invoice.paymentMethod) ? invoice.paymentMethod : 'fps', sample: false, file: null, loading: false, readVersion: 0 };
       renderDraft();
       return true;
     });
@@ -196,22 +215,23 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
   function openProof(invoiceId) {
     return safely(() => {
       const invoice = invoiceFor(invoiceId), review = invoice.proofReview, admin = getViewer().role === 'admin';
+      const acknowledgement = isPaymentAcknowledgement(getState(), getState().receipts.find(item => item.id === invoice.receiptId));
       if (!invoice.proof && !review) return openSubmit(invoiceId);
       draft = null;
       let body = invoiceSummary(invoice);
       if (!review) {
-        body += `<div class="proof-result uncertain">${icons.uncertain}<div><h3>${t('Proof received · not reviewed')}</h3><p>${t('This earlier demo record has no saved attachment or automated check result.')}</p></div></div><dl class="detail-grid"><div><dt>${t('Received')}</dt><dd>${invoice.proofDate ? safeDate(invoice.proofDate) : t('Not recorded')}</dd></div><div><dt>${t('Reference')}</dt><dd>${esc(invoice.proofReference || t('Not recorded'))}</dd></div></dl>`;
+        body += `<div class="proof-result uncertain">${icons.uncertain}<div><h3>${t(acknowledgement ? 'Payment acknowledgement issued' : 'Proof received · not reviewed')}</h3><p>${t('This earlier demo record has no saved attachment or automated check result.')}</p></div></div><dl class="detail-grid"><div><dt>${t('Received')}</dt><dd>${invoice.proofDate ? safeDate(invoice.proofDate) : t('Not recorded')}</dd></div><div><dt>${t('Reference')}</dt><dd>${esc(invoice.proofReference || t('Not recorded'))}</dd></div></dl>`;
       } else {
         const passed = review.status === 'passed';
-        body += `<div class="proof-result ${passed ? 'pass' : 'uncertain'}"><span class="proof-result-icon">${icons[passed ? 'pass' : 'uncertain']}</span><div><h3>${t(passed && invoice.receiptId ? 'Receipt issued' : passed ? 'Proof accepted' : review.status === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review')}</h3><p>${passed && invoice.receiptId ? esc(t(`${invoice.receiptId} is available below.`, `可在下方查看收據 ${invoice.receiptId}。`)) : t('The centre needs to review this proof. You can submit a clearer or corrected copy.')}</p></div></div>`;
+        body += `<div class="proof-result ${passed ? 'pass' : 'uncertain'}"><span class="proof-result-icon">${icons[passed ? 'pass' : 'uncertain']}</span><div><h3>${t(passed && invoice.receiptId ? (acknowledgement ? 'Payment acknowledgement issued' : 'Receipt issued') : passed ? 'Proof accepted' : review.status === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review')}</h3><p>${passed && invoice.receiptId ? esc(t(`${invoice.receiptId} is available below.`, `可在下方查看${acknowledgement ? '付款確認' : '收據'} ${invoice.receiptId}。`)) : t('The centre needs to review this proof. You can submit a clearer or corrected copy.')}</p></div></div>`;
         body += attachmentPreview(review.file, review, invoice, !review.file);
         const checkDetails = `<p class="small muted">${t('These are simulated results. No AI read the uploaded file.')}</p>${detailFields(review.extracted)}${checks(review)}`;
-        const bankNote = passed ? `<p class="proof-footer-note small muted">${t('A receipt is issued after the proof checks pass. Bank reconciliation is a separate step.')}</p>` : '';
+        const bankNote = passed ? `<p class="proof-footer-note small muted">${t('Payment proof accepted. Bank reconciliation is recorded separately.')}</p>` : '';
         body += admin
           ? `<details class="proof-demo-controls proof-check-details"><summary>Proof check details</summary><div class="proof-check-details-content">${checkDetails}${bankNote}</div></details>`
           : `<section class="proof-demo-controls"><h3 class="proof-section-title">${t('Demo check')}</h3>${checkDetails}</section>${bankNote}`;
       }
-      const receiptAction = invoice.receiptId ? button('receipt', icons.receipt + ' ' + t('Open receipt'), 'btn primary', `data-id="${esc(invoice.id)}"`) : button('replace', t('Upload another proof'), 'btn primary', `data-id="${esc(invoice.id)}"`);
+      const receiptAction = invoice.receiptId ? button('receipt', icons.receipt + ' ' + t(acknowledgement ? 'Open payment acknowledgement' : 'Open receipt'), 'btn primary', `data-id="${esc(invoice.id)}"`) : button('replace', t('Upload another proof'), 'btn primary', `data-id="${esc(invoice.id)}"`);
       modal(t('Payment proof'), `<div class="proof-flow${admin ? ' proof-record-admin' : ''}" data-proof-record="${esc(invoice.id)}">${body}</div>`, button('close', t('Close')) + receiptAction);
       document.querySelector('.modal')?.classList.add('proof-modal');
       return true;
@@ -249,7 +269,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
       catch (error) { throw new Error(t(error.message)); }
     })) {
       openProof(invoiceId);
-      toast(t(result.review.status === 'passed' ? 'Proof accepted. Receipt issued automatically.' : 'Proof submitted for review.'));
+      toast(t(result.review.status === 'passed' ? 'Proof accepted. Payment acknowledgement issued automatically.' : 'Proof submitted for review.'));
     }
   }
 
@@ -279,7 +299,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
 
   function onChange(event) {
     const target = event.target;
-    if (['proof-scenario', 'proof-reference', 'proof-payment-date'].includes(target.id)) { safely(updatePreview); return true; }
+    if (['proof-scenario', 'proof-reference', 'proof-payment-date', 'proof-payer-name', 'proof-payment-method'].includes(target.id)) { safely(updatePreview); return true; }
     if (target.id !== 'proof-file') return false;
     safely(() => {
       validDraft();

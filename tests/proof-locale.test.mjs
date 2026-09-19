@@ -24,12 +24,15 @@ function setup(t, role = 'parent') {
     change(fn) { try { fn(); return true; } catch (e) { error.textContent = e.message; return false; } },
     modal(title, body, footer) {
       Object.assign(current, { title, body, footer }); fields.clear();
-      for (const id of ['proof-reference', 'proof-payment-date']) {
+      for (const id of ['proof-reference', 'proof-payment-date', 'proof-payer-name']) {
         const value = body.match(new RegExp(`id="${id}"[^>]*value="([^"]*)"`))?.[1];
-        if (value !== undefined) fields.set(id, { value });
+        if (value !== undefined) fields.set(id, { value: value.replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&') });
       }
-      const scenario = body.match(/<option value="([^"]*)" selected>/)?.[1];
-      if (scenario) fields.set('proof-scenario', { value: scenario });
+      for (const id of ['proof-scenario', 'proof-payment-method']) {
+        const select = body.match(new RegExp(`<select id="${id}">([\\s\\S]*?)<\\/select>`))?.[1];
+        const value = select?.match(/<option value="([^"]*)" selected>/)?.[1];
+        if (value) fields.set(id, { value: value.replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&') });
+      }
     },
     closeModal() {}, toast(message) { current.toast = message; }, openReceipt() {}
   });
@@ -94,7 +97,7 @@ test('every simulated Parent result is translated without rewriting stored proof
   }
 });
 
-test('Parent submission keeps references and uploaded names intact, and exposes the receipt', t => {
+test('Parent submission keeps references and uploaded names intact, and exposes the acknowledgement', t => {
   const { state, ui, fields, current } = setup(t);
   ui.openSubmit('INV-1024'); ui.handleAction('proof-sample');
   fields.get('proof-reference').value = 'USER-REFERENCE 876543';
@@ -103,9 +106,9 @@ test('Parent submission keeps references and uploaded names intact, and exposes 
   assert.equal(invoice.proofReview.extracted.recipient, centre.name);
   assert.equal(invoice.proofReference, 'USER-REFERENCE 876543');
   assert.ok(invoice.receiptId);
-  assert.match(current.body, /已發出收據/);
-  assert.match(current.footer, /查看收據/);
-  assert.equal(current.toast, '付款證明已獲接納，收據已自動發出。');
+  assert.match(current.body, /已發出付款確認/);
+  assert.match(current.footer, /查看付款確認/);
+  assert.equal(current.toast, '付款證明已獲接納，付款確認已自動發出。');
   invoice.proofReview.file = { name: 'Payment proof', mimeType: 'application/pdf', size: 3, dataUrl: 'data:application/pdf;base64,YWJj' };
   const before = clone(state);
   ui.openProof(invoice.id);
@@ -135,10 +138,43 @@ test('staff saved proof keeps original evidence and consequential results outsid
     const visible = current.body.replace(disclosure, '');
     assert.match(visible, /src="data:image\/png;base64,YWJj"/);
     assert.match(visible, /Parent transfer\.png/);
-    assert.match(visible, new RegExp(scenario === 'pass' ? 'Receipt issued' : scenario === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review'));
+    assert.match(visible, new RegExp(scenario === 'pass' ? 'Payment acknowledgement issued' : scenario === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review'));
     assert.deepEqual(state, before, scenario);
   }
   invoice.proofReview.file = { name: 'Parent transfer.pdf', mimeType: 'application/pdf', size: 3, dataUrl: 'data:application/pdf;base64,YWJj' };
   ui.openProof(invoice.id);
   assert.match(current.body.split('<details')[0], /<object[^>]+data="data:application\/pdf;base64,YWJj"/);
+});
+
+
+test('Parent account name, method and transaction date persist independently from upload date', t => {
+  const { state, ui, fields, current } = setup(t);
+  ui.openSubmit('INV-1024');
+  assert.match(current.body, /付款戶口姓名/);
+  assert.match(current.body, /交易日期/);
+  assert.match(current.body, /付款方式/);
+  fields.get('proof-payer-name').value = 'Chan "Tai" & Man';
+  fields.get('proof-payment-method').value = 'bank-transfer';
+  fields.get('proof-payment-date').value = '2026-09-29';
+  ui.handleAction('proof-sample');
+  assert.match(current.body, /Chan &quot;Tai&quot; &amp; Man/);
+  ui.handleAction('proof-submit', 'INV-1024');
+  const invoice = state.invoices.find(item => item.id === 'INV-1024');
+  assert.equal(invoice.proofPayer, 'Chan "Tai" & Man');
+  assert.equal(invoice.paymentMethod, 'bank-transfer');
+  assert.equal(invoice.claimedPaymentDate, '2026-09-29');
+  assert.equal(invoice.proofDate, TODAY);
+  assert.ok(invoice.receiptId);
+  assert.equal(state.receipts.find(item => item.id === invoice.receiptId).bankId, null);
+  assert.match(current.body, /銀行入賬會由中心另行核對/);
+});
+
+test('Parent cannot submit a proof with an empty paying-account name', t => {
+  const { state, ui, fields, error } = setup(t);
+  ui.openSubmit('INV-1024'); ui.handleAction('proof-sample');
+  fields.get('proof-payer-name').value = '  ';
+  const before = clone(state);
+  ui.handleAction('proof-submit', 'INV-1024');
+  assert.equal(error.textContent, '請輸入付款戶口姓名（不超過 120 個字）。');
+  assert.deepEqual(state, before);
 });

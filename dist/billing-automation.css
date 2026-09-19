@@ -212,3 +212,30 @@ object.proof-pdf-preview { display: block; min-height: 0; height: 230px; padding
 .proof-record-admin .proof-check-details > summary { width: fit-content; padding: 4px 0; color: #647084; }
 .proof-record-admin .proof-check-details-content > p:first-child { margin-bottom: 14px; line-height: 1.5; }
 .proof-record-admin .proof-check-details-content > .proof-footer-note { margin-top: 10px; }
+
+/* Acknowledgements stay in their payment-method queue until bank reconciliation. */
+.bank-channel-tabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; border-bottom: 1px solid var(--line); }
+.bank-channel-tab { flex: 0 0 auto; margin-bottom: -1px; padding: 12px 15px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.bank-channel-tab:hover { color: var(--ink); }
+.bank-channel-tab.active { border-bottom-color: var(--red); color: var(--red); }
+.bank-channel-tab:focus-visible { outline: 2px solid #e89a48; outline-offset: -3px; }
+.bank-channel-context { max-width: 76ch; margin: 0; line-height: 1.6; }
+.bank-workspace .bank-payment-table table { min-width: 840px; }
+.bank-workspace .bank-payment-table :is(th, td):nth-child(2) { text-align: left; }
+.bank-workspace .bank-payment-table :is(th, td):nth-child(3) { text-align: right; }
+.bank-workspace .bank-payment-table :is(th, td):nth-child(5) { min-width: 210px; }
+.bank-workspace .bank-payment-table .billing-status { white-space: normal; }
+.bank-result-reason { max-width: 32ch; }
+.bank-unmatched-section { display: flex; flex-direction: column; gap: 10px; min-width: 0; margin-top: 8px; }
+.bank-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bank-section-heading h3 { margin: 0; font-size: 14px; font-weight: 650; }
+.bank-section-heading h3 > span { margin-left: 6px; font-weight: 400; font-size: 12px; }
+.bank-section-note { margin: -3px 0 0; line-height: 1.5; }
+.bank-unmatched-section .table-scroll { max-height: 290px; }
+.billing-workspace .bank-ledger-table :is(th, td):first-child { min-width: 100px; }
+.billing-workspace .bank-ledger-table :is(th, td):nth-child(2) { min-width: 240px; text-align: left; }
+.billing-workspace .bank-ledger-table th:nth-child(3), .billing-workspace .bank-ledger-table th:nth-child(4) { text-align: right; }
+@media (max-width: 600px) {
+  .bank-channel-tab { padding: 11px 12px; font-size: 12px; }
+  .bank-workspace .billing-toolbar > .btn.primary { flex: 1; }
+}

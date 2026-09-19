@@ -29,6 +29,16 @@ function receiptPeriod(value, role) {
   return match && months[match[1]] && months[match[2]] ? `${match[3]} 年 ${months[match[1]]} 至 ${months[match[2]]} 月` : familyContent(value, role);
 }
 
+// Proof acknowledgements are independent of bank reconciliation. Older remote
+// proof records use the same semantics; cash and cheque receipts stay receipts.
+export function isPaymentAcknowledgement(state, receipt) {
+  if (!receipt) return false;
+  const invoice = state.invoices?.find(item => item.id === receipt.invoiceId);
+  const method = receipt.paymentMethod || invoice?.paymentMethod;
+  if (['cash', 'cheque'].includes(method)) return false;
+  return receipt.documentType === 'payment-acknowledgement' || Boolean(invoice?.proof);
+}
+
 // Receipt revisions are document snapshots of the same payment. Rendering an
 // earlier version must never read its lesson entitlement from the live invoice.
 export function renderReceiptDocument(state, receiptId, { role = 'admin', revisionId = null } = {}) {
@@ -60,8 +70,17 @@ export function renderReceiptDocument(state, receiptId, { role = 'admin', revisi
     : familyContent(description, role);
   const period = document.period ?? original.period ?? invoice?.period ?? '';
   const detail = (label, value) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`;
-  const documentType = revision ? text('Amended receipt', '修訂收據') : text('Receipt', '收據');
+  const acknowledgement = isPaymentAcknowledgement(state, receipt);
+  const documentType = acknowledgement
+    ? revision ? text('Amended payment acknowledgement', '修訂付款確認') : text('Payment acknowledgement', '付款確認')
+    : revision ? text('Amended receipt', '修訂收據') : text('Receipt', '收據');
   const bank = state.bankTransactions?.find(item => item.id === receipt.bankId);
+  const paymentDate = invoice?.claimedPaymentDate || invoice?.proofReview?.extracted?.paymentDate;
+  const payerName = invoice?.proofPayer || invoice?.proofReview?.extracted?.payer;
+  const paymentDetails = acknowledgement
+    ? (paymentDate ? detail(text('Transaction date', '交易日期'), date(paymentDate)) : '')
+      + (payerName ? detail(text('Name on paying account', '付款戶口姓名'), payerName) : '')
+    : '';
 
   const lessonList = lessonDates.length ? `<ol class="receipt-lesson-list">${lessonDates.map(lesson => {
     const tutor = tutors.find(item => item.id === lesson.tutor)?.name || lesson.tutor || '';
@@ -72,11 +91,11 @@ export function renderReceiptDocument(state, receiptId, { role = 'admin', revisi
   const excluded = excludedDates.length ? `<p class="receipt-excluded-dates small mt-8"><strong>${text('No class on', '以下日期不設課堂')}：</strong>${excludedDates.map(value => esc(date(value))).join(text(', ', '、'))}</p>` : '';
   const lessons = Number.isFinite(lessonCount) ? `<section class="receipt-lessons mt-16"><h3 class="small">${text('Lesson entitlement', '課堂安排')} · ${lessonCount} ${text(lessonCount === 1 ? 'lesson' : 'lessons', '堂')}</h3>${scheduledSummary}${lessonList}${makeUpLessonCount ? `<p class="small mt-8">${text('Make-up entitlement', '補堂名額')}：${makeUpLessonCount} ${text(makeUpLessonCount === 1 ? 'lesson' : 'lessons', '堂')} · ${text('Contact the centre to arrange.', '請聯絡中心安排。')}</p>` : ''}${excluded}</section>` : '';
   const reason = family ? familyScheduleReason(revision, role) : revision?.reason;
-  const amendment = revision ? `<div class="receipt-amendment mt-16"><p class="small strong">${text('Amended', '修訂日期')} ${esc(date(revision.revisedAt))}</p><p class="small muted mt-8">${text('The original receipt date and payment amount are unchanged. This replaces the earlier document for the same payment.', '保留原收據日期及付款金額。此修訂版取代同一筆付款的舊版收據。')}</p>${reason ? `<p class="small mt-8 receipt-amendment-reason">${text('Reason', '原因')}：${esc(reason)}</p>` : ''}</div>` : '';
-  const history = revisions.length ? `<details class="receipt-revision-history mt-16"><summary class="small">${text('Receipt versions', '收據版本')}</summary><div class="stack mt-8">${[
+  const amendment = revision ? `<div class="receipt-amendment mt-16"><p class="small strong">${text('Amended', '修訂日期')} ${esc(date(revision.revisedAt))}</p><p class="small muted mt-8">${acknowledgement ? text('The original issue date and payment amount are unchanged. This replaces the earlier acknowledgement for the same payment.', '保留原發出日期及付款金額。此修訂版取代同一筆付款的舊版付款確認。') : text('The original receipt date and payment amount are unchanged. This replaces the earlier document for the same payment.', '保留原收據日期及付款金額。此修訂版取代同一筆付款的舊版收據。')}</p>${reason ? `<p class="small mt-8 receipt-amendment-reason">${text('Reason', '原因')}：${esc(reason)}</p>` : ''}</div>` : '';
+  const history = revisions.length ? `<details class="receipt-revision-history mt-16"><summary class="small">${acknowledgement ? text('Acknowledgement versions', '付款確認版本') : text('Receipt versions', '收據版本')}</summary><div class="stack mt-8">${[
     { id: 'original', label: `${receipt.id} · ${text('Original', '原始版本')}`, selected: !revision },
     ...revisions.map(item => ({ id: item.id, label: `${item.id} · ${text('Amended', '修訂日期')} ${date(item.revisedAt)}`, selected: revision?.id === item.id }))
   ].map(item => `<button type="button" class="btn ghost" data-action="receipt-revision" data-id="${esc(receipt.id)}" data-revision="${esc(item.id)}"${item.selected ? ' aria-current="true" disabled' : ''}>${esc(item.label)}</button>`).join('')}</div></details>` : '';
 
-  return `<div class="receipt-paper"><div class="between"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><span class="eyebrow">${documentType}</span></div><p class="small muted mt-16">${esc(familyContent(centre.name, role))}</p><dl class="detail-grid">${detail(text('Receipt no.', '收據編號'), documentId)}${detail(text('Receipt date', '收據日期'), date(revision?.receiptDate || receipt.issuedDate))}${detail(text('Parent / guardian', '家長／監護人'), student.parent)}${detail(text('Student', '學生'), student.name)}${detail(text('Payment proof received', '收到付款證明日期'), date(receipt.proofDate))}${bank ? detail(text('Bank credit date', '銀行入賬日期'), date(bank.date)) : ''}</dl><p class="strong small">${esc(translatedDescription)}</p><p class="small muted mt-8">${esc(receiptPeriod(period, role))}${period ? ' · ' : ''}${esc(receipt.invoiceId)}</p>${amendment}${lessons}<div class="receipt-total"><span>${text('Payment amount', '付款金額')}</span><span>${money(receipt.amount)}</span></div><p class="small muted">${text('Issued from payment proof · bank reconciliation is separate.', '根據付款證明發出 · 銀行對賬另行處理。')}<br>${text('Demonstration receipt · no actual payment', '示範收據 · 不涉及實際付款')}</p></div>${history}`;
+  return `<div class="receipt-paper"><div class="between"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><span class="eyebrow">${documentType}</span></div><p class="small muted mt-16">${esc(familyContent(centre.name, role))}</p><dl class="detail-grid">${detail(acknowledgement ? text('Acknowledgement no.', '付款確認編號') : text('Receipt no.', '收據編號'), documentId)}${detail(acknowledgement ? text('Issue date', '發出日期') : text('Receipt date', '收據日期'), date(revision?.receiptDate || receipt.issuedDate))}${detail(text('Parent / guardian', '家長／監護人'), student.parent)}${detail(text('Student', '學生'), student.name)}${detail(text('Payment proof received', '收到付款證明日期'), date(receipt.proofDate))}${paymentDetails}${bank && !acknowledgement ? detail(text('Bank credit date', '銀行入賬日期'), date(bank.date)) : ''}</dl><p class="strong small">${esc(translatedDescription)}</p><p class="small muted mt-8">${esc(receiptPeriod(period, role))}${period ? ' · ' : ''}${esc(receipt.invoiceId)}</p>${amendment}${lessons}<div class="receipt-total"><span>${text('Payment amount', '付款金額')}</span><span>${money(receipt.amount)}</span></div><p class="small muted">${acknowledgement ? text('Payment proof accepted. Bank confirmation is recorded separately.', '付款證明已獲接納，銀行入賬會由中心另行核對。') : text('Issued from payment proof · bank reconciliation is separate.', '根據付款證明發出 · 銀行對賬另行處理。')}<br>${acknowledgement ? text('Demonstration acknowledgement · no actual payment', '示範付款確認 · 不涉及實際付款') : text('Demonstration receipt · no actual payment', '示範收據 · 不涉及實際付款')}</p></div>${history}`;
 }
