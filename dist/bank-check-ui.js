@@ -1,11 +1,11 @@
-import { centre, tutors, money, studentById, dateLabel, reconciliation } from './model.js';
+import { centre, tutors, money, studentById, dateLabel } from './model.js';
 import { analyzeStatement, importBankStatement, demoStatementRows } from './billing-automation.js';
 import { parseStatementCSV } from './statement-csv.js';
+import { getStudentProfile } from './student-profile.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const button = (action, label, attrs = '', className = 'btn') => `<button type="button" class="${className}" data-action="bankcheck-${action}" ${attrs}>${label}</button>`;
-const statusText = (label, tone = '') => `<span class="billing-status ${tone}">${esc(label)}</span>`;
-const channels = [['non-face-to-face','Non-face-to-face'],['cash','Cash'],['cheque','Cheque']];
+const channels = [['non-face-to-face','Online payment'],['cash','Cash'],['cheque','Cheque']];
 const filters = [['pending','Pending'],['reconciled','Reconciled']];
 const rowStatus = row => row.status === 'matched' && !row.linked ? 'ready' : row.status;
 
@@ -24,19 +24,14 @@ export function createBankCheckUI({getState, getViewer, change, render, modal, c
   };
   const receiptChannel = row => row.paymentChannel || 'non-face-to-face';
   const dateText = date => date ? dateLabel(date) : 'Not recorded';
-  function resultLabel(row) {
-    const status = rowStatus(row);
-    if (status === 'amount-mismatch' && Number.isFinite(row.difference)) return money(Math.abs(row.difference)) + (row.difference > 0 ? ' short' : ' extra');
-    if (status === 'ambiguous') return row.candidateBankIds.length > 1 ? row.candidateBankIds.length + ' possible bank credits' : 'Bank credit also matches another payment';
-    return {matched:'Reconciled',ready:'Ready to reconcile',missing:'Awaiting bank confirmation',deferred:'Awaiting reconciliation','amount-mismatch':'Amount differs'}[status] || 'Needs review';
-  }
-  function resultReason(row, state) {
-    const status = rowStatus(row);
-    if (status === 'matched') return '';
-    if (status === 'deferred') return '';
-    if (status === 'ready') return 'A unique bank match is available.';
-    if (status === 'missing' && !(state.bankStatementImports || []).length) return '';
-    return row.reason || '';
+  function parentName(state, student) {
+    if (!student) return '';
+    const saved = state.studentProfiles?.[student.id];
+    if (saved && ('parentGivenName' in saved || 'parentSurname' in saved)) {
+      const profile = getStudentProfile(state, student.id);
+      return [profile.parentGivenName, profile.parentSurname].filter(Boolean).join(' ');
+    }
+    return student.id === 'mia' && state.assessment?.enrolled ? state.assessment.parent || student.parent : student.parent;
   }
   function primaryActions() {
     return canUse() ? button('upload','Upload bank statement','','btn primary') : '';
@@ -71,22 +66,20 @@ export function createBankCheckUI({getState, getViewer, change, render, modal, c
     const rows = analysis.receipts.filter(row=> {
       const receipt = receiptMap.get(row.receiptId), student = studentById(receipt.studentId), invoice = state.invoices.find(i=>i.id===receipt.invoiceId);
       const reconciled = rowStatus(row) === 'matched';
-      return receiptChannel(row) === channel && (filter === 'reconciled' ? reconciled : !reconciled) && (!search || [receipt.id,receipt.invoiceId,student?.name,student?.number,student?.parent,invoice?.proofPayer,invoice?.proofReview?.extracted?.payer,invoice?.proofReference].join(' ').toLowerCase().includes(search));
+      return receiptChannel(row) === channel && (filter === 'reconciled' ? reconciled : !reconciled) && (!search || [receipt.id,receipt.invoiceId,student?.name,student?.number,parentName(state,student),invoice?.proofPayer,invoice?.proofReview?.extracted?.payer,invoice?.proofReference].join(' ').toLowerCase().includes(search));
     }).sort((a,b)=> {
       const aDate = paymentDate(state,receiptMap.get(a.receiptId)) || '', bDate = paymentDate(state,receiptMap.get(b.receiptId)) || '';
       return aDate.localeCompare(bDate) || a.receiptId.localeCompare(b.receiptId);
     });
     const result = paginate(rows,page); page = result.page;
     const tableRows = result.items.map(row=> {
-      const receipt = receiptMap.get(row.receiptId), student = studentById(receipt.studentId), status = rowStatus(row), reason = resultReason(row,state);
-      const invoice = state.invoices.find(item => item.id === receipt.invoiceId);
-      const bank = status === 'matched' ? reconciliation(state,receipt).bank : null;
-      return `<tr><td><strong class="small">${esc(student?.name || receipt.studentId)}</strong><div class="row-meta">${esc(invoice?.proofPayer || invoice?.proofReview?.extracted?.payer || '')}</div></td><td><strong class="small">${esc(receipt.invoiceId)}</strong><div class="row-meta">${esc(receipt.id)}</div></td><td class="billing-amount nowrap">${money(receipt.amount)}</td><td class="nowrap">${dateText(paymentDate(state,receipt))}</td><td>${statusText(resultLabel(row),status==='matched'?'matched':['amount-mismatch','ambiguous'].includes(status)?'red':'pending')}${bank?`<div class="row-meta">Bank date ${dateText(bank.date)}</div>`:''}${reason?`<div class="row-meta bank-result-reason">${esc(reason)}</div>`:''}</td><td>${button('review',status==='matched'||channel!=='non-face-to-face'?'Details':'Review',`data-id="${esc(receipt.id)}"`,'btn small')}</td></tr>`;
+      const receipt = receiptMap.get(row.receiptId), student = studentById(receipt.studentId);
+      return `<tr><td>${button('review',esc(student?.name || receipt.studentId),`data-id="${esc(receipt.id)}"`,'bank-student-link')}<div class="row-meta">${esc(parentName(state,student))}</div></td><td class="billing-amount nowrap">${money(receipt.amount)}</td><td class="nowrap">${dateText(paymentDate(state,receipt))}</td></tr>`;
     }).join('');
     const channelTabs = `<nav class="bank-channel-tabs" aria-label="Payment method">${channels.map(([value,label])=>button('channel',label,`data-id="${value}" aria-pressed="${channel===value}"`,channel===value?'bank-channel-tab active':'bank-channel-tab')).join('')}</nav>`;
     const context = channel === 'non-face-to-face' ? '' : `<p class="small muted bank-channel-context">${channel==='cash'?'Cash collection and deposit handling':'Cheque collection and clearance'} will be defined separately. Existing acknowledgements are listed here; automatic transfer matching does not apply.</p>`;
-    const empty = query ? 'No matching payments' : filter === 'reconciled' ? 'No reconciled payments' : `No pending ${channel === 'non-face-to-face' ? 'non-face-to-face' : channel} payments`;
-    return `<div ${reviewQueue?'id="bankcheck-review-queue" ':''}class="billing-workspace bank-workspace">${channelTabs}<div class="billing-toolbar"><input id="bankcheck-search" type="search" value="${esc(query)}" placeholder="Student, payer or invoice" aria-label="Search payments"><select id="bankcheck-status" aria-label="Reconciliation status">${filters.map(([value,label])=>`<option value="${value}"${filter===value?' selected':''}>${label}</option>`).join('')}</select>${reviewQueue?'':`${ready?button('rerun','Reconcile imported entries'):''}${primaryActions()}`}</div>${context}<section class="panel bank-results-table bank-payment-table"><div class="table-scroll"><table><thead><tr><th>Student / payer</th><th>Invoice / acknowledgement</th><th>Amount</th><th>Payment date</th><th>Status</th><th></th></tr></thead><tbody>${tableRows}</tbody></table></div>${rows.length?'':`<div class="empty"><h3>${empty}</h3></div>`}${pager(result,'receipts')}</section>${reviewQueue?'':`<div class="billing-secondary-actions">${button('ledger','Bank ledger','','btn ghost small')}${button('history','Statement history','','btn ghost small')}</div>${unmatchedSection(analysis)}`}</div>`;
+    const empty = query ? 'No matching payments' : filter === 'reconciled' ? 'No reconciled payments' : `No pending ${channel === 'non-face-to-face' ? 'online' : channel} payments`;
+    return `<div ${reviewQueue?'id="bankcheck-review-queue" ':''}class="billing-workspace bank-workspace">${channelTabs}<div class="billing-toolbar"><input id="bankcheck-search" type="search" value="${esc(query)}" placeholder="Student or parent" aria-label="Search payments"><select id="bankcheck-status" aria-label="Reconciliation status">${filters.map(([value,label])=>`<option value="${value}"${filter===value?' selected':''}>${label}</option>`).join('')}</select>${reviewQueue?'':`${ready?button('rerun','Reconcile imported entries'):''}${primaryActions()}`}</div>${context}<section class="panel bank-results-table bank-payment-table"><div class="table-scroll"><table><thead><tr><th>Student / parent</th><th>Amount</th><th>Payment date</th></tr></thead><tbody>${tableRows}</tbody></table></div>${rows.length?'':`<div class="empty"><h3>${empty}</h3></div>`}${pager(result,'receipts')}</section>${reviewQueue?'':`<div class="billing-secondary-actions">${button('ledger','Bank ledger','','btn ghost small')}${button('history','Statement history','','btn ghost small')}</div>${unmatchedSection(analysis)}`}</div>`;
   }
   function reviewQueueDialog() {
     requireAdmin();

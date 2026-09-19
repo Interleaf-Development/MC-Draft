@@ -204,10 +204,15 @@ test('payment workspace separates channel queues and reconciled history without 
   app.state.receipts[3].bankId = 'BANK-SETTLED';
   app.state.bankTransactions.push({id:'BANK-SETTLED',date:'2026-09-30',amount:2000,reference:'SETTLED'});
   const pending = app.ui.render();
-  assert.match(pending,/Non-face-to-face/);
+  assert.match(pending,/Online payment/);
+  assert.doesNotMatch(pending,/Non-face-to-face/);
   assert.match(pending,/data-id="non-face-to-face" aria-pressed="true"/);
   assert.match(pending,/R-QUEUE-00/);
   assert.doesNotMatch(pending,/R-QUEUE-01|R-QUEUE-02|R-QUEUE-03/);
+  assert.match(pending,/Ethan Wong/);
+  assert.match(pending,/Mr Wong/);
+  assert.match(pending,/<thead><tr><th>Student \/ parent<\/th><th>Amount<\/th><th>Payment date<\/th><\/tr><\/thead>/);
+  assert.doesNotMatch(pending,/<th>Invoice \/ acknowledgement<\/th>|<th>Status<\/th>|>Review<\/button>|>Details<\/button>|>INV-QUEUE-0<|>R-QUEUE-00</);
   assert.match(pending,/Upload bank statement/);
   assert.match(pending,/Payment date/);
   app.ui.onChange({target:{id:'bankcheck-status',value:'reconciled'}});
@@ -219,7 +224,8 @@ test('payment workspace separates channel queues and reconciled history without 
   assert.match(cash,/R-QUEUE-01/);
   assert.doesNotMatch(cash,/R-QUEUE-00|R-QUEUE-02|R-QUEUE-03/);
   assert.match(cash,/Cash collection and deposit handling will be defined separately/);
-  assert.match(cash,/data-id="R-QUEUE-01">Details/);
+  assert.match(cash,/data-action="bankcheck-review"[^>]*data-id="R-QUEUE-01"[^>]*>Chloe Chan<\/button>/);
+  assert.doesNotMatch(cash,/>Review<\/button>|>Details<\/button>/);
   app.ui.handleAction('bankcheck-channel','cheque');
   assert.match(app.ui.render(),/R-QUEUE-02/);
   assert.doesNotMatch(app.ui.render(),/R-QUEUE-00|R-QUEUE-01|R-QUEUE-03/);
