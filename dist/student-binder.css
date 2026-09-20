@@ -1,9 +1,9 @@
 /* The binder is only for choosing work. The writing surface lives in student-focus.css. */
 .role-student:not(.worksheet-open) { background: #f3efe6; }
 .role-student .student-binder-app { min-height: 100dvh; }
-.role-student .student-binder-app .main { max-width: 1180px; width: 100%; margin: 0 auto; padding: 22px 28px 38px; }
+.role-student .student-binder-app .main { max-width: 900px; width: 100%; margin: 0 auto; padding: max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) max(32px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); }
 .student-binder { color: #3e4b3d; }
-.binder-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 30px; }
+.binder-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 24px; }
 .binder-brand { display: flex; align-items: center; gap: 18px; }
 .binder-brand img { width: 154px; height: auto; }
 .binder-brand > span { font-size: 16px; }
@@ -11,18 +11,18 @@
 .binder-student select { max-width: 240px; min-height: 44px; border: 0; border-radius: 3px; background: #fffdf6; color: #4e594b; box-shadow: 0 3px 6px #52462f0b; padding: 8px 28px 8px 12px; transform: rotate(1deg); }
 .binder-demo { display: grid; place-items: center; width: 44px; height: 44px; color: #777a6c; border: 0; background: transparent; }
 .binder-stage { position: relative; padding-top: 50px; }
-.binder-dividers { position: absolute; top: 0; right: 20px; display: flex; gap: 6px; }
-.binder-divider { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 60px; padding: 12px 22px 20px; color: #42513f; background: #d3dfc6; border: 0; border-radius: 15px 15px 0 0; font-size: 16px; transition: transform .15s ease; }
+.binder-dividers { position: absolute; top: 0; left: 42px; right: 14px; display: flex; gap: 6px; }
+.binder-divider { flex: 1; display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 60px; padding: 12px 22px 20px; color: #42513f; background: #d3dfc6; border: 0; border-radius: 15px 15px 0 0; font-size: 16px; transition: transform .15s ease; }
 .binder-divider-current { background: #edcfb4; }
 .binder-divider-future { background: #d1e1e8; }
 .binder-divider[aria-pressed="true"] { transform: translateY(-6px); box-shadow: inset 0 3px 0 #59694e55; }
 .binder-cover { position: relative; z-index: 1; border-radius: 16px 20px 20px 16px; background: #b94b49; border-left: 9px solid #a33f3c; padding: 14px 14px 14px 33px; box-shadow: 0 7px 0 #9e3d3a,0 16px 24px #52462f13; }
 .binder-rings { position: absolute; top: 100px; bottom: 65px; left: 14px; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; z-index: 2; }
 .binder-rings i { display: block; width: 29px; height: 12px; background: linear-gradient(#858d86,#e5e7df 42%,#a0a69c 73%,#676e68); border-radius: 10px; box-shadow: 0 2px 2px #0003; }
-.binder-pages { padding: 28px; min-height: 550px; background: #fffdf5; background-image: radial-gradient(#dbe1d1 .6px,transparent .6px); background-size: 15px 15px; border-radius: 4px 10px 10px 4px; }
+.binder-pages { padding: 24px; min-height: 650px; background: #fffdf5; background-image: radial-gradient(#dbe1d1 .6px,transparent .6px); background-size: 15px 15px; border-radius: 4px 10px 10px 4px; }
 .binder-pages > h1 { font-size: 24px; margin: 0 0 26px; font-weight: 600; color: #3e4b3d; }
-.binder-papers { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 28px; align-items: start; }
-.binder-worksheet { min-width: 0; width: 100%; max-width: 350px; border: 1px solid #dce0d2; border-radius: 2px 2px 14px 2px; background: #fffefa; box-shadow: 3px 5px 0 #e2e6da,5px 8px 12px #52462f0d; padding: 17px 17px 0; text-align: left; position: relative; color: #3d493c; transition: transform .15s ease; }
+.binder-papers { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; }
+.binder-worksheet { min-width: 0; width: 100%; max-width: none; border: 1px solid #dce0d2; border-radius: 2px 2px 14px 2px; background: #fffefa; box-shadow: 3px 5px 0 #e2e6da,5px 8px 12px #52462f0d; padding: 17px 17px 0; text-align: left; position: relative; color: #3d493c; transition: transform .15s ease; }
 .binder-worksheet:nth-child(2n+1) { transform: rotate(-1deg); }
 .binder-worksheet:nth-child(2n) { transform: rotate(1deg); }
 .binder-worksheet:hover { transform: translateY(-3px); }
@@ -32,7 +32,7 @@
 .binder-teacher-note { display: flex; gap: 8px; align-items: flex-start; background: #f6e3a5; color: #6a552e; padding: 10px 12px; margin: -4px -6px 16px; font-size: 13px; line-height: 1.5; box-shadow: 0 3px 3px #6e5b2e0b; transform: rotate(-1deg); }
 .binder-teacher-note .icon { flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; }
 .binder-teacher-note span { overflow-wrap: anywhere; }
-.binder-paper-preview { width: min(100%,210px); aspect-ratio: 1 / 1.45; container-type: inline-size; position: relative; overflow: hidden; margin: 17px auto 0; background: #fff; border-top: 1px solid #e6e8df; pointer-events: none; }
+.binder-paper-preview { width: min(100%,270px); aspect-ratio: 1 / 1.45; container-type: inline-size; position: relative; overflow: hidden; margin: 17px auto 0; background: #fff; border-top: 1px solid #e6e8df; pointer-events: none; }
 .binder-paper-preview .paper-content { padding: 6.5%; }
 .binder-ink { position: absolute; inset: 0; width: 100%; height: 100%; }
 .binder-paper-action { display: flex; align-items: center; justify-content: space-between; min-height: 50px; border-top: 1px solid #e5e8df; gap: 14px; font-size: 15px; }
@@ -52,20 +52,27 @@
 .binder-empty .icon { width: 60px; height: 60px; stroke-width: 1; }
 .binder-empty p { font-size: 16px; }
 @media(max-width:760px) {
- .role-student .student-binder-app .main { padding: 18px 12px 28px; }
+ .role-student .student-binder-app .main { padding: max(16px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(28px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
  .binder-top { gap: 13px; margin-bottom: 24px; }
  .binder-brand { gap: 12px; }.binder-brand img { width: 126px; }.binder-brand > span { display: none; }
  .binder-student select { max-width: 190px; }
  .binder-pages { padding: 23px 18px; }
- .binder-papers { gap: 23px; grid-template-columns: repeat(auto-fit,minmax(195px,1fr)); }
+ .binder-papers { gap: 20px; grid-template-columns: repeat(2,minmax(0,1fr)); }
  .binder-cover { padding: 11px 10px 11px 24px; border-left-width: 6px; }
  .binder-rings { left: 6px; }.binder-rings i { width: 24px; height: 10px; }
  .binder-dividers { right: 9px; left: 17px; gap: 4px; }
  .binder-divider { flex: 1; padding: 11px 8px 20px; gap: 6px; font-size: 14px; }
  .binder-divider .icon { width: 18px; height: 18px; }
 }
+@media(max-width:600px) {
+ .binder-papers { grid-template-columns: minmax(0,1fr); }
+ .binder-worksheet { width: 100%; max-width: 380px; justify-self: center; }
+}
 @media(max-width:430px) {
  .binder-top { flex-wrap: nowrap; }.binder-student { min-width: 0; }.binder-student select { max-width: 155px; padding-right: 21px; font-size: 13px; }.binder-brand img { width: 100px; }.binder-demo { width: 34px; }
  .binder-pages { padding: 23px 14px; }.binder-papers { grid-template-columns: minmax(0,1fr); }.binder-worksheet { max-width: none; }
+}
+@media (orientation: portrait) and (min-width: 601px) {
+ .binder-pages { min-height: max(650px, calc(100svh - 190px)); }
 }
 @media(prefers-reduced-motion:reduce) { .binder-divider,.binder-worksheet { transition: none; } }
