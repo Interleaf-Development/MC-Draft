@@ -1,6 +1,7 @@
 import { centreConfig } from './branch-config.js';
 import { p6Worksheets } from './p6-curriculum.js';
 import { p3Worksheets } from './p3-curriculum.js';
+import { progressRecordWorksheets } from './progress-records.js';
 import { twnRoster } from './twn-roster.js';
 import { twnTutorOffTimes } from './twn-availability.js';
 
@@ -340,7 +341,7 @@ const originalWorksheets = [
   { id: 'numbers-01', code: 'NS · 012', title: 'Number patterns', topic: 'Number sense', level: 'P2', pages: 1, minutes: 15, colour: 'violet' },
   { id: 'decimals-01', code: 'DC · 042', title: 'Understanding decimals', topic: 'Decimals', level: 'P4', pages: 1, minutes: 20, colour: 'teal' }
 ];
-export const worksheets = [...originalWorksheets, ...p6Worksheets, ...p3Worksheets];
+export const worksheets = [...originalWorksheets, ...p6Worksheets, ...p3Worksheets, ...progressRecordWorksheets];
 export const worksheetById = id => worksheets.find(w => w.id === id) || worksheets[0];
 // Keep these original session examples recognizable when upgrading saved demos.
 function coreWeekExamples() {

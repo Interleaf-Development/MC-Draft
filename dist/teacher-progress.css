@@ -115,7 +115,7 @@
 .teacher-progress-table .teacher-progress-revision-cell { padding: 0 4px; }
 .teacher-progress-revision-group { display: flex; align-items: center; gap: 3px; }
 .teacher-progress-revision-group > strong { flex: none; font-size: 10px; width: 35px; font-weight: 600; }
-.teacher-progress-revision-group .teacher-progress-boxes { flex-wrap: nowrap; }
+.teacher-progress-revision-group .teacher-progress-boxes { flex-wrap: wrap; }
 .teacher-progress-collection-group + .teacher-progress-collection-group { margin-top: 5px; }
 .teacher-progress-group-label { color: #657187; font-size: 9px; line-height: 1.2; margin-bottom: 3px; font-weight: 550; }
 .teacher-progress-ce-bank .teacher-progress-boxes { display: grid; grid-template-columns: repeat(3, 21px); gap: 2px; }
@@ -126,6 +126,16 @@
 .teacher-progress-box.is-muted { opacity: .22; }
 .teacher-progress-box.is-match { outline: 2px solid #d18c27; outline-offset: -1px; }
 .teacher-progress-box.is-selected { opacity: 1; }
+.teacher-progress-family-chart { min-width: 720px; }
+.teacher-progress-family-chart .teacher-progress-topic-col { width: 36%; }
+.teacher-progress-family-chart .teacher-progress-revision-col { width: 16%; }
+.teacher-progress-family-chart tbody td { padding: 5px; }
+.teacher-progress-page-ref { display: block; color: var(--muted); font-size: 9px; margin-top: 2px; }
+.teacher-progress-grade-K .teacher-progress-topic-col { width: 40%; }
+.teacher-progress-grade-K .teacher-progress-topic-code { width: 40px; }
+.teacher-progress-grade-K .teacher-progress-topic-name { width: calc(100% - 42px); }
+.teacher-progress-grade-K .teacher-progress-box { width: auto; min-width: 25px; padding: 0 5px; }
+.paper-file-pending { padding: 8cqw 2cqw; color: #667388; text-align: center; font-size: 2.5cqw; line-height: 1.6; }
 @media (max-width: 1200px) and (min-width: 761px) {
   .teacher-progress { grid-template-columns: 160px minmax(0, 1fr); height: calc(100dvh - 28px); gap: 8px; }
   .role-teacher .main:has(.teacher-progress) { padding: 14px; }

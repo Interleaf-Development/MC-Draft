@@ -31,7 +31,7 @@ const words = {
   'Fractions':'分數', 'Division':'除法', 'Word problems':'文字題',
   'Number sense':'數感', 'Decimals':'小數', 'Mathematics':'數學',
   'P1':'小一', 'P2':'小二', 'P3':'小三', 'P4':'小四', 'P5':'小五', 'P6':'小六',
-  'K3':'幼稚園高班', 'S1':'中一', 'S2':'中二',
+  'K':'幼稚園', 'K3':'幼稚園高班', 'S1':'中一', 'S2':'中二', 'S3':'中三',
   'Up next':'待完成', 'In progress':'進行中', 'Ready to mark':'待老師批改',
   'With your teacher':'待老師批改', 'Corrections needed':'需要改正',
   'Working confidently':'表現自信', 'Making progress':'有進步', 'Needs practice':'需要練習',

@@ -15,7 +15,8 @@ export function canStudentOpenAssignment(assignment, studentId) {
 }
 
 export function canStudentEditAssignment(assignment, studentId) {
-  return canStudentOpenAssignment(assignment, studentId) && editableStatuses.has(assignment.status);
+  return canStudentOpenAssignment(assignment, studentId) && editableStatuses.has(assignment.status)
+    && !worksheets.find(worksheet => worksheet.id === assignment.worksheetId)?.catalogueOnly;
 }
 
 export function releasePreparedAssignment(state, { assignmentId, tutorId = centre.managerId }) {

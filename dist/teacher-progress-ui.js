@@ -1,5 +1,6 @@
 import { p6Topics, p6Worksheets, p6SupplementGroups } from './p6-curriculum.js';
 import { p3Topics, p3Worksheets, p3SupplementGroups } from './p3-curriculum.js';
+import { progressRecordCatalogues } from './progress-records.js';
 import { TODAY, worksheets, time, dateLabel } from './model.js';
 import { getTeacherClasses, worksheetProgress, assignTeacherWorksheets } from './teacher-progress.js';
 
@@ -14,7 +15,8 @@ const statuses = {
 };
 const termLabels = { first: 'First term', second: 'Second term', extended: 'Extended part' };
 const worksheetMap = new Map(worksheets.map(worksheet => [worksheet.id, worksheet]));
-const grades = ['K3', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'S1', 'S2'];
+const grades = ['K', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'S1', 'S2', 'S3'];
+const gradeLabels = { K: 'Kindergarten', S1: 'F1 (S1)', S2: 'F2 (S2)', S3: 'F3 (S3)' };
 const action = (name, label, attributes = '', className = '') => '<button type="button" class="'+esc(className)+'" data-action="teacher-progress-'+name+'" '+attributes+'>'+label+'</button>';
 // Keep the compact wording familiar from the printed curriculum index.
 const compactTopics = {
@@ -52,7 +54,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   function useStudent(student) {
     selectedStudent = student?.id || null;
     // This chooses a worksheet collection, never fills in the pupil's grade.
-    worksheetGrade = student ? grades.includes(student.level) ? student.level : 'P6' : null;
+    worksheetGrade = student ? /^K[123]?$/.test(student.level) ? 'K' : grades.includes(student.level) ? student.level : 'P6' : null;
     selected.clear();
     worksheetSearch = '';
     if (student) onStudentChange?.(student.id);
@@ -87,6 +89,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   function curriculum() {
     if (worksheetGrade === 'P6') return { topics: p6Topics, worksheets: p6Worksheets, groups: p6SupplementGroups };
     if (worksheetGrade === 'P3') return { topics: p3Topics, worksheets: p3Worksheets, groups: p3SupplementGroups };
+    if (progressRecordCatalogues[worksheetGrade]) return progressRecordCatalogues[worksheetGrade];
     return { topics: [], worksheets: worksheets.filter(sheet => sheet.level === worksheetGrade), groups: [] };
   }
 
@@ -173,6 +176,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
 
   function combinedChart() {
     const data = curriculum();
+    if (data.columns) return topicFamilyChart(data);
     if (!data.topics.length) {
       if (!data.worksheets.length) return '<div class="teacher-progress-empty">No '+esc(worksheetGrade)+' worksheets in this demo. Choose another grade to browse.</div>';
       return '<table class="teacher-progress-table teacher-progress-samples"><thead><tr><th scope="col">Topic</th><th scope="col">Sample worksheets</th></tr></thead><tbody>'+data.worksheets.map(sheet => '<tr><th scope="row">'+esc(sheet.title)+'</th><td>'+worksheetButton(sheet)+'</td></tr>').join('')+'</tbody></table>';
@@ -195,6 +199,14 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
     return header+terms+sspa+'</tbody></table>';
   }
 
+  // Secondary EX/MC/REV/QUIZ and the shared kindergarten index have their own
+  // column families. Keep every family on one chart, just like the source.
+  function topicFamilyChart(data) {
+    const columns = [['topic', 'Topic'], ...data.columns];
+    const sections = data.termLabels || { all: gradeLabels[worksheetGrade] || worksheetGrade };
+    return '<table class="teacher-progress-table teacher-progress-family-chart teacher-progress-grade-'+esc(worksheetGrade)+'"><colgroup>'+columns.map(([id]) => '<col class="teacher-progress-'+esc(id)+'-col">').join('')+'</colgroup><thead><tr>'+columns.map(([, label]) => '<th scope="col">'+esc(label)+'</th>').join('')+'</tr></thead><tbody>'+Object.entries(sections).map(([term, label]) => '<tr class="teacher-progress-term"><th colspan="'+columns.length+'" scope="colgroup">'+esc(label)+'</th></tr>'+data.topics.filter(topic => topic.term === term).map(topic => '<tr><th scope="row"><span class="teacher-progress-topic-code">'+esc(topic.code)+'</span><span class="teacher-progress-topic-name">'+esc(topic.title)+(topic.pagesLabel ? '<small class="teacher-progress-page-ref">pp. '+esc(topic.pagesLabel)+'</small>' : '')+'</span></th>'+data.columns.map(([family]) => '<td><div class="teacher-progress-boxes">'+topicWorksheets(topic, family).map(worksheetButton).join('')+'</div></td>').join('')+'</tr>').join('')).join('')+'</tbody></table>';
+  }
+
   function footer(student) {
     const chosen = [...selected].map(id => worksheetMap.get(id)).filter(Boolean);
     const codes = chosen.map(worksheet => worksheet.code).join(', ');
@@ -214,7 +226,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   function renderUI() {
     const student = currentStudent();
     const matchesCount = worksheetSearch.trim() ? curriculum().worksheets.filter(matches).length : null;
-    const gradePicker = '<label class="teacher-progress-grade-label">Worksheets<select id="teacher-progress-grade" aria-label="Worksheet grade">'+grades.map(grade => '<option value="'+grade+'"'+(grade === worksheetGrade ? ' selected' : '')+'>'+grade+'</option>').join('')+'</select></label>';
+    const gradePicker = '<label class="teacher-progress-grade-label">Worksheets<select id="teacher-progress-grade" aria-label="Worksheet grade">'+grades.map(grade => '<option value="'+grade+'"'+(grade === worksheetGrade ? ' selected' : '')+'>'+(gradeLabels[grade] || grade)+'</option>').join('')+'</select></label>';
     const header = student ? '<header class="teacher-progress-header"><div class="teacher-progress-identity"><h2>'+esc(student.name)+'</h2>'+(student.level ? '<span>'+esc(student.level)+'</span>' : '')+'</div>'+gradePicker+'<div class="teacher-progress-header-actions">'+action('folder', 'Learning folder', '', 'btn small')+action('student-view', 'View student app', '', 'btn small')+'</div><div class="teacher-progress-search-area"><label class="teacher-progress-search teacher-progress-worksheet-search">'+searchIcon+'<input id="teacher-progress-worksheet-search" type="search" placeholder="Topic or code" aria-label="Find worksheet by topic or code" value="'+esc(worksheetSearch)+'"></label>'+(matchesCount === null ? '' : '<span class="teacher-progress-search-result" aria-live="polite">'+(matchesCount ? matchesCount+' matches' : 'No worksheets found')+'</span>')+'</div></header>' : '';
     const legend = '<div class="teacher-progress-legend" aria-label="Worksheet status legend">'+[['available','Not sent'],['prepared','Prepared'],['sent','Sent'],['working','In progress'],['submitted','To mark'],['corrections','Corrections'],['completed','Completed']].map(([status, label]) => '<span><i class="is-'+status+'" aria-hidden="true"></i>'+label+'</span>').join('')+'</div>';
     return '<div class="teacher-progress">'+classNavigation()+'<section class="teacher-progress-workbench" aria-label="Worksheet progress">'+(student ? header+'<div class="teacher-progress-chart-scroll" tabindex="0" aria-label="Worksheet chart">'+combinedChart()+'</div>'+legend+footer(student) : '<div class="teacher-progress-empty">Choose a class to open student progress.</div>')+'</section></div>';
