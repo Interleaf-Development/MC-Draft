@@ -1,0 +1,82 @@
+.billingflow-workspace { gap: 14px; }
+.billingflow-tabs { display: flex; align-items: stretch; gap: 5px; min-width: 0; overflow-x: auto; border-bottom: 1px solid var(--line); }
+.billingflow-tab { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; padding: 12px 13px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.billingflow-tab:hover { color: var(--ink); }
+.billingflow-tab.active { color: var(--red); border-bottom-color: var(--red); }
+.billingflow-count { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.billingflow-tab:focus-visible, .billingflow-switch:has(input:focus-visible) { outline: 2px solid #e89a48; outline-offset: -2px; }
+.billingflow-toolbar > input { flex-basis: 280px; }
+.billingflow-toolbar > .btn:last-child { margin-left: auto; }
+.billingflow-auto { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.billingflow-switch { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; cursor: pointer; color: var(--ink); font-size: 13px; }
+.billingflow-switch input { appearance: none; display: inline-block; position: relative; width: 31px; height: 18px; margin: 0; border: 1px solid #b7c0cc; border-radius: 12px; background: #cbd1db; cursor: pointer; }
+.billingflow-switch input::after { content: ''; position: absolute; left: 2px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0002; transition: transform .15s ease; }
+.billingflow-switch input:checked { border-color: var(--green); background: var(--green); }
+.billingflow-switch input:checked::after { transform: translateX(13px); }
+.billingflow-auto > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.billingflow-archive-title { margin: 0; font-size: 16px; }
+.billingflow-workspace .billingflow-table table { min-width: 820px; table-layout: fixed; }
+.billingflow-workspace .billingflow-table .table-scroll :is(th, td) { padding: 11px 10px; }
+.billingflow-workspace .billingflow-table :is(th, td):first-child { min-width: 0; width: 18%; overflow-wrap: anywhere; }
+.billingflow-table td strong { font-size: 13px; font-weight: 600; }
+.billingflow-workspace .billingflow-table :is(th, td):nth-child(2) { width: 17%; }
+.billingflow-workspace .billingflow-table :is(th, td):nth-child(3) { width: 14%; }
+.billingflow-workspace .billingflow-table :is(th, td):nth-child(4) { width: 11%; text-align: right; }
+.billingflow-workspace .billingflow-table :is(th, td):nth-child(5) { width: 19%; }
+.billingflow-workspace .billingflow-table :is(th, td):last-child { width: 21%; white-space: normal; }
+.billingflow-table td:last-child .btn { white-space: normal; max-width: 100%; }
+.billingflow-table .billingflow-date { font-variant-numeric: tabular-nums; }
+.billingflow-table .billingflow-overdue { margin-top: 3px; color: #b44149; font-size: 11px; }
+.billingflow-table .billingflow-return-reason { margin-top: 4px; color: #987827; font-size: 12px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
+.billingflow-return-reason > span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+.billingflow-table td:last-child .row-meta { max-width: 220px; margin-left: auto; }
+.billingflow-review-modal.wide { width: 1020px; }
+.billingflow-review-modal .modal-body { padding: 22px 24px; }
+.billingflow-review { min-width: 0; }
+.billingflow-review-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); align-items: start; gap: 24px; }
+.billingflow-review-columns > section { min-width: 0; }
+.billingflow-review-columns h3 { margin: 0 0 12px; font-size: 14px; font-weight: 650; }
+.billingflow-invoice-paper { padding: 22px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.billingflow-document-brand { margin: 0; color: var(--ink); font-size: 16px; font-weight: 650; }
+.billingflow-document-title { display: flex; flex-direction: column; gap: 5px; margin-top: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.billingflow-document-title strong { font-size: 18px; }
+.billingflow-document-title span { color: var(--muted); font-size: 13px; }
+.billingflow-details { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 17px 16px; margin: 20px 0; }
+.billingflow-details > div { min-width: 0; }
+.billingflow-details dt { margin-bottom: 5px; color: var(--muted); font-size: 11px; }
+.billingflow-details dd { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.billingflow-invoice-total { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 17px; border-top: 1px solid var(--line); }
+.billingflow-invoice-total span { color: var(--muted); font-size: 12px; }
+.billingflow-invoice-total strong { font-size: 21px; font-variant-numeric: tabular-nums; }
+.billingflow-proof-file { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #f7f8fa; }
+.billingflow-proof-image { display: block; width: 100%; max-height: 420px; object-fit: contain; }
+.billingflow-proof-pdf { display: block; width: 100%; height: 420px; background: #fff; }
+.billingflow-proof-pdf p, .billingflow-proof-pdf a { display: block; margin: 16px; font-size: 13px; }
+.billingflow-file-name { margin: 0; padding: 9px 12px; background: #fff; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.billingflow-sample { padding: 20px; border: 1px dashed #cbd2db; border-radius: 8px; background: #fafbfc; }
+.billingflow-sample > strong { color: #647084; font-size: 14px; }
+.billingflow-sample > p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.billingflow-sample .billingflow-details { margin-bottom: 0; }
+.billingflow-proof-unavailable { padding: 18px; border: 1px solid var(--line); border-radius: 8px; color: #987827; font-size: 13px; line-height: 1.6; }
+.billingflow-proof-details { margin-top: 17px; }
+.billingflow-proof-reasons { margin: 12px 0; padding: 12px 12px 12px 28px; border-radius: 6px; background: #fffaf0; color: #8b702b; font-size: 12px; line-height: 1.6; }
+.billingflow-checks ul { margin: 10px 0 0; padding: 0; list-style: none; }
+.billingflow-checks li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.billingflow-checks li strong { flex-shrink: 0; font-size: 11px; font-weight: 550; }
+.billingflow-return-field { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+.billingflow-return-field textarea { min-height: 88px; resize: vertical; }
+.billingflow-review-modal .modal-footer { flex-wrap: wrap; }
+.billingflow-review-modal .modal-footer .btn { font-size: 12px; }
+@media (max-width: 760px) {
+  .billingflow-tabs { gap: 0; }
+  .billingflow-tab { padding: 12px 10px; font-size: 12px; }
+  .billingflow-auto { align-items: flex-start; }
+  .billingflow-auto > p { font-size: 11px; }
+  .billingflow-review-modal .modal-body { padding: 18px; }
+  .billingflow-review-columns { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .billingflow-review-modal .modal-footer { align-items: stretch; }
+  .billingflow-review-modal .modal-footer .btn { flex: 1 1 auto; min-height: 40px; }
+  .billingflow-review-modal .modal-footer .btn.primary { flex-basis: 100%; }
+  .billingflow-return-field textarea { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .billingflow-switch input::after { transition: none; } }

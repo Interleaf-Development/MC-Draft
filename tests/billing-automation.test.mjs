@@ -5,12 +5,12 @@ import { PROOF_SCENARIOS, normalizeBillingAutomation, previewPaymentProof, submi
 
 const setup = () => normalizeBillingAutomation(seed());
 const proof = overrides => ({ scenario: 'pass', reference: 'FPS 910277', paymentDate: '2026-09-30', ...overrides });
-function singleReceipt() {
+function singleReceipt(options) {
   const state = setup();
   state.invoices = [state.invoices.find(invoice => invoice.id === 'INV-1024')];
   state.receipts = [];
   state.bankTransactions = [];
-  submitPaymentProof(state, 'INV-1024', proof());
+  if (options !== false) submitPaymentProof(state, 'INV-1024', proof(options));
   return state;
 }
 const deposit = overrides => ({ id: 'BANK-TEST', date: '2026-09-30', amount: 2000, reference: 'FPS 910277', payer: 'Elaine Chan', direction: 'credit', ...overrides });
@@ -192,13 +192,13 @@ test('resolving the sample ambiguity does not change subsequent sample deposits'
 
 
 test('payer name and method persist independently of bank confirmation and affect proof identity', () => {
-  const state = singleReceipt();
+  const state = singleReceipt(false);
   const options = proof({ payerName: '  William Chan  ', paymentMethod: 'bank-transfer' });
   const result = submitPaymentProof(state, 'INV-1024', options);
   assert.equal(result.invoice.proofPayer, 'William Chan');
   assert.equal(result.invoice.paymentMethod, 'bank-transfer');
   assert.equal(result.review.extracted.payer, 'William Chan');
-  assert.equal(result.receipt.documentType, 'payment-acknowledgement');
+  assert.equal(result.receipt.documentType, 'receipt');
   assert.equal(result.receipt.bankId, null);
   assert.equal(state.receipts.length, 1);
   assert.notEqual(previewPaymentProof(state, 'INV-1024', { ...options, payerName: 'Someone Else' }).fingerprint, result.review.fingerprint);
@@ -207,7 +207,7 @@ test('payer name and method persist independently of bank confirmation and affec
   assert.equal(analyzeStatement(state, [deposit({ payer: 'Elaine Chan', reference: 'OTHER TRANSFER' })]).receipts[0].autoEligible, false, 'An explicitly supplied account name replaces the household default');
   for (const invalid of [{ payerName: '' }, { payerName: null }, { payerName: 'a'.repeat(121) }, { paymentMethod: 'bitcoin' }]) {
     const before = clone(state);
-    assert.throws(() => submitPaymentProof(state, 'INV-1024', proof(invalid)));
+    assert.throws(() => previewPaymentProof(state, 'INV-1024', proof(invalid)));
     assert.deepEqual(state, before);
   }
 });
@@ -268,8 +268,7 @@ test('failed imports do not enrich old rows, link receipts or retain earlier row
 });
 
 test('raw bank descriptions match a full supplied payer name without inventing payer or initiation date fields', () => {
-  const state = singleReceipt();
-  submitPaymentProof(state, 'INV-1024', proof({ payerName: 'William Chan' }));
+  const state = singleReceipt({ payerName: 'William Chan' });
   const description = 'FPS PAYMENT WILLIAM CHAN 888999 29/09/2026';
   const batch = importBankStatement(state, { name: 'Bank CSV', rows: [deposit({ reference: description, description, payer: '' })] });
   assert.equal(batch.counts.autoMatched, 1);

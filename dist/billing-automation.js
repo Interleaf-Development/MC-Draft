@@ -1,4 +1,6 @@
-import { TODAY, centre, allStudents as students, uid, issueReceipt, matchReceipt, record, seedBillingLedger, billingPayerName } from './model.js';
+import { TODAY, centre, allStudents as students, uid, matchReceipt, record, seedBillingLedger, billingPayerName } from './model.js';
+
+import { billingStage, demoNow, invoiceReceipt, confirmInvoicePayment } from './billing-workflow.js';
 
 export const MATCH_DATE_WINDOW_DAYS = 7;
 export const PROOF_SCENARIOS = [
@@ -89,7 +91,7 @@ export function previewPaymentProof(state, invoiceId, { scenario = 'pass', refer
   const duplicated = scenario === 'duplicate' || state.invoices.some(other => {
     if (other.id === invoice.id || !other.proof) return false;
     const previous = other.proofReview;
-    if (previous && previous.status !== 'passed') return false;
+    if (previous && previous.status !== 'passed' && other.proofDisposition !== 'confirmed' && !invoiceReceipt(state, other)) return false;
     if (fileFingerprint && previous?.fileFingerprint === fileFingerprint) return true;
     const receipt = state.receipts.find(item => item.invoiceId === other.id);
     return sameReference(extracted.reference, previous?.extracted.reference || other.proofReference) && paymentDate === (previous?.extracted.paymentDate || other.claimedPaymentDate || other.proofDate || receipt?.proofDate) && cents(extracted.amount) === cents(previous?.extracted.amount ?? other.amount);
@@ -106,12 +108,20 @@ export function previewPaymentProof(state, invoiceId, { scenario = 'pass', refer
 }
 
 export function submitPaymentProof(state, invoiceId, options) {
-  const review = previewPaymentProof(state, invoiceId, options), invoice = state.invoices.find(item => item.id === invoiceId);
-  if (invoice.proofReview?.fingerprint === review.fingerprint) return { invoice, review: invoice.proofReview, receipt: state.receipts.find(item => item.id === invoice.receiptId) || null, createdReceipt: false };
+  const invoice = state.invoices.find(item => item.id === invoiceId);
+  if (!invoice) throw new Error('Invoice not found.');
+  if (billingStage(state, invoice) === 'archive') throw new Error('This invoice is archived.');
+  const existingReceipt = invoiceReceipt(state, invoice);
+  if (existingReceipt) return { invoice, review: invoice.proofReview, receipt: existingReceipt, createdReceipt: false };
+  const review = previewPaymentProof(state, invoiceId, options);
+  if (invoice.proofDisposition !== 'returned' && invoice.proofReview?.fingerprint === review.fingerprint) return { invoice, review: invoice.proofReview, receipt: null, createdReceipt: false };
+  const now = demoNow();
   review.id = uid('proof');
-  const hadReceipt = Boolean(invoice.receiptId);
+  review.submittedAt = now;
   invoice.proof = true;
   invoice.proofDate = TODAY;
+  invoice.proofSubmittedAt = now;
+  invoice.proofDisposition = 'pending';
   invoice.claimedPaymentDate = options?.paymentDate || TODAY;
   invoice.proofPayer = review.payerName;
   invoice.paymentMethod = review.paymentMethod;
@@ -121,10 +131,13 @@ export function submitPaymentProof(state, invoiceId, options) {
   const history = { ...review };
   if (history.file) { const { dataUrl, ...metadata } = history.file; history.file = metadata; }
   invoice.proofReviewHistory.push(history);
-  const receipt = review.status === 'passed' ? issueReceipt(state, invoiceId, TODAY) : state.receipts.find(item => item.id === invoice.receiptId) || null;
-  if (!hadReceipt && receipt && paymentChannel(state, receipt) === 'non-face-to-face') receipt.documentType = 'payment-acknowledgement';
+  const receipt = review.status === 'passed' && state.billingSettings?.autoSent !== false ? confirmInvoicePayment(state, invoiceId, { now }).receipt : null;
+  if (receipt) {
+    Object.assign(receipt, { documentType: 'receipt', issuedAt: now, sentAt: now, issuedBy: 'Auto-sent', deliveryMode: 'demo' });
+    invoice.proofDisposition = 'confirmed';
+  }
   record(state, 'Demonstration proof check for ' + invoiceId + ': ' + review.status, 'Payment proof demo');
-  return { invoice, review, receipt, createdReceipt: !hadReceipt && Boolean(receipt) };
+  return { invoice, review, receipt, createdReceipt: Boolean(receipt) };
 }
 
 function evidence(state, receipt, bank) {

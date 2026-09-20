@@ -109,6 +109,7 @@ const fixtureContent = {
   'Strong number sense. Further support with word problems and explaining mathematical reasoning would be useful.':'數感良好，建議加強文字題理解及表達數學推理的能力。',
   'Regular programme · 8 lessons':'常規課程 · 8 堂',
   '8-lesson block':'8 堂課程',
+  'First tuition · assessment credit included':'首次學費 · 已扣除評估費', 'Entrance assessment':'入學評估',
   'Oct–Nov 2026':'2026 年 10 至 11 月', 'Aug–Sep 2026':'2026 年 8 至 9 月',
   'Introductory lesson + Oct–Nov 2026':'單堂課程 + 2026 年 10 至 11 月',
   '1 introductory lesson (HK$250) + 8-lesson block − HK$200 assessment deduction':'1 堂單堂課程（HK$250）+ 8 堂課程 − HK$200 評估費扣減',
@@ -116,6 +117,14 @@ const fixtureContent = {
   '1 introductory lesson (HK$250) + 8-lesson block':'1 堂單堂課程（HK$250）+ 8 堂課程'
 };
 export function familyContent(value, role) {
+  if (isFamilyRole(role)) {
+    const months = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Sept:9, Oct:10, Nov:11, Dec:12 };
+    const period = /^(\w+)[–-](\w+) (\d{4})$/.exec(value || '');
+    if (period && months[period[1]] && months[period[2]]) return `${period[3]} 年 ${months[period[1]]} 至 ${months[period[2]]} 月`;
+    const day = /^(\d{1,2}) (\w+) (\d{4})$/.exec(value || '');
+    if (day && months[day[2]]) return `${day[3]} 年 ${months[day[2]]} 月 ${Number(day[1])} 日`;
+  }
+
   const programme = /^Regular programme · (\d+) lessons?$/.exec(value || '');
   if (isFamilyRole(role) && programme) return '常規課程 · ' + programme[1] + ' 堂';
   return isFamilyRole(role) ? fixtureContent[value] ?? familyText(value, role) : value;

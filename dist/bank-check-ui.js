@@ -7,10 +7,12 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp
 const button = (action, label, attrs = '', className = 'btn') => `<button type="button" class="${className}" data-action="bankcheck-${action}" ${attrs}>${label}</button>`;
 const channels = [['non-face-to-face','Online payment'],['cash','Cash'],['cheque','Cheque']];
 const filters = [['pending','Pending'],['reconciled','Reconciled']];
+const auditFilters = [['all','All receipts'],['pending','Outstanding'],['reconciled','Matched']];
 const rowStatus = row => row.status === 'matched' && !row.linked ? 'ready' : row.status;
 
-export function createBankCheckUI({getState, getViewer, change, render, modal, closeModal, toast, openMatch}) {
-  let query = '', filter = 'pending', channel = 'non-face-to-face', page = 1, depositPage = 1, historyPage = 1, ledgerPage = 1, draft = null, searchTimer, queueOpen = false;
+export function createBankCheckUI({getState, getViewer, change, render, modal, closeModal, toast, openMatch, finalAudit = false}) {
+  const statusFilters = finalAudit ? auditFilters : filters, defaultFilter = finalAudit ? 'all' : 'pending';
+  let query = '', filter = defaultFilter, channel = 'non-face-to-face', page = 1, depositPage = 1, historyPage = 1, ledgerPage = 1, draft = null, searchTimer, queueOpen = false;
   const canUse = () => getViewer().role === 'admin';
   const requireAdmin = () => { if (!canUse()) throw new Error('Bank reconciliation is available to ' + (tutors.find(tutor => tutor.id === centre.managerId)?.name || centre.manager) + ' in the Admin view.'); };
   const showError = error => { const area = document.querySelector('#form-error'); if (area) {area.textContent = error.message; area.classList.add('visible');} else toast(error.message,false,true); };
@@ -39,9 +41,9 @@ export function createBankCheckUI({getState, getViewer, change, render, modal, c
   function secondaryActions() {
     if (!canUse()) return '';
     const analysis = analyzeStatement(getState());
-    const review = analysis.receipts.filter(row => receiptChannel(row) === 'non-face-to-face' && rowStatus(row) !== 'matched').length;
+    const review = analysis.receipts.filter(row => (finalAudit || receiptChannel(row) === 'non-face-to-face') && rowStatus(row) !== 'matched').length;
     const ready = analysis.receipts.some(row => rowStatus(row) === 'ready');
-    return `${review ? button('queue',`Pending payments · all dates (${review})`,'','btn ghost small') : ''}${ready ? button('rerun','Reconcile imported entries','','btn ghost small') : ''}${button('deposits',`Unmatched bank credits (${analysis.unmatchedDeposits.length})`,'','btn ghost small')}${button('ledger','Bank ledger','','btn ghost small')}${button('history','Statement history','','btn ghost small')}`;
+    return `${review ? button('queue',`${finalAudit?'Outstanding receipts':'Pending payments · all dates'} (${review})`,'','btn ghost small') : ''}${ready ? button('rerun','Reconcile imported entries','','btn ghost small') : ''}${button('deposits',`Unmatched bank credits (${analysis.unmatchedDeposits.length})`,'','btn ghost small')}${button('ledger','Bank ledger','','btn ghost small')}${button('history','Statement history','','btn ghost small')}`;
   }
   function bankTable(rows, result, kind) {
     const state = getState();
@@ -51,14 +53,48 @@ export function createBankCheckUI({getState, getViewer, change, render, modal, c
       const link = linked.length ? linked.map(receipt => button('review',receipt.id,`data-id="${esc(receipt.id)}"`,'btn small')).join(' ') : outgoing ? 'Outgoing' : 'Unallocated';
       return `<tr><td class="nowrap">${dateText(bank.date)}</td><td><strong class="small">${esc(bank.payer || bank.description || bank.reference)}</strong>${bank.payer ? `<div class="row-meta">${esc(bank.description || bank.reference)}</div>` : ''}</td>${kind === 'ledger' ? `<td class="billing-amount nowrap">${outgoing?'—':money(bank.amount)}</td><td class="billing-amount nowrap">${outgoing?money(Math.abs(bank.amount)):'—'}</td><td>${link}</td>` : `<td class="billing-amount nowrap">${money(bank.amount)}</td>`}</tr>`;
     }).join('');
-    return `<section class="panel billing-table bank-ledger-table"><div class="table-scroll"><table><thead><tr><th>Bank date</th><th>Description / payer</th>${kind === 'ledger' ? '<th>Money in</th><th>Money out</th><th>Acknowledgement / status</th>' : '<th>Credit</th>'}</tr></thead><tbody>${tableRows}</tbody></table></div>${rows.length?'':`<div class="empty"><h3>${kind === 'ledger'?'No bank entries yet':'No unmatched bank credits'}</h3></div>`}${pager(result,kind)}</section>`;
+    return `<section class="panel billing-table bank-ledger-table"><div class="table-scroll"><table><thead><tr><th>Bank date</th><th>Description / payer</th>${kind === 'ledger' ? `<th>Money in</th><th>Money out</th><th>${finalAudit?'Receipt':'Acknowledgement'} / status</th>` : '<th>Credit</th>'}</tr></thead><tbody>${tableRows}</tbody></table></div>${rows.length?'':`<div class="empty"><h3>${kind === 'ledger'?'No bank entries yet':'No unmatched bank credits'}</h3></div>`}${pager(result,kind)}</section>`;
   }
   function unmatchedSection(analysis) {
     const rows = analysis.unmatchedDeposits, result = paginate(rows,depositPage,10); depositPage = result.page;
     return `<section class="bank-unmatched-section"><div class="bank-section-heading"><h3>Unmatched bank credits <span class="muted">${rows.length}</span></h3></div><p class="small muted bank-section-note">Shared across all payment methods. Identify these credits before allocating them.</p>${bankTable(rows,result,'unmatched')}</section>`;
   }
+  function auditMatchStatus(row, bankMap) {
+    const status = rowStatus(row), method = receiptChannel(row);
+    const labels = {matched:'Matched',ready:'Ready to match','amount-mismatch':'Amount mismatch',ambiguous:'Multiple matches',missing:'Not found',deferred:method === 'cash' ? 'Cash handling' : 'Cheque handling'};
+    const tone = status === 'matched' ? 'matched' : status === 'ready' ? 'ready' : status === 'amount-mismatch' ? 'mismatch' : 'review';
+    const banks = row.candidateBankIds.map(id=>bankMap.get(id)).filter(Boolean);
+    let detail = '';
+    if (status === 'ambiguous') detail = banks.length > 1 ? `${banks.length} possible bank credits. Review before linking.` : 'A bank credit could match more than one receipt.';
+    else if (banks.length === 1) {
+      const bank = banks[0];
+      detail = `${dateText(bank.date)} · ${money(bank.amount)} · ${bank.reference || bank.description || bank.payer || 'Bank credit'}`;
+      if (status === 'amount-mismatch' && Number.isFinite(row.difference)) detail += ` · ${money(Math.abs(row.difference))} ${row.difference > 0 ? 'short' : 'over'}`;
+    } else if (banks.length > 1) detail = `${banks.length} possible credits with different amounts.`;
+    else if (status === 'missing') detail = row.linked ? row.reason : 'Upload a statement or review the bank ledger.';
+    return `<span class="billing-status ${tone}">${labels[status] || 'Needs review'}</span>${detail?`<div class="row-meta">${esc(detail)}</div>`:''}`;
+  }
+  function auditWorkspace({reviewQueue = false} = {}) {
+    const state = getState(), analysis = analyzeStatement(state), search = query.trim().toLowerCase();
+    const receipts = new Map(state.receipts.map(receipt=>[receipt.id,receipt])), banks = new Map(state.bankTransactions.map(bank=>[bank.id,bank]));
+    const rows = analysis.receipts.filter(row=> {
+      const receipt = receipts.get(row.receiptId), student = studentById(receipt.studentId), invoice = state.invoices.find(item=>item.id===receipt.invoiceId);
+      const matched = rowStatus(row) === 'matched';
+      return (filter === 'all' || (filter === 'reconciled' ? matched : !matched)) && (!search || [receipt.id,receipt.invoiceId,student?.name,student?.number,parentName(state,student),invoice?.proofPayer,invoice?.proofReview?.extracted?.payer,invoice?.proofReference].join(' ').toLowerCase().includes(search));
+    }).sort((a,b)=> (receipts.get(b.receiptId).issuedDate || '').localeCompare(receipts.get(a.receiptId).issuedDate || '') || a.receiptId.localeCompare(b.receiptId));
+    const result = paginate(rows,page); page = result.page;
+    const tableRows = result.items.map(row=> {
+      const receipt = receipts.get(row.receiptId), student = studentById(receipt.studentId), status = rowStatus(row);
+      const method = channels.find(([value])=>value===receiptChannel(row))?.[1] || 'Online payment';
+      return `<tr data-audit-receipt="${esc(receipt.id)}" data-bank-status="${status}"><td><strong>${esc(student?.name || receipt.studentId)}</strong><div class="row-meta">${esc(receipt.invoiceId)} · ${esc(receipt.id)}</div></td><td class="billing-amount nowrap">${money(receipt.amount)}<div class="row-meta">${method}</div></td><td class="nowrap">${dateText(receipt.issuedDate)}</td><td>${auditMatchStatus(row,banks)}</td><td>${button('review',status === 'matched' ? 'View match' : 'Review match',`data-id="${esc(receipt.id)}" aria-label="${status === 'matched'?'View':'Review'} match for ${esc(receipt.id)}"`,'btn small')}</td></tr>`;
+    }).join('');
+    const ready = analysis.receipts.some(row=>rowStatus(row)==='ready'), deferred = analysis.receipts.some(row=>row.status==='deferred');
+    const empty = search ? 'No matching receipts' : filter === 'reconciled' ? 'No matched receipts' : filter === 'pending' ? 'No outstanding receipts' : 'No receipts issued yet';
+    return `<div ${reviewQueue?'id="bankcheck-review-queue" ':''}class="billing-workspace bank-workspace bank-final-audit">${reviewQueue?'':'<p class="small muted bank-section-note">Compare issued receipts with bank deposits. This audit does not issue or resend receipts.</p>'}<div class="billing-toolbar"><input id="bankcheck-search" type="search" value="${esc(query)}" placeholder="Student, invoice or receipt" aria-label="Search receipts"><select id="bankcheck-status" aria-label="Bank match status">${auditFilters.map(([value,label])=>`<option value="${value}"${filter===value?' selected':''}>${label}</option>`).join('')}</select>${reviewQueue?'':`${ready?button('rerun','Reconcile imported entries'):''}${primaryActions()}`}</div><section class="panel bank-results-table bank-audit-table"><div class="table-scroll"><table><thead><tr><th>Student / invoice</th><th>Amount</th><th>Receipt date</th><th>Bank match status</th><th>Action</th></tr></thead><tbody>${tableRows}</tbody></table></div>${rows.length?'':`<div class="empty"><h3>${empty}</h3></div>`}${pager(result,'receipts')}</section>${deferred?'<p class="small muted bank-section-note">Cash deposits and cheque clearance need a separate handling workflow. Automatic bank matching applies to online payments only.</p>':''}${reviewQueue?'':`<div class="billing-secondary-actions">${button('ledger','Bank ledger','','btn ghost small')}${button('history','Statement history','','btn ghost small')}${button('deposits',`Unmatched bank credits (${analysis.unmatchedDeposits.length})`,'','btn ghost small')}</div><p class="small muted bank-section-note">Demo: CSV statements stay on this device. Automatic matching is simulated.</p>`}</div>`;
+  }
   function workspace({reviewQueue = false} = {}) {
     if (!canUse()) return '';
+    if (finalAudit) return auditWorkspace({reviewQueue});
     const state = getState(), analysis = analyzeStatement(state);
     const ready = analysis.receipts.some(row => rowStatus(row) === 'ready');
     const receiptMap = new Map(state.receipts.map(receipt=>[receipt.id,receipt]));
@@ -84,7 +120,7 @@ export function createBankCheckUI({getState, getViewer, change, render, modal, c
   function reviewQueueDialog() {
     requireAdmin();
     const unmatched = analyzeStatement(getState()).unmatchedDeposits.length;
-    modal('Pending payments',workspace({reviewQueue:true}),button('deposits',`Unmatched bank credits (${unmatched})`,'','btn ghost')+button('close','Close'),true);
+    modal(finalAudit?'Outstanding receipts':'Pending payments',workspace({reviewQueue:true}),button('deposits',`Unmatched bank credits (${unmatched})`,'','btn ghost')+button('close','Close'),true);
   }
   function openReviewQueue() {
     requireAdmin();
@@ -115,7 +151,7 @@ export function createBankCheckUI({getState, getViewer, change, render, modal, c
     queueOpen=false;clearTimeout(searchTimer);
     const rows = [...getState().bankTransactions].sort((a,b)=>(b.date || '').localeCompare(a.date || ''));
     const result = paginate(rows,ledgerPage,25);ledgerPage=result.page;
-    modal('Bank ledger',`<div class="billing-workspace"><p class="small muted">Money in and out across all payment methods. Linking an acknowledgement does not create another bank entry.</p>${bankTable(rows,result,'ledger')}</div>`,button('close','Close'),true);
+    modal('Bank ledger',`<div class="billing-workspace"><p class="small muted">Money in and out across all payment methods. Linking ${finalAudit?'a receipt':'an acknowledgement'} does not create another bank entry.</p>${bankTable(rows,result,'ledger')}</div>`,button('close','Close'),true);
   }
   function historyDialog() {
     requireAdmin();
@@ -164,7 +200,7 @@ export function createBankCheckUI({getState, getViewer, change, render, modal, c
     searchTimer=setTimeout(()=>{if(!event.target.isConnected||!canUse())return;refreshResults('bankcheck-search',selection);},150);return true;
   }
   function onChange(event) {
-    if(event.target.id==='bankcheck-status'){safely(()=>{requireAdmin();if(!filters.some(([value])=>value===event.target.value))throw new Error('Choose a valid reconciliation status.');clearTimeout(searchTimer);filter=event.target.value;page=1;refreshResults('bankcheck-status');});return true;}
+    if(event.target.id==='bankcheck-status'){safely(()=>{requireAdmin();if(!statusFilters.some(([value])=>value===event.target.value))throw new Error('Choose a valid reconciliation status.');clearTimeout(searchTimer);filter=event.target.value;page=1;refreshResults('bankcheck-status');});return true;}
     if(event.target.id!=='bankcheck-file')return false;
     safely(()=> {
       requireAdmin();const file=event.target.files?.[0];if(!file)return;
@@ -179,5 +215,5 @@ export function createBankCheckUI({getState, getViewer, change, render, modal, c
       }).catch(error=>{if(draft===current&&canUse()&&document.querySelector('#bankcheck-file')){draft.loading=false;renderUpload();showError(error);}});
     });return true;
   }
-  return {render:workspace,renderPrimaryActions:primaryActions,renderSecondaryActions:secondaryActions,openReviewQueue,openUpload,handleAction,onInput,onChange,reset:()=>{query='';filter='pending';channel='non-face-to-face';page=1;depositPage=1;historyPage=1;ledgerPage=1;draft=null;queueOpen=false;clearTimeout(searchTimer);}};
+  return {render:workspace,renderPrimaryActions:primaryActions,renderSecondaryActions:secondaryActions,openReviewQueue,openUpload,handleAction,onInput,onChange,reset:()=>{query='';filter=defaultFilter;channel='non-face-to-face';page=1;depositPage=1;historyPage=1;ledgerPage=1;draft=null;queueOpen=false;clearTimeout(searchTimer);}};
 }

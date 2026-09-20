@@ -6,6 +6,8 @@ import { createConversationUI } from './conversations-ui.js';
 import { normalizeBillingAutomation, analyzeStatement, paymentChannel } from './billing-automation.js';
 import { createProofUI } from './billing-proof-ui.js';
 import { createBankCheckUI } from './bank-check-ui.js';
+import { normalizeBillingWorkflow, billingStage } from './billing-workflow.js';
+import { createBillingWorkflowUI } from './billing-workflow-ui.js';
 import { isFamilyRole, familyText, familyDate, familyContent } from './family-locale.js';
 import { roleFromUrl, syncEntryPoint } from './entry-points.js';
 import { createEdgePager } from './schedule-drag.js';
@@ -21,7 +23,7 @@ import { normalizeTwnSchedule } from './twn-schedule.js';
 const STORAGE = centreConfig.storageKey;
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
-seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeP6Progress(state);normalizeTwnSchedule(state);
+seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);
 const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:centre.managerId, scheduleBookingId:null, scheduleRemarkDrafts:{}, date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Payments', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, paperZoom: 1, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:centre.managerId };
 const t = (en, zh) => isFamilyRole(ui.role) ? (zh ?? familyText(en, ui.role)) : en;
 const content = value => familyContent(value, ui.role);
@@ -98,6 +100,22 @@ function change(fn, message = '', undo = false) {
   try { fn(); previousState = undo ? before : null; persist(); render(); if (message) toast(message, undo); return true; }
   catch (err) { state=before; const area = $('#form-error'); if (area) { area.textContent = t(err.message); area.classList.add('visible'); } else toast(err.message, false, true); return false; }
 }
+// Billing must be persisted before a receipt is shown or a review is closed.
+function saveBillingChange(fn) {
+ const before = clone(state);
+ try {
+  fn();
+  try { localStorage.setItem(STORAGE, JSON.stringify(state)); }
+  catch { throw new Error(t('Could not save this change. Please try again.', '未能儲存這項更改，請重試。')); }
+ } catch (err) {
+  state = before;
+  const area = $('#form-error');
+  if (area) { area.textContent = t(err.message); area.classList.add('visible'); }
+  else toast(err.message, false, true);
+  return false;
+ }
+ previousState = null; render(); return true;
+}
 function closeModal() {
  const wasCheckIn=!!$('.checkin-modal');
  $('#overlay').innerHTML='';document.body.style.overflow='';$('#app').inert=false;
@@ -123,9 +141,10 @@ if (Object.hasOwn(NAV, requestedRole)) {
 }
 const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre director', initials: centre.initials, colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: centre.initials, colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
 const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),persist:()=>{previousState=null;persist();},render:()=>render(),modal,closeModal,toast,childSwitch:()=>childSwitch()});
-const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),change,modal,closeModal,toast,openReceipt:receiptDialog});
+const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),change:saveBillingChange,modal,closeModal,toast,openReceipt:receiptDialog});
 const regularScheduleUI = createRegularScheduleUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,modal,closeModal,openReceipt:receiptDialog});
-const bankCheckUI = createBankCheckUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,render:()=>render(),modal,closeModal,toast,openMatch:openPaymentReview});
+const bankCheckUI = createBankCheckUI({finalAudit:true,getState:()=>state,getViewer:()=>({role:ui.role}),change:saveBillingChange,render:()=>render(),modal,closeModal,toast,openMatch:openPaymentReview});
+const billingWorkflowUI = createBillingWorkflowUI({getState:()=>state,getViewer:()=>({role:ui.role}),save:saveBillingChange,render:()=>render(),modal,closeModal,toast,openReceipt:receiptDialog,renderAudit:()=>bankCheckUI.render(),renderReport:openBillingReport});
 const teacherProgressUI = createTeacherProgressUI({
  getState:()=>state, getTutorId:()=>centre.managerId, change, render:()=>render(),
  onStudentChange:id=>{ui.selectedStudent=id;},
@@ -463,7 +482,7 @@ function bankResults(){
  const p=collectionPage('bank',available,10);
  return p.items.map(b=>'<button class="bank-choice '+(b.id===ui.selectedBank?'selected':'')+'" aria-pressed="'+(b.id===ui.selectedBank)+'" data-action="choose-bank" data-id="'+b.id+'"><div class="between"><strong class="small">'+money(b.amount)+'</strong><span class="small">'+dateLabel(b.date)+'</span></div><p class="row-meta">'+esc(b.reference)+'</p><p class="row-meta">'+esc(b.transactionId||b.id)+'</p>'+(b.payer?'<p class="row-meta">'+esc(b.payer)+'</p>':'')+'</button>').join('')+(p.total?'':empty('No bank entries found'))+pager('bank',p,true);
 }
-function renderCollection(key){if(key==='bank'){$('#bank-results').innerHTML=bankResults();return;}if((key==='students'||key.startsWith('profile-'))&&$('#student-workspace')){renderStudentWorkspace();return;}render();}
+function renderCollection(key){if(key==='matched'){openBillingReport();return;}if(key==='bank'){$('#bank-results').innerHTML=bankResults();return;}if((key==='students'||key.startsWith('profile-'))&&$('#student-workspace')){renderStudentWorkspace();return;}render();}
 function applyListSearch(key,input){const c=collection(key);c.query=input.value;c.page=1;const focus=input.getAttribute('data-list-query'),cursor=input.selectionStart;renderCollection(key);const next=$('[data-list-query="'+focus+'"]');if(next){next.focus();if(next.type==='search')next.setSelectionRange(cursor,cursor);}}
 function checkInOverlay(body){
  if(!$('.checkin-modal'))returnFocus=document.activeElement;
@@ -487,21 +506,14 @@ function studentsPage(){
 }
 function invoiceStatus(invoice){
  if(invoice.receiptId)return 'issued';
+ if(invoice.proofDisposition==='returned')return 'returned';
  if(invoice.proofReview&&invoice.proofReview.status!=='passed')return 'review';
  return invoice.proof?'proof':invoice.due<TODAY?'overdue':'awaiting';
 }
 function billingPage(){
- const key='invoices',c=collection(key);
- const shell=heading('Billing & reconciliation')+'<div class="billing-tabs-toolbar">'+tabs(['Payments','Invoices','HQ report'],ui.billingTab,'billing-tab')+'</div>';
- if(ui.billingTab==='Payments')return shell+bankCheckUI.render();
- if(ui.billingTab==='HQ report')return shell+directorReview();
- const labels={issued:'Acknowledgement issued',review:'Proof needs review',proof:'Needs screening',awaiting:'Awaiting payment',overdue:'Overdue'};
- const list=state.invoices.filter(item=>!c.query||matchesStudent(item.studentId,c.query)||[item.id,item.proofReference].join(' ').toLowerCase().includes(c.query.toLowerCase())).filter(item=>c.status==='all'||invoiceStatus(item)===c.status).sort((a,b)=>b.issued.localeCompare(a.issued)||studentById(a.studentId).number.localeCompare(studentById(b.studentId).number));
- const p=collectionPage(key,list);
- const filters='<div class="billing-toolbar">'+searchControl(key,'Search invoices','Student or invoice')+filterControl(key,'status','Invoice status',[['all','All invoices'],['review','Proof needs review'],...(state.invoices.some(i=>invoiceStatus(i)==='proof')?[['proof','Needs screening']]:[]),['awaiting','Awaiting payment'],['overdue','Overdue'],['issued','Acknowledgement issued']])+((c.query||c.status!=='all')?action('clear-list','Clear','btn ghost small','data-list="'+key+'"'):'')+'</div>';
- const rows=p.items.map(i=>{const student=studentById(i.studentId),status=invoiceStatus(i);return '<tr><td><strong class="small">'+student.name+'</strong><div class="row-meta">'+student.number+'</div></td><td>'+esc(i.period)+'</td><td class="nowrap billing-amount">'+money(i.amount)+'</td><td class="nowrap">'+dateLabel(i.due)+'</td><td><span class="billing-status '+(status==='issued'?'matched':['review','overdue'].includes(status)?'review':'')+'">'+(status==='issued'?paymentIssuedLabel(i.receiptId):labels[status])+'</span></td><td>'+action('view-invoice','Open','btn small','data-id="'+i.id+'" aria-label="Open invoice '+i.id+' for '+esc(student.name)+'"')+'</td></tr>';}).join('');
- return shell+'<div class="billing-workspace">'+filters+'<section class="panel billing-table"><div class="table-scroll"><table><thead><tr><th>Student</th><th>Period</th><th class="billing-amount">Amount</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(p.total?'':empty('No matching invoices'))+(p.pageCount>1?pager(key,p):'')+'</section></div>';
+ return heading('Billing & reconciliation')+billingWorkflowUI.render();
 }
+function openBillingReport(){modal('Billing report',directorReview(),action('close-modal','Close','btn'),true);}
 function directorReview(){
  const months=[...new Set([TODAY.slice(0,7),...state.bankTransactions.map(bank=>bank.date.slice(0,7))])].sort().reverse();
  if(!months.includes(ui.reportMonth))ui.reportMonth=months[0];
@@ -645,8 +657,8 @@ function parentHandbook(){
 }
 
 function parentPayments(){
- const invoices=state.invoices.filter(i=>i.studentId===ui.familyStudent);
- return heading(t('Payments','繳費'),childSwitch())+'<div class="stack">'+(invoices.length?invoices.map(i=>{const status=invoiceStatus(i);return '<section class="panel"><div class="panel-head"><div><h3>'+esc(content(i.period))+'</h3><p class="small muted mt-8">'+i.id+' · '+t('Issued','發出日期')+' '+familyDate(i.issued,ui.role)+'</p></div>'+tag(i.receiptId?paymentIssuedLabel(i.receiptId):status==='review'?t('Proof needs attention','付款證明待覆核'):i.proof?t('Proof submitted','已提交付款證明'):t('Due','繳費限期')+' '+familyDate(i.due,ui.role),i.receiptId?'green':status==='review'?'amber':i.proof?'blue':'amber')+'</div><div class="panel-body between wrap"><div><h2>'+money(i.amount)+'</h2><p class="small muted mt-8">'+esc(content(i.description))+'</p></div><div class="flex">'+action('view-invoice',t('View invoice','查看繳費通知'),'btn','data-id="'+i.id+'"')+(i.receiptId?action('view-receipt',icon('receipt')+' '+paymentDocumentLabel(i.receiptId),'btn primary','data-id="'+i.receiptId+'"'):i.proof?action('view-proof',status==='review'?t('View result','查看結果'):t('View proof','查看付款證明'),'btn','data-id="'+i.id+'"'):action('submit-proof',icon('upload')+' '+t('Submit payment proof','提交付款證明'),'btn primary','data-id="'+i.id+'"'))+'</div></div></section>';}).join(''):'<div class="panel">'+empty(t('No invoices yet','暫時沒有繳費通知'),t('Your centre will issue an invoice after enrolment.','完成報名後，中心會發出繳費通知。'),14)+'</div>')+'</div>';
+ const invoices=state.invoices.filter(i=>i.studentId===ui.familyStudent&&billingStage(state,i)!=='archive');
+ return heading(t('Payments','繳費'),childSwitch())+'<div class="stack">'+(invoices.length?invoices.map(i=>{const status=invoiceStatus(i);return '<section class="panel"><div class="panel-head"><div><h3>'+esc(content(i.period))+'</h3><p class="small muted mt-8">'+i.id+' · '+t('Issued','發出日期')+' '+familyDate(i.issued,ui.role)+'</p></div>'+tag(i.receiptId?paymentIssuedLabel(i.receiptId):status==='returned'?t('Waiting for replacement proof','待重新提交付款證明'):status==='review'?t('Proof needs attention','付款證明待覆核'):i.proof?t('Proof submitted','已提交付款證明'):t('Due','繳費限期')+' '+familyDate(i.due,ui.role),i.receiptId?'green':['review','returned'].includes(status)?'amber':i.proof?'blue':'amber')+'</div><div class="panel-body between wrap"><div><h2>'+money(i.amount)+'</h2><p class="small muted mt-8">'+esc(content(i.description))+'</p></div><div class="flex">'+action('view-invoice',t('View invoice','查看繳費通知'),'btn','data-id="'+i.id+'"')+(i.receiptId?action('view-receipt',icon('receipt')+' '+paymentDocumentLabel(i.receiptId),'btn primary','data-id="'+i.receiptId+'"'):status==='returned'?action('view-proof',t('View reason and replace proof','查看原因並重新提交'),'btn primary','data-id="'+i.id+'"'):i.proof?action('view-proof',status==='review'?t('View result','查看結果'):t('View proof','查看付款證明'),'btn','data-id="'+i.id+'"'):action('submit-proof',icon('upload')+' '+t('Submit payment proof','提交付款證明'),'btn primary','data-id="'+i.id+'"'))+'</div></div></section>';}).join(''):'<div class="panel">'+empty(t('No invoices yet','暫時沒有繳費通知'),t('Your centre will issue an invoice after enrolment.','完成報名後，中心會發出繳費通知。'),14)+'</div>')+'</div>';
 }
 
 function studentWork(){
@@ -723,7 +735,7 @@ document.addEventListener('click', e => {
   if (ui.role==='teacher' && teacherProgressUI.onClick(button)) return;
   if (a.startsWith('wa-')) {conversationUI.handleAction(a,id,button);return;}
   if (a==='schedule-colour') {setScheduleColour(id,button.dataset.colour);return;}
-  if (proofUI.handleAction(a,id,button)||bankCheckUI.handleAction(a,id,button))return;
+  if (billingWorkflowUI.handleAction(a,id,button)||proofUI.handleAction(a,id,button)||bankCheckUI.handleAction(a,id,button))return;
   if(a==='binder-section'){ui.page=button.dataset.section==='current'?'work':button.dataset.section;ui.assignmentId=null;render();$('[data-action="binder-section"][data-section="'+button.dataset.section+'"]')?.focus({preventScroll:true});return;}
   if (a==='navigate') { ui.page=button.dataset.page;if(ui.page==='progress')teacherProgressUI.selectStudent(ui.selectedStudent);if(ui.page==='classroom')ui.standaloneFolder=false; ui.assignmentId=null; ui.search=''; render(); }
   else if (a==='role') { closeModal(); ui.standaloneFolder=false;ui.role=button.dataset.role;if(ui.role==='student'&&state.demoWorksheetStudent)ui.familyStudent=state.demoWorksheetStudent;else if(ui.role==='parent'&&!['chloe','mia'].includes(ui.familyStudent))ui.familyStudent='chloe'; ui.page=NAV[ui.role][0][0]; ui.moveId=null; ui.assignmentId=null; render(); }
@@ -743,7 +755,7 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>'+t('This is a front-end prototype. Tsuen Wan timetable names and lesson slots come from the supplied schedules; payment and other workflow examples are sample data. Changes stay in this browser. No messages, payments or reports are sent to an external service.','這是介面示範。荃灣的學生姓名及課堂時段來自提供的時間表；付款及其他流程使用示範資料。修改只儲存在此瀏覽器，不會向外傳送訊息、付款或報告。')+'</p><p class="mt-16 muted">'+t('The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.','示範課堂日期為 2026 年 9 月 30 日。銀行交易樣本包含跨月例子，可試用入賬日期調整及對賬流程。')+'</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>'+t('Restore the demo schedules and sample workflows. Your demo edits and handwriting in this browser will be cleared.','還原示範時間表及流程資料。你在此瀏覽器的示範修改及手寫內容將被清除。')+'</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeP6Progress(state);normalizeTwnSchedule(state);conversationUI.reset();bankCheckUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent=null;ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Payments',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent=null;ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Payments',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeupPreferences(id,justConfirmed=false){
@@ -978,9 +990,9 @@ function handleAction(a,id,button){
  }else if(a==='enrol-mia')enrolDialog();
  else if(a==='confirm-enrol'){
   const parent=$('#enrol-parent').value.trim(),phone=$('#enrol-phone').value.trim(),date=$('#enrol-date').value,start=Number($('#enrol-time').value),plan=$('#enrol-plan').value;
-  if(change(()=>{if(!parent||!phone)throw new Error('Add the parent’s name and contact number.');if(state.assessment.enrolled)throw new Error('Mia is already enrolled.');if(plan==='block'&&(date<'2026-10-01'||date>'2026-11-30'))throw new Error('For block-only enrolment, choose a first lesson in October or November.');const b={id:uid('lesson'),studentId:'mia',date,start,duration:60,tutor:centre.managerId,status:'scheduled',attendance:'unmarked',note:'New student'};const error=validateSlot(state,b);if(error)throw new Error(error);const credit=assessmentCredit(state.assessment,TODAY);state.assessment.enrolled=true;state.assessment.parent=parent;state.assessment.phone=phone;state.assessment.status='enrolled';state.bookings.push(b);state.invoices.push({id:'INV-1029',studentId:'mia',amount:2000+(plan==='intro'?250:0)-credit,period:plan==='intro'?'Introductory lesson + Oct–Nov 2026':'Oct–Nov 2026',issued:TODAY,due:'2026-10-20',description:(plan==='intro'?'1 introductory lesson (HK$250) + ':'')+'8-lesson block'+(credit?' − HK$200 assessment deduction':''),receiptId:null,proof:false});record(state,'Enrolled Mia Cheung with '+money(credit)+' assessment deduction');},'Enrolment and first invoice created.'))closeModal();
+  if(change(()=>{if(!parent||!phone)throw new Error('Add the parent’s name and contact number.');if(state.assessment.enrolled)throw new Error('Mia is already enrolled.');if(plan==='block'&&(date<'2026-10-01'||date>'2026-11-30'))throw new Error('For block-only enrolment, choose a first lesson in October or November.');const b={id:uid('lesson'),studentId:'mia',date,start,duration:60,tutor:centre.managerId,status:'scheduled',attendance:'unmarked',note:'New student'};const error=validateSlot(state,b);if(error)throw new Error(error);const credit=assessmentCredit(state.assessment,TODAY);state.assessment.enrolled=true;state.assessment.parent=parent;state.assessment.phone=phone;state.assessment.status='enrolled';state.bookings.push(b);state.invoices.push({id:'INV-1029',studentId:'mia',chargeType:'first-tuition',amount:2000+(plan==='intro'?250:0)-credit,period:plan==='intro'?'Introductory lesson + Oct–Nov 2026':'Oct–Nov 2026',issued:TODAY,due:'2026-10-20',description:(plan==='intro'?'1 introductory lesson (HK$250) + ':'')+'8-lesson block'+(credit?' − HK$200 assessment deduction':''),receiptId:null,proof:false});record(state,'Enrolled Mia Cheung with '+money(credit)+' assessment deduction');},'Enrolment and first invoice created.'))closeModal();
  }else if(a==='billing-tab'){ui.billingTab=button.dataset.value;render();}
- else if(a==='report-exceptions'){ui.billingTab='Payments';bankCheckUI.reset();render();bankCheckUI.openReviewQueue();}
+ else if(a==='report-exceptions'){billingWorkflowUI.openAudit();bankCheckUI.reset();render();bankCheckUI.openReviewQueue();}
  else if(a==='view-invoice'){
   const i=state.invoices.find(i=>i.id===id);modal(t('Invoice '+id,'繳費通知 '+id),'<div class="receipt-paper"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><p class="small muted mt-16">'+t(centre.name)+'</p><dl class="detail-grid"><div><dt>' + t('Student','學生') + '</dt><dd>'+studentById(i.studentId).name+'</dd></div><div><dt>' + t('Tuition period','學費期數') + '</dt><dd>'+content(i.period)+'</dd></div><div><dt>' + t('Issued','發出日期') + '</dt><dd>'+dateLabel(i.issued)+'</dd></div><div><dt>' + t('Payment due','繳費限期') + '</dt><dd>'+dateLabel(i.due)+'</dd></div></dl><p class="small">'+esc(content(i.description))+'</p><div class="receipt-total"><span>' + t('Total','總額') + '</span><span>'+money(i.amount)+'</span></div></div>',action('close-modal','Close','btn')+(i.proof?action('view-proof','Payment proof','btn','data-id="'+id+'"'):'')+(i.receiptId?action('view-receipt',paymentDocumentLabel(i.receiptId),'btn primary','data-id="'+i.receiptId+'"'):action('submit-proof',i.proof?'Replace proof':'Add payment proof','btn primary','data-id="'+id+'"')));
  }else if(a==='submit-proof')proofUI.openSubmit(id);
@@ -993,8 +1005,8 @@ function handleAction(a,id,button){
  else if(a==='choose-bank'){ui.selectedBank=id;$$('.bank-choice').forEach(el=>{el.classList.toggle('selected',el.dataset.id===id);el.setAttribute('aria-pressed',String(el.dataset.id===id));});$('#match-comparison').innerHTML=matchComparison(state.receipts.find(r=>r.id===ui.matchReceiptId),id);}
  else if(a==='confirm-match'){
   const note=$('#reconcile-note').value;
-  if(change(()=>{if(!ui.selectedBank)throw new Error('Select a bank transaction.');const result=matchReceipt(state,ui.matchReceiptId,ui.selectedBank);state.receipts.find(r=>r.id===ui.matchReceiptId).note=note;},'Bank match saved. Parent acknowledgement unchanged.')){ui.matchDraft=null;closeModal();}
- }else if(a==='mark-report-reviewed'){change(()=>{state.reportSubmitted=true;state.reviewedMonths??={};state.reviewedMonths[ui.reportMonth]=true;record(state,'Reviewed '+dateLabel(ui.reportMonth+'-01',{day:undefined,month:'long',year:'numeric'})+' report','Centre director');},'Director review recorded. No report was sent externally.');}
+  if(saveBillingChange(()=>{if(!ui.selectedBank)throw new Error('Select a bank transaction.');matchReceipt(state,ui.matchReceiptId,ui.selectedBank);state.receipts.find(r=>r.id===ui.matchReceiptId).note=note;})){ui.matchDraft=null;closeModal();toast('Bank match saved.');}
+ }else if(a==='mark-report-reviewed'){if(saveBillingChange(()=>{state.reportSubmitted=true;state.reviewedMonths??={};state.reviewedMonths[ui.reportMonth]=true;record(state,'Reviewed '+dateLabel(ui.reportMonth+'-01',{day:undefined,month:'long',year:'numeric'})+' report','Centre director');})){openBillingReport();toast('Director review recorded. No report was sent externally.');}}
  else if(a==='export-report'){
   const quote=v=>'"'+String(v??'').replaceAll('"','""')+'"';
   const rows=[['Section','Receipt / bank ID','Student / bank reference','Receipt amount','Bank amount','Receipt issued','Bank credited','HQ month','Match','Date adjustment','Note']];
@@ -1024,7 +1036,7 @@ function handleAction(a,id,button){
 document.addEventListener('change',e=>{
  if(ui.role==='teacher'&&teacherProgressUI.onChange(e))return;
  if(regularScheduleUI.onChange(e))return;
- if(conversationUI.onChange(e)||proofUI.onChange(e)||bankCheckUI.onChange(e))return;
+ if(billingWorkflowUI.onChange(e)||conversationUI.onChange(e)||proofUI.onChange(e)||bankCheckUI.onChange(e))return;
  const target=e.target,type=target.dataset.change;
  if(target.id==='al-date'){refreshStaffLeaveUnits();return;}
  if(target.id==='al-unit'){refreshStaffLeaveImpact();return;}
@@ -1041,7 +1053,7 @@ document.addEventListener('change',e=>{
  else if(type==='class-session'){ui.standaloneFolder=false;const [date,start,tutor]=target.value.split('|');ui.classDate=date;ui.classStart=Number(start);ui.classTutor=tutor;ui.selectedStudent=teachingBookings()[0]?.studentId||'chloe';render();}
  else if(type==='record-student'){ui.selectedStudent=target.value;render();}
  else if(type==='family-student'){ui.familyStudent=target.value;ui.thread='thread-'+target.value;render();}
- else if(type==='report-month'){collection('matched').page=1;collection('exceptions').page=1;ui.reportMonth=target.value;render();}
+ else if(type==='report-month'){collection('matched').page=1;collection('exceptions').page=1;ui.reportMonth=target.value;openBillingReport();}
  else if(target.id==='student-working'&&currentAssignment()&&ui.role==='student'&&canDraw()){currentAssignment().working=target.value;persist();}
  else if(target.id==='work-feedback'&&currentAssignment()&&ui.role==='teacher'){currentAssignment().note=target.value;persist();}
 });
@@ -1050,7 +1062,7 @@ document.addEventListener('submit',e=>{if(e.target.id==='student-profile-form'){
 let searchTimer;
 document.addEventListener('input',e=>{
  if(ui.role==='teacher'&&teacherProgressUI.onInput(e))return;
- if(conversationUI.onInput(e)||bankCheckUI.onInput(e))return;
+ if(billingWorkflowUI.onInput(e)||conversationUI.onInput(e)||bankCheckUI.onInput(e))return;
  if(updateScheduleRemarkDraft(e.target))return;
  if(e.target.dataset.profileField){updateProfileDraft(e.target);return;}
  if(e.target.id==='picker-query'){ui.picker.query=e.target.value;ui.picker.page=1;updatePicker();return;}

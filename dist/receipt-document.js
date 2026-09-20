@@ -32,7 +32,7 @@ function receiptPeriod(value, role) {
 // Proof acknowledgements are independent of bank reconciliation. Older remote
 // proof records use the same semantics; cash and cheque receipts stay receipts.
 export function isPaymentAcknowledgement(state, receipt) {
-  if (!receipt) return false;
+  if (!receipt || receipt.documentType === 'receipt') return false;
   const invoice = state.invoices?.find(item => item.id === receipt.invoiceId);
   const method = receipt.paymentMethod || invoice?.paymentMethod;
   if (['cash', 'cheque'].includes(method)) return false;

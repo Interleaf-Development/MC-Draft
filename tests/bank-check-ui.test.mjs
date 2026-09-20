@@ -18,7 +18,7 @@ function reviewState(count = 28) {
   return state;
 }
 
-function harness(state = fresh()) {
+function harness(state = fresh(), options = {}) {
   const calls = {renders:0,closed:0,modals:[],matches:[],toasts:[],changes:0};
   const viewer = {role:'admin'}, nodes = new Map();
   let pageControls = [];
@@ -50,7 +50,8 @@ function harness(state = fresh()) {
     modal:(title,body,footer,wide)=>{replaceControls(body);calls.modals.push({title,body,footer,wide});},
     closeModal:()=>{calls.closed++;replaceControls('');},
     toast:(...args)=>calls.toasts.push(args),
-    openMatch:id=>{replaceControls('');calls.matches.push(id);}
+    openMatch:id=>{replaceControls('');calls.matches.push(id);},
+    ...options
   });
   return {state,viewer,calls,ui,document,get modal(){return calls.modals.at(-1);}};
 }
@@ -295,4 +296,82 @@ test('closing a review queue with the shared modal close control returns filters
   app.ui.onChange({target:{id:'bankcheck-status',value:'reconciled'}});
   assert.equal(app.calls.modals.length,1,'Filtering the page must not reopen a dismissed review dialog');
   assert.equal(app.calls.renders,1);
+});
+
+function auditState() {
+  const state = reviewState(7);
+  state.receipts[0].bankId = 'BANK-AUDIT-MATCHED';
+  state.invoices[0].claimedPaymentDate = '2026-07-25';
+  state.invoices[1].proofReference = 'AUDIT-MISMATCH-101';
+  state.invoices[2].proofReference = 'AUDIT-SHARED-102';
+  state.invoices[4].paymentMethod = 'cash';
+  state.invoices[5].paymentMethod = 'cheque';
+  state.invoices[6].proofReference = 'AUDIT-READY-106';
+  state.bankTransactions = [
+    {id:'BANK-AUDIT-MATCHED',date:'2026-07-25',amount:2000,reference:'AUDIT-MATCHED-100'},
+    {id:'BANK-AUDIT-MISMATCH',date:'2026-09-30',amount:1800,reference:'AUDIT-MISMATCH-101'},
+    {id:'BANK-AUDIT-SHARED-A',date:'2026-09-30',amount:2000,reference:'AUDIT-SHARED-102'},
+    {id:'BANK-AUDIT-SHARED-B',date:'2026-09-30',amount:2000,reference:'AUDIT-SHARED-102'},
+    {id:'BANK-AUDIT-READY',date:'2026-09-30',amount:2000,reference:'AUDIT-READY-106'}
+  ];
+  state.invoices.push({id:'INV-NO-RECEIPT',studentId:'ethan',amount:2000,status:'unpaid'});
+  return state;
+}
+
+test('final audit lists issued receipts across all channels with bank status and statement controls', () => {
+  const app = harness(auditState(),{finalAudit:true}), html = app.ui.render();
+  assert.equal([...html.matchAll(/data-audit-receipt=/g)].length,7);
+  assert.doesNotMatch(html,/bankcheck-channel|bank-channel-tabs|INV-NO-RECEIPT/);
+  assert.match(html,/<option value="all" selected>All receipts/);
+  assert.match(html,/<th>Student \/ invoice<\/th><th>Amount<\/th><th>Receipt date<\/th><th>Bank match status<\/th>/);
+  assert.match(html,/INV-QUEUE-0 · R-QUEUE-00/);
+  assert.match(html,/data-audit-receipt="R-QUEUE-00"[^]*?<td class="nowrap">31 Jul/,'Audit date is the receipt issue date, not the bank or claimed payment date');
+  for (const status of ['Matched','Amount mismatch','Multiple matches','Not found','Cash handling','Cheque handling','Ready to match']) assert.ok(html.includes('>'+status+'<'),status);
+  assert.match(html,/AUDIT-MISMATCH-101[^]*?200[^]*?short/);
+  assert.match(html,/2 possible bank credits/);
+  assert.match(html,/data-id="R-QUEUE-00"[^>]*>View match<\/button>/);
+  assert.match(html,/data-id="R-QUEUE-01"[^>]*>Review match<\/button>/);
+  for (const label of ['Upload bank statement','Bank ledger','Statement history','Unmatched bank credits']) assert.ok(html.includes(label),label);
+  assert.match(html,/does not issue or resend receipts/);
+  assert.match(html,/Automatic bank matching applies to online payments only/);
+  assert.match(html,/CSV statements stay on this device\. Automatic matching is simulated/);
+});
+
+test('final audit filters outstanding and matched receipts while keeping ready, cash and cheque records distinct', () => {
+  const app = harness(auditState(),{finalAudit:true});
+  globalThis.document = app.document;
+  app.ui.onChange({target:{id:'bankcheck-status',value:'pending'}});
+  let html = app.ui.render();
+  assert.equal([...html.matchAll(/data-audit-receipt=/g)].length,6);
+  assert.doesNotMatch(html,/data-audit-receipt="R-QUEUE-00"/);
+  assert.match(html,/data-audit-receipt="R-QUEUE-06" data-bank-status="ready"/);
+  assert.match(html,/<option value="pending" selected>Outstanding/);
+  app.ui.onChange({target:{id:'bankcheck-status',value:'reconciled'}});
+  html = app.ui.render();
+  assert.equal([...html.matchAll(/data-audit-receipt=/g)].length,1);
+  assert.match(html,/data-audit-receipt="R-QUEUE-00" data-bank-status="matched"/);
+  app.ui.handleAction('bankcheck-review','R-QUEUE-00');
+  app.ui.handleAction('bankcheck-review','R-QUEUE-01');
+  assert.deepEqual(app.calls.matches,['R-QUEUE-00','R-QUEUE-01']);
+  app.ui.reset();
+  assert.equal([...app.ui.render().matchAll(/data-audit-receipt=/g)].length,7);
+  assert.match(app.ui.render(),/<option value="all" selected/);
+});
+
+test('final audit recheck links only the unique online credit and preserves all issued receipts', () => {
+  const app = harness(auditState(),{finalAudit:true});
+  globalThis.document = app.document;
+  const receipts = app.state.receipts.map(({bankId,...receipt})=>receipt);
+  app.ui.handleAction('bankcheck-rerun');
+  assert.equal(app.state.receipts[6].bankId,'BANK-AUDIT-READY');
+  assert.equal(app.state.receipts[1].bankId,null);
+  assert.equal(app.state.receipts[2].bankId,null);
+  assert.equal(app.state.receipts[4].bankId,null);
+  assert.equal(app.state.receipts[5].bankId,null);
+  assert.deepEqual(app.state.receipts.map(({bankId,...receipt})=>receipt),receipts);
+  assert.equal(app.state.bankTransactions.length,5);
+  assert.equal([...app.ui.render().matchAll(/data-audit-receipt=/g)].length,5,'Import returns to the outstanding receipt list');
+  app.ui.openUpload();
+  assert.match(app.modal.body,/accept="\.csv,text\/csv"/);
+  assert.match(app.modal.footer,/Import & check/);
 });

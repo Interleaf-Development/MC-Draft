@@ -2,8 +2,16 @@ import { money, studentById, centre, TODAY, billingPayerName } from './model.js'
 import { PROOF_SCENARIOS, previewPaymentProof, submitPaymentProof } from './billing-automation.js';
 import { familyText, familyDate, familyContent } from './family-locale.js';
 import { isPaymentAcknowledgement } from './receipt-document.js';
+import { billingStage } from './billing-workflow.js';
 
 const COPY = {
+  'Please confirm the transfer details.': '請確認轉賬資料。',
+  'This invoice is archived.': '這張繳費通知已封存。',
+  'Waiting for replacement proof': '待重新提交付款證明',
+  'Please upload a replacement proof. You do not need to pay again.': '請重新提交付款證明，不必再次付款。',
+  'Proof submitted for centre review': '付款證明已提交，待中心覆核',
+  'The centre will review your proof and issue a receipt. You do not need to pay again.': '中心會覆核付款證明並發出收據，不必再次付款。',
+
   'This payment record is not available for this account.': '此帳戶無法查看這項繳費紀錄。',
   'Open this invoice again to submit payment proof.': '請重新開啟這張繳費通知，再提交付款證明。',
   'Open the correct invoice before submitting.': '請先開啟正確的繳費通知。',
@@ -197,7 +205,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
       <div class="proof-upload-actions">${button('choose-file', icons.upload + ' ' + t(hasEvidence ? 'Replace file' : 'Choose file'))}${button('sample', t('Use demo proof'), 'btn ghost')}${hasEvidence ? button('remove-file', t('Remove'), 'btn ghost small') : ''}</div>`;
     const payerFields = `<div class="field"><label for="proof-payer-name">${t('Name on paying account')}</label><input id="proof-payer-name" value="${esc(draft.payerName)}" maxlength="120" autocomplete="name" required></div><div class="two-columns"><div class="field"><label for="proof-payment-method">${t('Payment method')}</label><select id="proof-payment-method">${PAYMENT_METHODS.map(([id, label]) => `<option value="${id}"${id === draft.paymentMethod ? ' selected' : ''}>${t(label)}</option>`).join('')}</select></div><div class="field"><label for="proof-payment-date">${t('Transaction date')}</label><input id="proof-payment-date" type="date" value="${esc(draft.paymentDate)}" min="${esc(invoice.issued)}" max="${TODAY}" required></div></div>`;
     const controls = hasEvidence ? `<p class="small muted">${t('Checks are simulated from this selection. Uploaded files are not read by AI in this demo.')}</p><details class="proof-demo-controls proof-check-details"><summary>${t('Demo proof checks')}</summary><div class="proof-check-details-content"><div class="field"><label for="proof-scenario">${t('Demo check')}</label><select id="proof-scenario">${PROOF_SCENARIOS.map(s => `<option value="${esc(s.id)}"${s.id === draft.scenario ? ' selected' : ''}>${esc(t(s.label))}</option>`).join('')}</select></div><div class="field"><label for="proof-reference">${t('Demo transfer reference')}</label><input id="proof-reference" value="${esc(draft.reference)}" maxlength="120" autocomplete="off"></div><div class="proof-check-preview"><h3 class="proof-section-title">${t('Simulated extracted details')}</h3>${detailFields(review.extracted)}${checks(review)}${previewError ? `<p class="proof-validation-error" role="alert">${esc(t(previewError))}</p>` : ''}</div></div></details>` : '';
-    modal(t('Submit payment proof'), `<div class="proof-flow" data-proof-editor="${esc(invoice.id)}">${invoiceSummary(invoice)}${payerFields}${upload}${draft.loading ? `<p class="small muted" role="status">${t('Opening file…')}</p>` : ''}${controls}</div>`,
+    modal(t('Submit payment proof'), `<div class="proof-flow" data-proof-editor="${esc(invoice.id)}">${invoiceSummary(invoice)}${invoice.proofDisposition === 'returned' ? `<div class="notice"><strong>${t('Waiting for replacement proof')}</strong><p>${esc(invoice.proofReturnReason || '')}</p><p>${t('Please upload a replacement proof. You do not need to pay again.')}</p></div>` : ''}${payerFields}${upload}${draft.loading ? `<p class="small muted" role="status">${t('Opening file…')}</p>` : ''}${controls}</div>`,
       button('close', t('Cancel')) + button('submit', t('Submit proof'), 'btn primary', `data-id="${esc(invoice.id)}"${!hasEvidence || draft.loading ? ' disabled' : ''}`));
     document.querySelector('.modal')?.classList.add('proof-modal');
   }
@@ -205,6 +213,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
   function openSubmit(invoiceId) {
     return safely(() => {
       const invoice = invoiceFor(invoiceId);
+      if (billingStage(getState(), invoice) === 'archive') throw new Error('This invoice is archived.');
       if (invoice.receiptId) return openProof(invoiceId);
       draft = { invoiceId, viewer: viewerKey(), scenario: 'pass', reference: invoice.proofReference || (invoice.id === 'INV-1024' ? 'FPS 910277' : `FPS-${invoice.id.replace(/^INV-/, '')}`), paymentDate: invoice.claimedPaymentDate || TODAY, payerName: invoice.proofPayer || billingPayerName(getState(), invoice.studentId), paymentMethod: PAYMENT_METHODS.some(([id]) => id === invoice.paymentMethod) ? invoice.paymentMethod : 'fps', sample: false, file: null, loading: false, readVersion: 0 };
       renderDraft();
@@ -220,13 +229,16 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
       draft = null;
       let body = invoiceSummary(invoice);
       if (!review) {
+        if (invoice.proofDisposition === 'returned') body += `<div class="notice"><strong>${t('Waiting for replacement proof')}</strong><p>${esc(invoice.proofReturnReason || '')}</p><p>${t('Please upload a replacement proof. You do not need to pay again.')}</p></div>`;
         body += `<div class="proof-result uncertain">${icons.uncertain}<div><h3>${t(acknowledgement ? 'Payment acknowledgement issued' : 'Proof received · not reviewed')}</h3><p>${t('This earlier demo record has no saved attachment or automated check result.')}</p></div></div><dl class="detail-grid"><div><dt>${t('Received')}</dt><dd>${invoice.proofDate ? safeDate(invoice.proofDate) : t('Not recorded')}</dd></div><div><dt>${t('Reference')}</dt><dd>${esc(invoice.proofReference || t('Not recorded'))}</dd></div></dl>`;
       } else {
-        const passed = review.status === 'passed';
-        body += `<div class="proof-result ${passed ? 'pass' : 'uncertain'}"><span class="proof-result-icon">${icons[passed ? 'pass' : 'uncertain']}</span><div><h3>${t(passed && invoice.receiptId ? (acknowledgement ? 'Payment acknowledgement issued' : 'Receipt issued') : passed ? 'Proof accepted' : review.status === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review')}</h3><p>${passed && invoice.receiptId ? esc(t(`${invoice.receiptId} is available below.`, `可在下方查看${acknowledgement ? '付款確認' : '收據'} ${invoice.receiptId}。`)) : t('The centre needs to review this proof. You can submit a clearer or corrected copy.')}</p></div></div>`;
+        const passed = review.status === 'passed', returned = invoice.proofDisposition === 'returned', issued = Boolean(invoice.receiptId);
+        const title = returned ? 'Waiting for replacement proof' : issued ? (acknowledgement ? 'Payment acknowledgement issued' : 'Receipt issued') : passed ? 'Proof submitted for centre review' : review.status === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review';
+        const message = returned ? `${esc(invoice.proofReturnReason || '')}<br>${t('Please upload a replacement proof. You do not need to pay again.')}` : issued ? esc(t(`${invoice.receiptId} is available below.`, `可在下方查看${acknowledgement ? '付款確認' : '收據'} ${invoice.receiptId}。`)) : t('The centre will review your proof and issue a receipt. You do not need to pay again.');
+        body += `<div class="proof-result ${issued ? 'pass' : 'uncertain'}"><span class="proof-result-icon">${icons[issued ? 'pass' : 'uncertain']}</span><div><h3>${t(title)}</h3><p>${message}</p></div></div>`;
         body += attachmentPreview(review.file, review, invoice, !review.file);
         const checkDetails = `<p class="small muted">${t('These are simulated results. No AI read the uploaded file.')}</p>${detailFields(review.extracted)}${checks(review)}`;
-        const bankNote = passed ? `<p class="proof-footer-note small muted">${t('Payment proof accepted. Bank reconciliation is recorded separately.')}</p>` : '';
+        const bankNote = issued ? `<p class="proof-footer-note small muted">${t('Payment proof accepted. Bank reconciliation is recorded separately.')}</p>` : '';
         body += admin
           ? `<details class="proof-demo-controls proof-check-details"><summary>Proof check details</summary><div class="proof-check-details-content">${checkDetails}${bankNote}</div></details>`
           : `<section class="proof-demo-controls"><h3 class="proof-section-title">${t('Demo check')}</h3>${checkDetails}</section>${bankNote}`;
@@ -269,7 +281,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
       catch (error) { throw new Error(t(error.message)); }
     })) {
       openProof(invoiceId);
-      toast(t(result.review.status === 'passed' ? 'Proof accepted. Payment acknowledgement issued automatically.' : 'Proof submitted for review.'));
+      toast(t(result.receipt ? (isPaymentAcknowledgement(getState(), result.receipt) ? 'Proof accepted. Payment acknowledgement issued automatically.' : 'Proof accepted. Receipt issued automatically.') : 'Proof submitted for review.'));
     }
   }
 
