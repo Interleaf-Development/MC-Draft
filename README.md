@@ -75,6 +75,8 @@ Future work sits in a sealed pocket with no worksheet preview or answering acces
 
 ## Teacher schedules
 
+**Off-time shading:** Tsuen Wan calendars grey the recurring off-time blocks marked in the same Regular sheets, including partial days and the 13:00–14:00 lunch break. Empty white source slots remain white. This is visual shading; existing saved lessons and drag/drop rules are retained.
+
 **Tsuen Wan source timetable:** The demo reference week (28 September–4 October 2026) uses the Regular sheet from the eight tutor files in `mc-twn-schedule-edited`. The import contains only names and tutor/weekday/time slots: 749 tutor-scoped pupil entries and 815 weekly lesson slots. Names are kept as supplied; matching names across tutors are not assumed to be the same child. Grade, source IDs, contacts, notes, attendance and payment details are excluded. Slots use the table’s hourly blocks, with explicit minute offsets retained. Unspecified lesson durations use one hour. Older dated sheets are not imported.
 
 The one-time migration replaces untouched synthetic lessons and preserves browser edits and linked workflow examples. The other workflows retain their existing sample data, without creating financial or contact records for imported pupils. Hang Hau is unchanged. Imported schedules are shown in the demo reference week, rather than expanded into an annual timetable.

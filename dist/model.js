@@ -2,6 +2,7 @@ import { centreConfig } from './branch-config.js';
 import { p6Worksheets } from './p6-curriculum.js';
 import { p3Worksheets } from './p3-curriculum.js';
 import { twnRoster } from './twn-roster.js';
+import { twnTutorOffTimes } from './twn-availability.js';
 
 export const TODAY = '2026-09-30';
 export const centre = { ...centreConfig.centre };
@@ -16,6 +17,15 @@ export const CENTRE_CLOSE = 1140;
 // Demo assumption until the centre confirms its AM/PM working-day boundary.
 export const HALF_DAY_BOUNDARY = 840;
 export const tutors = centreConfig.tutors.map(tutor => ({ ...tutor }));
+// Timetable shading follows the source's recurring off-time markings, not
+// empty bookings or the legacy demonstration staff roster.
+export function isTutorOffTime(state, tutorId, date, start, duration = 60) {
+  if (centre.code !== 'TWN' || !state?.twnScheduleVersion || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(start) || !Number.isFinite(duration) || duration <= 0) return false;
+  const day = new Date(date + 'T12:00:00Z');
+  if (!Number.isFinite(day.getTime()) || day.toISOString().slice(0, 10) !== date) return false;
+  const weekday = (day.getUTCDay() + 6) % 7 + 1;
+  return (twnTutorOffTimes[tutorId] || []).some(slot => slot.weekday === weekday && start < slot.end && start + duration > slot.start);
+}
 const firstTutorId = tutors[0].id, secondTutorId = tutors[1].id;
 const legacyTutorRosters = {
   [firstTutorId]: ['Full', 'Off', 'Full', 'Full', 'Full', 'Full', 'Off'],

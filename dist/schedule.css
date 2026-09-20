@@ -183,6 +183,8 @@
   .schedule-drag-edge-hint i { animation: none; }
 }
 .timetable .calendar-cell.pick-target { background: #fffcf5; }
+.timetable .calendar-cell.tutor-off { background: #e9edf1; }
+.timetable .calendar-cell.tutor-off.drag-over { background: #fff0ed; }
 .timetable .booking-chip {
   display: flex;
   align-items: center;
@@ -251,6 +253,7 @@
   background: var(--cell-tint, #fafbfc);
   vertical-align: -1px;
 }
+.legend-colour.off { --cell-tint: #e9edf1; --cell-edge: #d4dae2; }
 
 .schedule-colour-menu {
   position: fixed;
