@@ -183,7 +183,7 @@
   .schedule-drag-edge-hint i { animation: none; }
 }
 .timetable .calendar-cell.pick-target { background: #fffcf5; }
-.timetable .calendar-cell.tutor-off { background: #e9edf1; }
+.timetable .calendar-cell.tutor-off { background: #f7f8fa; }
 .timetable .calendar-cell.tutor-off.drag-over { background: #fff0ed; }
 .timetable .booking-chip {
   display: flex;
@@ -253,7 +253,7 @@
   background: var(--cell-tint, #fafbfc);
   vertical-align: -1px;
 }
-.legend-colour.off { --cell-tint: #e9edf1; --cell-edge: #d4dae2; }
+.legend-colour.off { --cell-tint: #f7f8fa; --cell-edge: #e7e9ed; }
 
 .schedule-colour-menu {
   position: fixed;
