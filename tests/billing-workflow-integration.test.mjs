@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { seed, clone } from '../dist/model.js';
 import { normalizeBillingAutomation, submitPaymentProof, importBankStatement } from '../dist/billing-automation.js';
-import { normalizeBillingWorkflow, billingStage, setBillingAutoSent, confirmInvoicePayment, returnInvoiceProof } from '../dist/billing-workflow.js';
+import { normalizeBillingWorkflow, queryBillingInvoices, billingStage, setBillingAutoSent, confirmInvoicePayment, returnInvoiceProof } from '../dist/billing-workflow.js';
 import { isPaymentAcknowledgement } from '../dist/receipt-document.js';
 const setup = () => normalizeBillingWorkflow(normalizeBillingAutomation(seed()));
 const options = { scenario: 'pass', reference: 'FPS 910277', paymentDate: '2026-09-30', payerName: 'Elaine Chan', paymentMethod: 'fps' };
@@ -84,4 +84,11 @@ test('real billing save rolls back receipt creation if browser persistence fails
   assert.equal(host.save(), true);
   assert.equal(renders, 1);
   assert.ok(persisted.invoices.find(i => i.id === 'INV-1024').receiptId);
+});
+
+
+test('a tuition assessment deduction is not classified as an assessment charge', () => {
+  const state = setup();
+  state.invoices.push({ id: 'INV-9994', studentId: 'chloe', amount: 1800, issued: '2026-09-01', due: '2026-10-01', description: '8-lesson block − HK$200 assessment deduction', proof: false });
+  assert.equal(queryBillingInvoices(state, { stage: 'parent', query: 'INV-9994' }).items[0].chargeType, 'recurring');
 });

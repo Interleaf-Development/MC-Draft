@@ -51,8 +51,8 @@ function chargeTypeFor(invoice) {
   if (['assessment', 'assessment-fee'].includes(explicit)) return 'assessment';
   if (['first-tuition', 'first', 'initial-tuition', 'enrolment', 'enrollment'].includes(explicit)) return 'first-tuition';
   const description = normalize(invoice.description);
-  if (/assessment|評估/.test(description)) return 'assessment';
   if (/first tuition|first programme|initial tuition|首次學費/.test(description)) return 'first-tuition';
+  if (/^(?:entrance )?assessment(?: fee)?(?:$|[ ·:])|^入學評估|^評估費/.test(description)) return 'assessment';
   return 'recurring';
 }
 
