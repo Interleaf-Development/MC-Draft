@@ -3,11 +3,12 @@ import { p6Worksheets } from './p6-curriculum.js';
 
 const catalog = new Map(p6Worksheets.map(worksheet => [worksheet.id, worksheet]));
 const teacherCatalog = new Map(worksheets.map(worksheet => [worksheet.id, worksheet]));
+const compareStudents = (a, b) => String(a.number || '').localeCompare(String(b.number || '')) || a.name.localeCompare(b.name, 'en', { sensitivity: 'base', numeric: true });
 
 export function getTeacherStudents(state, tutorId = centre.managerId) {
   const scheduled = new Set((state.bookings || []).filter(booking => booking.tutor === tutorId && activeBooking(booking)).map(booking => booking.studentId));
   return enrolledStudents(state).filter(student => student.status === 'active' && (student.tutor === tutorId || scheduled.has(student.id)))
-    .sort((a, b) => a.number.localeCompare(b.number));
+    .sort(compareStudents);
 }
 
 export function getTeacherClasses(state, tutorId = centre.managerId) {
@@ -23,13 +24,13 @@ export function getTeacherClasses(state, tutorId = centre.managerId) {
     if (!session.students.some(pupil => pupil.id === student.id)) session.students.push(student);
   }
   return [...classes.values()].sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start).map(session => ({
-    ...session, students: session.students.sort((a, b) => a.number.localeCompare(b.number))
+    ...session, students: session.students.sort(compareStudents)
   }));
 }
 
 export function getP6Students(state, tutorId = centre.managerId) {
   return enrolledStudents(state).filter(student => student.level === 'P6' && student.status === 'active' && student.tutor === tutorId)
-    .sort((a, b) => a.number.localeCompare(b.number));
+    .sort(compareStudents);
 }
 
 export function worksheetProgress(state, studentId, worksheetId) {

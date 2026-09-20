@@ -1,4 +1,4 @@
-import { TODAY, students, billingPayerName, money } from './model.js';
+import { TODAY, allStudents as students, billingPayerName, money } from './model.js';
 import { analyzeStatement } from './billing-automation.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));

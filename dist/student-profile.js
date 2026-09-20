@@ -1,4 +1,4 @@
-import { TODAY, centre, students, tutors, activeBooking, time, resolveRegularScheduleRule } from './model.js';
+import { TODAY, centre, allStudents as students, tutors, activeBooking, time, resolveRegularScheduleRule } from './model.js';
 
 const studentsById = new Map(students.map(student => [student.id, student]));
 const textLimits = {
@@ -11,6 +11,7 @@ const textLimits = {
 const booleanFields = new Set(['paymentReminder', 'marketingOptIn']);
 const editableFields = new Set([...Object.keys(textLimits), ...booleanFields]);
 const fixtureChineseNames = { chloe: '陳樂怡', ethan: '黃俊熙', mia: '張悅晴' };
+const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 function requireStudent(id) {
   const student = studentsById.get(id);
@@ -24,9 +25,40 @@ function storedFields(state, id) {
     ? Object.fromEntries(Object.entries(saved).filter(([key]) => editableFields.has(key))) : {};
 }
 
-// These are fictional demo details. Core identity and lesson data stay in model.js.
+function importedStudentProfile(state, student) {
+  const schedule = resolveRegularScheduleRule(state.regularSchedules?.[student.id]);
+  const lessonSessions = (schedule ? [schedule] : student.sessions || []).map(session => ({
+    tutor: session.tutor,
+    instructor: tutors.find(tutor => tutor.id === session.tutor)?.name || '',
+    weekday: session.weekday,
+    day: weekdays[session.weekday - 1] || '',
+    start: session.start,
+    time: time(session.start),
+    duration: session.duration
+  }));
+  const durations = [...new Set(lessonSessions.map(session => session.duration))];
+  return {
+    studentId: student.id, branch: centre.name, studentNumber: student.number,
+    englishName: student.name, givenName: '', surname: '', chineseName: '', dateOfBirth: '',
+    school: '', grade: '', parentRelation: '', parentSurname: '', parentGivenName: '', parentLanguage: '',
+    parentEmail: '', parentMobile: '', parentPhone: '', region: '', area: '', address: '',
+    paymentReminder: false, remark: '', fpsRemark: '',
+    instructor: [...new Set(lessonSessions.map(session => session.instructor).filter(Boolean))].join(', '),
+    course: '', lessonTime: lessonSessions.length === 1 ? lessonSessions[0].time : '',
+    lessonDuration: durations.length === 1 ? durations[0] : 0,
+    lessonDays: [...new Set(lessonSessions.map(session => session.day).filter(Boolean))],
+    lessonSessions,
+    regularEffectiveDate: schedule?.effectiveDate || '', regularEndDate: schedule?.endDate || '',
+    enrolledSince: '', status: '', referralCode: '', referralNotes: '', marketingOptIn: false, marketingNotes: '',
+    ...storedFields(state, student.id), smsHistory: []
+  };
+}
+
+// Fictional fixture details never supply missing facts for imported pupils.
 export function getStudentProfile(state, id) {
-  const student = requireStudent(id), number = Number(student.number.slice(3));
+  const student = requireStudent(id);
+  if (student.source === 'twn-schedule') return importedStudentProfile(state, student);
+  const number = Number(student.number.slice(3));
   const [givenName, ...surnameParts] = student.name.split(' '), surname = surnameParts.join(' ');
   const enrolled = student.id !== 'mia' || Boolean(state.assessment?.enrolled);
   const firstLesson = student.id === 'mia' && enrolled

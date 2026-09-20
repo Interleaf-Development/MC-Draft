@@ -1,4 +1,4 @@
-import { TODAY, centre, tutors, students, worksheets, uid } from './model.js';
+import { TODAY, centre, tutors, allStudents as students, worksheets, uid } from './model.js';
 
 const studentIndex = new Map(students.map(student => [student.id, student]));
 const staffRoles = new Set(['admin', 'teacher']);
@@ -146,7 +146,7 @@ export function sendConversationMessage(state, threadId, { viewer, text = '', re
   if (replyToId !== undefined && !thread.messages.some(message => message.id === replyToId)) throw new Error('The message you are replying to is not in this conversation.');
   const message = {
     id: uid('message'), author: viewer.role === 'parent' ? 'parent' : 'centre', senderKey: key,
-    senderName: viewer.role === 'parent' ? studentIndex.get(viewer.studentId).parent : viewer.role === 'teacher' ? director.name : centre.manager,
+    senderName: viewer.role === 'parent' ? studentIndex.get(viewer.studentId).parent || 'Parent' : viewer.role === 'teacher' ? director.name : centre.manager,
     text: content, date: TODAY, time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Hong_Kong' }), readBy: [key], reactions: [],
     ...(replyToId !== undefined ? { replyToId } : {}), ...(attached ? { attachment: attached } : {})
   };

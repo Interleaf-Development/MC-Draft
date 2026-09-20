@@ -1,4 +1,4 @@
-import { TODAY, WEEK, tutors, students, activeBooking, validateSlot, uid, clone, record, centre, resolveRegularScheduleRule } from './model.js';
+import { TODAY, WEEK, tutors, allStudents as students, activeBooking, validateSlot, uid, clone, record, centre, resolveRegularScheduleRule } from './model.js';
 
 const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const monthNumbers = new Map(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((name, index) => [name.toLowerCase(), index + 1]));
@@ -25,7 +25,7 @@ export function getRegularSchedule(state, studentId, asOf) {
   const first = state.bookings.find(booking => booking.studentId === studentId && !booking.sourceId && activeBooking(booking));
   const weekday = weekdays.indexOf(student.day) + 1 || (first ? weekdayOf(first.date) : 0);
   if (!weekday) throw new Error('Set a regular lesson before changing this student’s timetable.');
-  return { weekday, start: Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : first?.start || 960, duration: first?.duration || 60, tutor: student.tutor || first?.tutor };
+  return { weekday, start: Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : first?.start || 960, duration: student.sessions?.[0]?.duration || first?.duration || 60, tutor: student.tutor || first?.tutor };
 }
 
 function invoicePeriod(invoice) {

@@ -1,4 +1,4 @@
-import { TODAY, centre, students, uid, issueReceipt, matchReceipt, record, seedBillingLedger, billingPayerName } from './model.js';
+import { TODAY, centre, allStudents as students, uid, issueReceipt, matchReceipt, record, seedBillingLedger, billingPayerName } from './model.js';
 
 export const MATCH_DATE_WINDOW_DAYS = 7;
 export const PROOF_SCENARIOS = [

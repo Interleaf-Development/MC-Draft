@@ -1,6 +1,7 @@
 import { centreConfig } from './branch-config.js';
 import { p6Worksheets } from './p6-curriculum.js';
 import { p3Worksheets } from './p3-curriculum.js';
+import { twnRoster } from './twn-roster.js';
 
 export const TODAY = '2026-09-30';
 export const centre = { ...centreConfig.centre };
@@ -77,7 +78,20 @@ const sundayExamples = [firstTutorId, secondTutorId].flatMap(tutor => students.s
   Object.assign(student, { day: 'Sunday', regular: 'Sunday · ' + time(start) });
   return { studentId: student.id, tutor, start };
 }));
-const studentsById = new Map(students.map(student => [student.id, student]));
+// The timetable import supplies names and lesson slots only. Keep all other
+// pupil details empty, and keep the original fixtures under their original IDs.
+export const twnStudents = centre.code === 'TWN' ? twnRoster.map(student => {
+  const first = student.sessions[0], day = first ? weekdays[first.weekday - 1] : '';
+  return {
+    id: student.id, name: student.name, source: 'twn-schedule', number: '',
+    level: '', parent: '', phone: '', focus: '', status: 'active',
+    initials: student.name.split(/\s+/).map(part => part[0]).slice(0, 2).join(''), colour: 'slate',
+    tutor: first?.tutor || '', day, regular: first ? day + ' · ' + time(first.start) : '',
+    sessions: student.sessions.map(slot => ({ ...slot }))
+  };
+}) : [];
+export const allStudents = [...students, ...twnStudents];
+const studentsById = new Map(allStudents.map(student => [student.id, student]));
 export const studentById = id => studentsById.get(id) || students[0];
 
 // Permanent changes historically display the latest saved rule immediately.
@@ -91,7 +105,13 @@ export function resolveRegularScheduleRule(saved, asOf) {
 }
 
 export function enrolledStudents(state) {
-  return students.filter(student => student.id !== 'mia' || state?.assessment?.enrolled).map(student => {
+  const retainedIds = state?.twnScheduleVersion && centre.code === 'TWN' ? new Set([
+    ...(state.bookings || []).map(booking => booking.studentId),
+    ...Object.keys(state.regularSchedules || {}), ...Object.keys(state.studentProfiles || {}),
+    ...(state.assessment?.enrolled ? ['mia'] : [])
+  ]) : null;
+  const directory = retainedIds ? allStudents.filter(student => student.source === 'twn-schedule' || retainedIds.has(student.id)) : students;
+  return directory.filter(student => student.id !== 'mia' || state?.assessment?.enrolled).map(student => {
     const schedule = resolveRegularScheduleRule(state?.regularSchedules?.[student.id]);
     if (schedule) { const day = weekdays[schedule.weekday - 1]; return { ...student, ...(student.id === 'mia' ? { status: 'active', parent: state.assessment.parent || student.parent, phone: state.assessment.phone || student.phone } : {}), tutor: schedule.tutor, day, regular: day + ' · ' + time(schedule.start) }; }
     if (student.id !== 'mia') return student;
@@ -140,6 +160,7 @@ export function billingPayerName(state, studentId) {
   const student = studentsById.get(studentId), profile = state?.studentProfiles?.[studentId];
   if (!student) return '';
   if (profile?.parentGivenName?.trim() && profile?.parentSurname?.trim()) return profile.parentGivenName.trim() + ' ' + profile.parentSurname.trim();
+  if (student.source === 'twn-schedule') return '';
   return corePayers[studentId] || parentGivenNames[(Number(student.number.slice(3)) - 9) % parentGivenNames.length] + ' ' + student.name.split(' ').slice(1).join(' ');
 }
 const legacyAwaitingGeneratedInvoices = new Set(students.slice(8).filter(student => student.status === 'active').slice(-104).map(student => student.id));
@@ -370,6 +391,7 @@ export function seed() {
   });
 }
 export function seedTeacherSchedules(state) {
+  if (state.twnScheduleVersion && centre.code === 'TWN') return state;
   const manager = state.staff.find(staff => staff.id === centre.managerId);
   if (manager) Object.assign(manager, { name: centre.manager, role: 'Centre director' });
   if (state.teacherSchedulesVersion === 1) return seedSundaySchedules(state);
@@ -405,6 +427,7 @@ function rosterAllows(roster, booking) {
   return unit === 'Full' || unit === 'AM' && booking.start + booking.duration <= HALF_DAY_BOUNDARY || unit === 'PM' && booking.start >= HALF_DAY_BOUNDARY;
 }
 export function seedSundaySchedules(state) {
+  if (state.twnScheduleVersion && centre.code === 'TWN') return state;
   if (state.sundayScheduleVersion === 1) return state;
   for (const [id, oldRoster] of Object.entries(legacyTutorRosters)) {
     const staff = state.staff.find(item => item.id === id), replacement = demoTutorRosters[id];
@@ -447,6 +470,7 @@ function removeCrossTeacherFixtures(state) {
   });
 }
 export function seedBusyAfternoons(state) {
+  if (state.twnScheduleVersion && centre.code === 'TWN') return state;
   if (state.busyAfternoonsVersion === 2) return state;
   removeCrossTeacherFixtures(state);
   const candidates = students.slice(8).filter(student => student.status === 'active');
