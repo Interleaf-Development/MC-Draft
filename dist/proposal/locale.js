@@ -50,7 +50,7 @@ export const shellText = {
   delivery: t('Delivery and commercial terms', '交付及商業安排'),
   deliveryScope: t('Pilot scope, responsibilities, acceptance criteria, phased rollout, pricing items, support and ownership.', '試行範圍、責任分工、驗收準則、分階段推展、報價項目、支援及擁有權。'),
   planningBasis: t('Planning basis', '規劃依據'),
-  planningBasisText: t('The current planning estimate is more than 200,000 material files and approximately 20,000 students across centres. The file inventory, first-release coverage and pilot group must be confirmed before fees and delivery dates are agreed.', '目前按超過 200,000 份教材檔案及各中心約 20,000 名學生作規劃。議定費用及交付日期前，須確認教材盤點、首階段涵蓋範圍及試行對象。'),
+  planningBasisText: t('The proposal covers the existing teaching-material library and approximately 20,000 students across centres. The materials included in the first release and the pilot group must be confirmed before fees and delivery dates are agreed.', '本建議書涵蓋現有教材庫及各中心約 20,000 名學生。議定費用及交付日期前，須確認首階段納入的教材及試行對象。'),
   demoBoundary: t('Interactive examples use the current UI demo. Proposed functions and acceptance conditions are specified in the relevant sections; a demonstration does not establish readiness for live operation.', '互動示例採用現有介面示範。建議功能及驗收條件於相關章節列明；示範可操作並不代表已可正式投入營運。'),
   rolesLink: t('02. Users and responsibilities', '02. 使用者及責任分工'),
   termsLink: t('12. Scope and commercial terms', '12. 範圍及商業安排')

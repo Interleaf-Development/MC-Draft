@@ -33,11 +33,11 @@ export const chapters = [
    'Screenshots, photography and later copying remain possible. These controls reduce easy bulk copying and support investigation; they cannot prevent every leak.'
   ]))},
 
- {id:'library',title:'Existing library migration',heading:'Existing library migration',intro:'The proposed migration covers a collection described as more than 200,000 files. Establish the usable collection first, then introduce reusable and editable questions in agreed stages.',body:
+ {id:'library',title:'Existing library migration',heading:'Existing library migration',intro:'Bring the existing teaching-material library into the system. Establish the usable collection first, then introduce reusable and editable questions in agreed stages.',body:
   `<p class="demo-context">The catalogue demo uses the supplied curriculum indexes, with sample questions for P3 and P6. Original-worksheet access and editable conversion remain proposed work.</p>`+
   demo('library','Curriculum catalogue and assignment')+
   table(['Feature','Included function','Condition or responsibility'],[
-   ['Collection review','Identify file formats, page counts, condition, approved editions and duplicate materials. Preserve intentional revisions and edition history.','Confirm coverage and cost after reviewing the collection. A file count is not a question count.'],
+   ['Collection review','Identify file formats, page counts, condition, approved editions and duplicate materials. Preserve intentional revisions and edition history.','Confirm coverage and cost after reviewing the collection.'],
    ['Original worksheets','Keep worksheets readable in their original layout and provide space for digital working. Retain the original collection.','The original page remains the teaching reference until converted content has been verified.'],
    ['Catalogue and search','Find approved materials by grade, topic, collection and familiar worksheet codes from the progress chart.','Review and correct inaccurate catalogue or search information.'],
    ['Question reuse','Bring existing questions and diagrams into new worksheets with curriculum context and edition history.','Prioritise the worksheet families agreed with MathConcept.'],
