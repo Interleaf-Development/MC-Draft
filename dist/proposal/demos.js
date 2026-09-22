@@ -77,9 +77,11 @@ function syncControls() {
 function unmount() {
   if (!active) return;
   if (active.box.classList.contains('is-expanded')) expand(false);
-  const {id,frame}=active;
+  const {id,frame,stage}=active;
+  const height=stage.style.height;
   frame.remove();
   $('#demo-'+id).innerHTML=shell(id);
+  $('#demo-'+id+' .demo-viewport').style.height=height;
   active=null;
 }
 function mount(id, key) {
