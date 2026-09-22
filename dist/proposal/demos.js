@@ -28,15 +28,15 @@ const scenes = {
 };
 const dimensions = {admin:[1440,1000],teacher:[1440,1000],student:[1024,1366],parent:[390,844]};
 const selection = new Map();
+const frames = new Map();
 let active = null, initialised = false, phase = 0;
 const worksheetStudents = new Map();
 const $ = selector => document.querySelector(selector);
-const esc = text => String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function sourceURL(view) {
   const base = view.branch === 'hh' ? '/hh/' : '/';
   const path = ['parent','student'].includes(view.role) ? base+view.role+'/' : base;
-  const params = new URLSearchParams({proposal:'1',role:view.role,page:view.page});
+  const params = new URLSearchParams({proposal:'1',proposalPreload:'1',role:view.role,page:view.page});
   if(view.studentId)params.set('studentId',view.studentId);
   return path+'?'+params;
 }
@@ -48,13 +48,12 @@ function selectedView(key) {
 }
 function shell(id) {
   const chosen = selection.get(id)||scenes[id][0];
-  return `<div class="live-demo" data-live-demo="${id}"><div class="live-demo-toolbar"><div class="live-demo-views" role="group" aria-label="${t('Demo views','示範畫面')}">${scenes[id].map(key=>`<button type="button" data-demo-view="${key}" aria-pressed="${chosen===key}">${views[key].label}</button>`).join('')}</div><button type="button" class="demo-expand" data-demo-expand aria-expanded="false">${t('Expand ↗','放大 ↗')}</button></div><div class="demo-viewport"><div class="demo-loading"><span class="demo-loading-mark">M</span><button type="button" data-demo-start>${t(`Open ${esc(views[chosen].label)}`,`開啟${esc(views[chosen].label)}`)}</button></div></div></div>`;
+  return `<div class="live-demo" data-live-demo="${id}"><div class="live-demo-toolbar"><div class="live-demo-views" role="group" aria-label="${t('Demo views','示範畫面')}">${scenes[id].map(key=>`<button type="button" data-demo-view="${key}" aria-pressed="${chosen===key}">${views[key].label}</button>`).join('')}</div><button type="button" class="demo-expand" data-demo-expand aria-expanded="false">${t('Expand ↗','放大 ↗')}</button></div><div class="demo-viewport"><div class="demo-loading" role="status">${t('Loading demo…','正在載入示範…')}</div></div></div>`;
 }
-function sizeFrame() {
-  if (!active) return;
-  const {frame,stage,box,view} = active;
-  const expanded = box.classList.contains('is-expanded');
-  if (expanded) {
+function sizeFrame(entry = active) {
+  if (!entry || !entry.stage.clientWidth) return;
+  const {frame,stage,box,view} = entry;
+  if (box.classList.contains('is-expanded')) {
     stage.style.height='';
     frame.style.width=stage.clientWidth+'px';
     frame.style.height=stage.clientHeight+'px';
@@ -68,29 +67,36 @@ function sizeFrame() {
     frame.style.transform=`scale(${scale})`;
   }
 }
-function syncControls() {
-  if (!active) return;
-  for (const button of active.box.querySelectorAll('[data-demo-view]')) {
+function syncControls(entry = active) {
+  if (!entry) return;
+  for (const button of entry.box.querySelectorAll('[data-demo-view]')) {
     const view=views[button.dataset.demoView];
-    const match=view.role===active.view.role && view.page===active.view.page && (view.branch||'tw')===(active.view.branch||'tw');
+    const match=view.role===entry.view.role && view.page===entry.view.page && (view.branch||'tw')===(entry.view.branch||'tw');
     button.setAttribute('aria-pressed',String(match));
   }
 }
-function unmount() {
-  if (!active) return;
-  if (active.box.classList.contains('is-expanded')) expand(false);
-  const {id,frame,stage}=active;
-  const height=stage.style.height;
-  frame.remove();
-  $('#demo-'+id).innerHTML=shell(id);
-  $('#demo-'+id+' .demo-viewport').style.height=height;
-  active=null;
+function send(entry,type,details={}) {
+  entry.frame.contentWindow.postMessage({type,...details},location.origin);
+}
+function setActive(entry) {
+  if (active===entry) return;
+  if (active?.ready) send(active,'mc-proposal:deactivate');
+  active=entry;
+  if (active?.ready) send(active,'mc-proposal:activate');
 }
 function mount(id, key) {
   const chosen=key||selection.get(id)||scenes[id][0];
   const view=selectedView(chosen);
+  const existing=frames.get(id);
+  if (existing && (existing.view.branch||'tw')===(view.branch||'tw')) return existing;
+  if (existing) {
+    if(existing.box.classList.contains('is-expanded'))expand(false);
+    if(active===existing)setActive(null);
+    existing.observer?.disconnect();
+    clearTimeout(existing.timeout);
+    existing.frame.remove();
+  }
   selection.set(id,chosen);
-  unmount();
   const host=$('#demo-'+id);
   host.innerHTML=shell(id);
   const box=host.querySelector('.live-demo'),stage=box.querySelector('.demo-viewport');
@@ -98,53 +104,58 @@ function mount(id, key) {
   frame.className='actual-demo-frame';
   frame.title=t(`MathConcept demo — ${view.label}`,`MathConcept 示範 — ${view.label}`);
   frame.setAttribute('allow','fullscreen');
-  frame.addEventListener('load',()=>{
-    if (active?.frame!==frame) return;
-    stage.querySelector('.demo-loading')?.remove();
-    sizeFrame();
-  });
+  frame.loading='eager';
+  const entry={id,box,stage,frame,view,ready:false,pendingView:null};
+  frames.set(id,entry);
   frame.src=sourceURL(view);
-  active={id,box,stage,frame,view,ready:false,pendingView:null};
   stage.append(frame);
-  sizeFrame();
+  sizeFrame(entry);
+  entry.observer=new ResizeObserver(()=>sizeFrame(entry));
+  entry.observer.observe(stage);
+  entry.timeout=setTimeout(()=>{
+    if(entry.ready || frames.get(id)!==entry)return;
+    const loading=stage.querySelector('.demo-loading');
+    if(loading)loading.innerHTML=`<span>${t('The demo is taking longer to load.','示範載入時間較長。')}</span><button type="button" data-demo-retry>${t('Retry','重試')}</button>`;
+  },20000);
+  return entry;
 }
 function choose(id,key) {
   if (!scenes[id]?.includes(key)) return;
   const view=selectedView(key);
+  const expanded=frames.get(id)?.box.classList.contains('is-expanded');
   selection.set(id,key);
-  if (active?.id!==id || (active.view.branch||'tw')!==(view.branch||'tw')) {
-    const expanded=active?.box.classList.contains('is-expanded');
-    mount(id,key);
-    if (expanded) expand(true);
-    return;
-  }
-  active.view=view;
-  active.frame.title=t(`MathConcept demo — ${view.label}`,`MathConcept 示範 — ${view.label}`);
-  if(active.ready)navigateFrame(view);else active.pendingView=view;
-  syncControls();sizeFrame();
+  const entry=mount(id,key);
+  setActive(entry);
+  entry.view=view;
+  entry.frame.title=t(`MathConcept demo — ${view.label}`,`MathConcept 示範 — ${view.label}`);
+  if(entry.ready)navigateFrame(entry,view);else entry.pendingView=view;
+  syncControls(entry);sizeFrame(entry);
+  if(expanded&&!entry.box.classList.contains('is-expanded'))expand(true);
 }
-function navigateFrame(view) {
-  active.frame.contentWindow.postMessage({type:'mc-proposal:navigate',role:view.role,page:view.page,...(view.studentId?{studentId:view.studentId}:{})},location.origin);
+function navigateFrame(entry,view) {
+  send(entry,'mc-proposal:navigate',{role:view.role,page:view.page,...(view.studentId?{studentId:view.studentId}:{})});
 }
 function expand(value) {
   if (!active) return;
-  const enabled=value??!active.box.classList.contains('is-expanded');
-  active.box.classList.toggle('is-expanded',enabled);
+  const entry=active;
+  const enabled=value??!entry.box.classList.contains('is-expanded');
+  entry.box.classList.toggle('is-expanded',enabled);
   document.body.classList.toggle('demo-expanded',enabled);
-  active.box.setAttribute('role',enabled?'dialog':'region');
-  active.box.setAttribute('aria-label',enabled?t('Expanded MathConcept demo','已放大的 MathConcept 示範'):t('MathConcept demo','MathConcept 示範'));
-  if (enabled) active.box.setAttribute('aria-modal','true'); else active.box.removeAttribute('aria-modal');
-  const button=active.box.querySelector('[data-demo-expand]');
+  entry.box.setAttribute('role',enabled?'dialog':'region');
+  entry.box.setAttribute('aria-label',enabled?t('Expanded MathConcept demo','已放大的 MathConcept 示範'):t('MathConcept demo','MathConcept 示範'));
+  if (enabled) entry.box.setAttribute('aria-modal','true'); else entry.box.removeAttribute('aria-modal');
+  const button=entry.box.querySelector('[data-demo-expand]');
   button.textContent=enabled?t('Close expanded view ×','關閉放大畫面 ×'):t('Expand ↗','放大 ↗');
   button.setAttribute('aria-expanded',String(enabled));
   for (const element of document.querySelectorAll('.sidebar,.topbar,.presentation-footer')) element.inert=enabled;
-  requestAnimationFrame(sizeFrame);
+  requestAnimationFrame(()=>sizeFrame(entry));
   button.focus({preventScroll:true});
 }
 export function activateDemo(id) {
   if (!initialised || document.body.classList.contains('demo-expanded')) return;
-  if (!scenes[id]) { unmount(); return; }
-  if (active?.id!==id) mount(id);
+  const entry=scenes[id]?mount(id):null;
+  setActive(entry);
+  if(entry)sizeFrame(entry);
 }
 const phases=[
   {
@@ -187,26 +198,38 @@ export function initDemos() {
     const box=event.target.closest('[data-live-demo]');
     const view=event.target.closest('[data-demo-view]');
     if (view&&box) choose(box.dataset.liveDemo,view.dataset.demoView);
-    if (event.target.closest('[data-demo-start]')&&box) mount(box.dataset.liveDemo);
-    if (event.target.closest('[data-demo-expand]')&&box) {if(active?.id!==box.dataset.liveDemo)mount(box.dataset.liveDemo);expand();}
+    if (event.target.closest('[data-demo-retry]')&&box) {
+      const entry=frames.get(box.dataset.liveDemo);
+      if(entry){entry.ready=false;entry.frame.src=sourceURL(entry.view);}
+    }
+    if (event.target.closest('[data-demo-expand]')&&box) {setActive(mount(box.dataset.liveDemo));expand();}
     const phaseButton=event.target.closest('[data-phase]');
     if(phaseButton){phase=Number(phaseButton.dataset.phase);renderRollout();$('#demo-rollout [data-phase="'+phase+'"]').focus({preventScroll:true});}
   });
   window.addEventListener('message',event=>{
-    if(!active||event.origin!==location.origin||event.source!==active.frame.contentWindow)return;
+    if(event.origin!==location.origin)return;
+    const entry=[...frames.values()].find(item=>event.source===item.frame.contentWindow);
+    if(!entry)return;
     const data=event.data;
+    if(data?.type==='mc-proposal:focused'){setActive(entry);return;}
     if(!data||!['mc-proposal:ready','mc-proposal:state'].includes(data.type)||!Object.hasOwn(dimensions,data.role))return;
     if(data.type==='mc-proposal:ready'){
-      active.ready=true;
-      if(active.pendingView){const view=active.pendingView;active.pendingView=null;navigateFrame(view);return;}
-    }else if(active.pendingView)return;
-    if(['teacher','student'].includes(data.role)&&typeof data.studentId==='string')worksheetStudents.set(active.view.branch||'tw',data.studentId);
-    active.view={...active.view,role:data.role,page:typeof data.page==='string'?data.page:active.view.page};
-    active.stage.querySelector('.demo-loading')?.remove();
-    syncControls();sizeFrame();
+      entry.ready=true;
+      clearTimeout(entry.timeout);
+      entry.stage.querySelector('.demo-loading')?.remove();
+      if(active===entry)send(entry,'mc-proposal:activate');
+      if(entry.pendingView){const view=entry.pendingView;entry.pendingView=null;navigateFrame(entry,view);return;}
+    }else if(entry.pendingView)return;
+    if(entry===active&&['teacher','student'].includes(data.role)&&typeof data.studentId==='string')worksheetStudents.set(entry.view.branch||'tw',data.studentId);
+    entry.view={...entry.view,role:data.role,page:typeof data.page==='string'?data.page:entry.view.page};
+    syncControls(entry);sizeFrame(entry);
   });
-  window.addEventListener('resize',sizeFrame);
+  window.addEventListener('resize',()=>{for(const entry of frames.values())sizeFrame(entry);});
   window.addEventListener('keydown',event=>{
     if(event.key==='Escape'&&active?.box.classList.contains('is-expanded')){event.preventDefault();expand(false);}
   });
+  // Start the requested scene first, then warm the rest without replacing it.
+  const first=scenes[location.hash.slice(1)]?location.hash.slice(1):'system';
+  mount(first);
+  setTimeout(()=>{for(const id of Object.keys(scenes))if(!frames.has(id))mount(id);},0);
 }

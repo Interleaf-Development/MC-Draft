@@ -16,6 +16,7 @@ export function createDemoContext({ url, getLocalStorage, getSessionStorage }) {
   const storageFor = () => isProposal ? getSessionStorage() : getLocalStorage();
   return {
     isProposal,
+    isPreloading: isProposal && url.searchParams.get('proposalPreload') === '1',
     keyFor,
     storage: {
       getItem(key) { return storageFor().getItem(keyFor(key)); },
@@ -57,6 +58,8 @@ export function proposalEntryUrl(role, page, currentUrl, studentId) {
 export function proposalMessage(event, { isProposal, parent, self, origin, studentIds }) {
   if (!isProposal || parent === self || event.source !== parent || event.origin !== origin) return null;
   if (event.data?.type === 'mc-proposal:refresh') return { type: 'refresh' };
+  if (event.data?.type === 'mc-proposal:activate') return { type: 'activate' };
+  if (event.data?.type === 'mc-proposal:deactivate') return { type: 'deactivate' };
   if (event.data?.type !== 'mc-proposal:navigate') return null;
   const navigation = validateDemoNavigation(event.data, studentIds);
   return navigation ? { type: 'navigate', ...navigation } : null;

@@ -22,6 +22,7 @@ import { canStudentOpenAssignment, canStudentEditAssignment, releasePreparedAssi
 import { renderStudentBinder } from './student-binder-ui.js';
 import { normalizeTwnSchedule } from './twn-schedule.js';
 const demoContext = createDemoContext({url:new URL(location.href),getLocalStorage:()=>window.localStorage,getSessionStorage:()=>window.sessionStorage});
+let proposalIsActive = !demoContext.isPreloading;
 // Keep all existing save paths behind one adapter. In proposal mode this uses
 // only a separate sessionStorage namespace, including billing and handwriting.
 const localStorage = demoContext.storage;
@@ -30,7 +31,7 @@ let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
 seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);
 const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:centre.managerId, scheduleBookingId:null, scheduleRemarkDrafts:{}, date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Payments', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, paperZoom: 1, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:centre.managerId };
-if(demoContext.isProposal)try{localStorage.setItem(STORAGE,JSON.stringify(state));}catch{}
+if(demoContext.isProposal)try{const saved=JSON.stringify(state);if(localStorage.getItem(STORAGE)!==saved)localStorage.setItem(STORAGE,saved);}catch{}
 const t = (en, zh) => isFamilyRole(ui.role) ? (zh ?? familyText(en, ui.role)) : en;
 const content = value => familyContent(value, ui.role);
 const paymentDocumentLabel = id => { const receipt=typeof id==='string'?state.receipts.find(item=>item.id===id):id; return isPaymentAcknowledgement(state,receipt)?t('Payment acknowledgement','付款確認'):t('Receipt','收據'); };
@@ -156,15 +157,19 @@ const bankCheckUI = createBankCheckUI({finalAudit:true,getState:()=>state,getVie
 const billingWorkflowUI = createBillingWorkflowUI({getState:()=>state,getViewer:()=>({role:ui.role}),save:saveBillingChange,render:()=>render(),modal,closeModal,toast,openReceipt:receiptDialog,renderAudit:()=>bankCheckUI.render(),renderReport:openBillingReport});
 const teacherProgressUI = createTeacherProgressUI({
  getState:()=>state, getTutorId:()=>centre.managerId, change, render:()=>render(),
- onStudentChange:id=>{ui.selectedStudent=id;if(demoContext.isProposal&&state.demoWorksheetStudent!==id){state.demoWorksheetStudent=id;persist();}},
+ onStudentChange:id=>{ui.selectedStudent=id;persistProposalStudentSelection(id);},
  openAssignment:id=>{ui.previousPage='progress';ui.assignmentId=id;ui.readonly=false;ui.showOriginal=false;ui.page='worksheet';ui.pen='pen';ui.workNotes=false;ui.expanded=false;ui.ink='#ce424b';render();},
  openFolder:id=>{ui.page='classroom';ui.selectedStudent=id;ui.standaloneFolder=true;collection('folder-work').page=1;render();},
  openStudentView:id=>{state.demoWorksheetStudent=id;persist();ui.role='student';ui.familyStudent=id;ui.assignmentId=null;ui.page='work';render();}
 });
+function persistProposalStudentSelection(studentId) {
+ if(!demoContext.isProposal||!proposalIsActive||!students.some(student=>student.id===studentId)||state.demoWorksheetStudent===studentId)return;
+ state.demoWorksheetStudent=studentId;persist();
+}
 function followProposalStudent(studentId=state.demoWorksheetStudent) {
  if(!students.some(student=>student.id===studentId))return;
  ui.selectedStudent=studentId;ui.familyStudent=studentId;ui.thread='thread-'+studentId;
- if(state.demoWorksheetStudent!==studentId){state.demoWorksheetStudent=studentId;persist();}
+ persistProposalStudentSelection(studentId);
 }
 function refreshProposalState(force=false) {
  if(!demoContext.isProposal)return false;
@@ -183,12 +188,43 @@ function refreshProposalState(force=false) {
   return true;
  }catch{return false;}
 }
+function activateProposalFrame() {
+ if(!demoContext.isProposal)return;
+ proposalIsActive=true;
+ let changed=false;
+ try {const saved=localStorage.getItem(STORAGE);changed=!!saved&&saved!==JSON.stringify(state)&&JSON.parse(saved)?.version===4;}catch{}
+ // A retained frame may have an old edit open while another scene saved data.
+ // Re-enter that scene from its latest saved records before it can write again.
+ if(changed){
+  ui.proposalRefreshPending=false;
+  if($('#overlay').children.length)closeModal();
+  ui.moveId=null;
+  if(ui.page==='worksheet'){
+   ui.page=ui.role==='teacher'?'progress':'work';ui.assignmentId=null;
+   ui.readonly=false;ui.expanded=false;ui.workNotes=false;ui.showOriginal=false;
+  }
+  if(refreshProposalState(true)){render();return;}
+ }
+ if(['teacher','student'].includes(ui.role))persistProposalStudentSelection(ui.role==='teacher'?ui.selectedStudent:ui.familyStudent);
+ postProposalStatus();
+}
+function activateProposalInteraction(event) {
+ if(!demoContext.isProposal||proposalIsActive||!event.isTrusted)return;
+ activateProposalFrame();
+ postProposalStatus('mc-proposal:focused');
+}
 function postProposalStatus(type='mc-proposal:state') {
  if(demoContext.isProposal&&window.parent!==window)window.parent.postMessage({type,role:ui.role,page:ui.page,studentId:state.demoWorksheetStudent||ui.familyStudent},location.origin);
 }
+// A neighbouring inline scene can be clicked before the chapter scroll marker
+// changes. Refresh it synchronously before that click or key can edit records.
+document.addEventListener('pointerdown',activateProposalInteraction,true);
+document.addEventListener('keydown',activateProposalInteraction,true);
 window.addEventListener('message',event=>{
  const request=proposalMessage(event,{isProposal:demoContext.isProposal,parent:window.parent,self:window,origin:location.origin,studentIds:students.map(student=>student.id)});
  if(!request)return;
+ if(request.type==='activate'){activateProposalFrame();return;}
+ if(request.type==='deactivate'){proposalIsActive=false;return;}
  if(request.type==='refresh'){if(refreshProposalState())render();postProposalStatus();return;}
  closeModal();
  refreshProposalState(true);

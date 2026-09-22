@@ -7,6 +7,7 @@ import { entryUrl } from '../dist/entry-points.js';
 import * as model from '../dist/model.js';
 import { getP6Students, assignP6Worksheets, normalizeP6Progress } from '../dist/teacher-progress.js';
 import { canStudentOpenAssignment } from '../dist/student-work.js';
+import { createTeacherProgressUI } from '../dist/teacher-progress-ui.js';
 import { normalizeBillingAutomation, submitPaymentProof } from '../dist/billing-automation.js';
 import { normalizeBillingWorkflow, billingStage } from '../dist/billing-workflow.js';
 
@@ -57,6 +58,14 @@ test('ordinary data, branch data and different proposal sessions remain separate
   assert.equal(proposal.storage.getItem(key), 'Tsuen Wan edits');
 });
 
+test('only explicitly preloaded proposal frames start inactive', () => {
+  const local = memory(), session = memory();
+  assert.equal(context('/?proposal=1&proposalPreload=1', local, session).isPreloading, true);
+  for (const path of ['/', '/?proposalPreload=1', '/?proposal=1', '/?proposal=1&proposalPreload=0']) {
+    assert.equal(context(path, local, session).isPreloading, false);
+  }
+});
+
 test('URL bootstrap allows only a page belonging to its role and known student IDs', () => {
   for (const [role, pages] of Object.entries(DEMO_PAGES)) {
     for (const page of pages) assert.deepEqual(demoNavigationFromUrl(url('/?role=' + role + '&page=' + page), students), { role, page });
@@ -89,6 +98,13 @@ test('parent navigation rejects wrong sources, origins, roles, pages and student
   const event = { source: parent, origin: options.origin, data: { type: 'mc-proposal:navigate', role: 'parent', page: 'lessons', studentId: 'chloe' } };
   assert.deepEqual(proposalMessage(event, options), { type: 'navigate', role: 'parent', page: 'lessons', studentId: 'chloe' });
   assert.deepEqual(proposalMessage({ ...event, data: { type: 'mc-proposal:refresh' } }, options), { type: 'refresh' });
+  for (const type of ['activate', 'deactivate']) {
+    const activation = { ...event, data: { type: 'mc-proposal:' + type } };
+    assert.deepEqual(proposalMessage(activation, options), { type });
+    assert.equal(proposalMessage({ ...activation, source: self }, options), null);
+    assert.equal(proposalMessage({ ...activation, origin: 'https://elsewhere.example' }, options), null);
+    assert.equal(proposalMessage(activation, { ...options, isProposal: false }), null);
+  }
   for (const override of [{ source: self }, { source: null }, { origin: 'https://elsewhere.example' }, { data: null }]) assert.equal(proposalMessage({ ...event, ...override }, options), null);
   assert.equal(proposalMessage(event, { ...options, isProposal: false }), null);
   assert.equal(proposalMessage(event, { ...options, self: parent }), null);
@@ -159,4 +175,117 @@ test('app refresh defers during dialogs and worksheet editing, then loads the la
   saved = '{broken';
   assert.equal(sandbox.refreshProposalState(true), false);
   assert.equal(sandbox.state.marker, 'new', 'Bad saved JSON preserves current state');
+});
+
+async function proposalFrameHarness(state, ui = {}) {
+  const source = await readFile(new URL('../dist/app.js', import.meta.url), 'utf8');
+  const lifecycle = source.slice(source.indexOf('function persistProposalStudentSelection('), source.indexOf('function postProposalStatus('));
+  let saved = JSON.stringify(state);
+  const counts = { saves: 0, renders: 0, statuses: 0, closes: 0 };
+  const statusTypes = [];
+  const overlay = { children: [] };
+  const noOp = () => {};
+  const scope = {
+    demoContext: { isProposal: true }, proposalIsActive: false,
+    students: model.allStudents, state, previousState: {},
+    ui: { role: 'student', page: 'work', selectedStudent: 'chloe', familyStudent: 'chloe', ...ui },
+    localStorage: { getItem: () => saved }, STORAGE: key, $: () => overlay,
+    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp,
+    conversationUI: { reset: noOp }, bankCheckUI: { reset: noOp }, billingWorkflowUI: { reset: noOp }, regularScheduleUI: { reset: noOp }, teacherProgressUI: { reset: noOp, selectStudent: noOp },
+    persist() { counts.saves++; saved = JSON.stringify(scope.state); },
+    closeModal() { counts.closes++; overlay.children = []; },
+    render() { counts.renders++; scope.postProposalStatus(); },
+    postProposalStatus(type = 'mc-proposal:state') { counts.statuses++; statusTypes.push(type); }
+  };
+  const sandbox = vm.createContext(scope);
+  vm.runInContext(lifecycle, sandbox);
+  return { sandbox, counts, statusTypes, overlay, saveSiblingState(next) { saved = typeof next === 'string' ? next : JSON.stringify(next); }, readSaved() { return JSON.parse(saved); } };
+}
+
+test('preloaded teacher selection changes only its preview until the frame becomes active', async () => {
+  const state = model.seed();
+  state.demoWorksheetStudent = 'mia';
+  const { sandbox, counts, readSaved } = await proposalFrameHarness(state, { role: 'teacher', page: 'progress' });
+  const teacher = createTeacherProgressUI({
+    getState: () => sandbox.state, getTutorId: () => model.centre.managerId,
+    onStudentChange(id) { sandbox.ui.selectedStudent = id; sandbox.persistProposalStudentSelection(id); }
+  });
+  assert.equal(teacher.selectStudent('chloe'), true);
+  sandbox.followProposalStudent('chloe');
+  assert.equal(sandbox.ui.selectedStudent, 'chloe');
+  assert.equal(sandbox.ui.familyStudent, 'chloe');
+  assert.equal(sandbox.state.demoWorksheetStudent, 'mia');
+  assert.equal(readSaved().demoWorksheetStudent, 'mia');
+  assert.equal(counts.saves, 0, 'Background rendering cannot overwrite the shared selected pupil');
+  sandbox.activateProposalFrame();
+  assert.equal(sandbox.proposalIsActive, true);
+  assert.equal(readSaved().demoWorksheetStudent, 'chloe');
+  assert.equal(counts.saves, 1);
+  assert.equal(counts.statuses, 1, 'Activation acknowledges once');
+});
+
+test('reactivating a retained frame keeps current editing UI when shared data is unchanged', async () => {
+  const { sandbox, counts, overlay } = await proposalFrameHarness(
+    { version: 4, demoWorksheetStudent: 'chloe' },
+    { page: 'worksheet', assignmentId: 'work-1', moveId: 'lesson-1', expanded: true }
+  );
+  overlay.children = [{}];
+  sandbox.activateProposalFrame();
+  assert.equal(sandbox.ui.page, 'worksheet');
+  assert.equal(sandbox.ui.assignmentId, 'work-1');
+  assert.equal(sandbox.ui.moveId, 'lesson-1');
+  assert.equal(overlay.children.length, 1);
+  assert.deepEqual(counts, { saves: 0, renders: 0, statuses: 1, closes: 0 });
+});
+
+test('activation refreshes sibling changes before a stale modal, worksheet or move can save', async () => {
+  for (const role of ['teacher', 'student']) {
+    const { sandbox, counts, overlay, saveSiblingState, readSaved } = await proposalFrameHarness(
+      { version: 4, marker: 'old', demoWorksheetStudent: 'chloe', assignments: [] },
+      { role, page: 'worksheet', assignmentId: 'old-work', moveId: 'old-move', expanded: true, workNotes: true, proposalRefreshPending: true }
+    );
+    overlay.children = [{}];
+    saveSiblingState({ version: 4, marker: 'new', demoWorksheetStudent: 'mia', assignments: [{ id: 'new-assignment' }] });
+    sandbox.activateProposalFrame();
+    assert.equal(sandbox.ui.page, role === 'teacher' ? 'progress' : 'work');
+    assert.equal(sandbox.ui.assignmentId, null);
+    assert.equal(sandbox.ui.moveId, null);
+    assert.equal(sandbox.ui.expanded, false);
+    assert.equal(sandbox.ui.workNotes, false);
+    assert.equal(sandbox.ui.proposalRefreshPending, false);
+    assert.equal(sandbox.ui.familyStudent, 'mia');
+    assert.equal(sandbox.state.marker, 'new');
+    assert.equal(overlay.children.length, 0);
+    assert.deepEqual(counts, { saves: 0, renders: 1, statuses: 1, closes: 1 });
+    sandbox.state.note = 'Later edit';
+    sandbox.persist();
+    assert.deepEqual(readSaved().assignments, [{ id: 'new-assignment' }], 'A subsequent save retains the sibling assignment');
+  }
+});
+
+test('invalid shared data does not discard an open edit during activation', async () => {
+  const { sandbox, counts, overlay, saveSiblingState } = await proposalFrameHarness(
+    { version: 4, demoWorksheetStudent: 'chloe' }, { page: 'worksheet', assignmentId: 'work-1' }
+  );
+  overlay.children = [{}];
+  saveSiblingState('{broken');
+  sandbox.activateProposalFrame();
+  assert.equal(sandbox.ui.page, 'worksheet');
+  assert.equal(sandbox.ui.assignmentId, 'work-1');
+  assert.equal(counts.closes, 0);
+  assert.equal(counts.statuses, 1);
+});
+
+test('real input in an inactive inline frame refreshes it before interaction and notifies its parent', async () => {
+  const { sandbox, counts, statusTypes, saveSiblingState } = await proposalFrameHarness({ version: 4, demoWorksheetStudent: 'chloe', marker: 'old' });
+  saveSiblingState({ version: 4, demoWorksheetStudent: 'chloe', marker: 'new' });
+  sandbox.activateProposalInteraction({ isTrusted: false });
+  assert.equal(sandbox.proposalIsActive, false, 'Programmatic input and startup scripts do not activate background scenes');
+  assert.equal(counts.statuses, 0);
+  sandbox.activateProposalInteraction({ isTrusted: true });
+  assert.equal(sandbox.proposalIsActive, true);
+  assert.equal(sandbox.state.marker, 'new');
+  assert.deepEqual(statusTypes, ['mc-proposal:state', 'mc-proposal:focused']);
+  sandbox.activateProposalInteraction({ isTrusted: true });
+  assert.equal(counts.statuses, 2, 'Later input in the same scene does not repeat activation');
 });
