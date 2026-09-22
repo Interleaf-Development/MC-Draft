@@ -158,20 +158,20 @@ const phases=[
     label:t('Build the pilot','建立試點'),
     title:t('Make one centre’s core journeys work.','先讓一間中心的核心流程運作起來。'),
     body:t('Implement the agreed library, teaching, student, parent and administration flows. Start with a limited curriculum set and the selected devices.','落實已議定的教材庫、教學、學生、家長及行政流程，先採用指定裝置及小部分課程內容。'),
-    items:[t('Role permissions and controlled content delivery','角色權限及受控的教材提供方式'),t('Save, retry, review and correction flows','儲存、重試、覆核及更正流程'),t('Training, migration checks and support arrangements','培訓、資料遷移核對及支援安排')],
+    items:[t('Approved materials available to the right people','讓獲授權的人員取用合適教材'),t('Students can save, resume and correct their work','學生可儲存、繼續完成及改正習作'),t('Training, migration checks and support arrangements','培訓、資料遷移核對及支援安排')],
     gate:t('Staff can complete the agreed journeys with validated data.','員工能使用已核實的資料完成議定流程。')
   },
   {
     label:t('Validate','驗證'),
     title:t('Test the parts a screen cannot prove.','驗證單靠畫面無法證明的實際表現。'),
     body:t('Run the pilot with real staff routines. Measure content fidelity, writing behaviour, scheduling consistency and financial exceptions.','按員工的實際工作流程試行，評估教材還原程度、書寫表現、排課一致性及財務異常情況。'),
-    items:[t('Print success, failure and retry behaviour','列印成功、失敗及重試時的表現'),t('Bank matching, duplicate imports and allocations','銀行紀錄配對、重複匯入及款項分配'),t('Access boundaries, recovery and launch blockers','存取權限範圍、復原能力及妨礙啟用的問題')],
+    items:[t('Approved printing with clear records and error handling','授權列印，備有清晰紀錄及問題處理安排'),t('Receipts reconcile with money received; discrepancies stand out','核對收據與實收款項，清楚標示差異'),t('Centre privacy, saved work and readiness for daily use','確認中心資料私隱、習作保留及日常使用準備')],
     gate:t('Owners accept the evidence and resolve launch blockers.','負責人確認驗證結果，並解決所有妨礙啟用的問題。')
   },
   {
     label:t('Expand','逐步推展'),
     title:t('Roll out what the pilot has established.','將試點驗證的方案逐步推廣。'),
-    body:t('Move additional materials and centres in manageable batches. Extend native authoring and AI assistance after their content checks are proven.','分批遷移更多教材及讓更多中心採用。待內容核查流程驗證可靠後，再擴展平台內的教材編寫及 AI 輔助功能。'),
+    body:t('Bring more materials and centres into use at a manageable pace. Extend worksheet creation and AI assistance once their teaching quality is established.','按可管理的進度加入更多教材及中心。確認教學品質後，再擴展工作紙編製及 AI 輔助功能。'),
     items:[t('Batch migration with exception reports','分批遷移並提供異常報告'),t('Centre onboarding and support coverage','中心導入安排及支援範圍'),t('Overseas policies, languages and curriculum entitlements','海外政策、語言及課程使用權限')],
     gate:t('Each centre is ready before its access and operations go live.','各中心準備就緒後，才開放存取權限並正式投入運作。')
   }
