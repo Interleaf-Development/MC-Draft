@@ -1,19 +1,21 @@
+import { t } from './locale.js';
+
 // These frames load the operational demo itself: no duplicate application UI.
 const views = {
-  schedule: {label:'Schedule', role:'admin', page:'schedule'},
-  students: {label:'Students', role:'admin', page:'students'},
-  billing: {label:'Billing & final audit', role:'admin', page:'billing'},
-  messages: {label:'Conversations', role:'admin', page:'messages'},
-  teacher: {label:'Progress chart', role:'teacher', page:'progress'},
-  classroom: {label:'My classroom', role:'teacher', page:'classroom'},
-  teacherSchedule: {label:'My schedule', role:'teacher', page:'schedule'},
-  notes: {label:'Lesson records', role:'teacher', page:'notes'},
-  student: {label:'Student binder', role:'student', page:'work'},
-  parent: {label:'Parent app', role:'parent', page:'overview'},
-  parentLessons: {label:'Parent lessons', role:'parent', page:'lessons', studentId:'twn-c64262b4d67d'},
-  parentPayments: {label:'Parent payments', role:'parent', page:'payments', studentId:'chloe'},
-  tw: {label:'Tsuen Wan', role:'admin', page:'schedule', branch:'tw'},
-  hh: {label:'Hang Hau', role:'admin', page:'schedule', branch:'hh'}
+  schedule: {label:t('Schedule','課表'), role:'admin', page:'schedule'},
+  students: {label:t('Students','學生'), role:'admin', page:'students'},
+  billing: {label:t('Billing & final audit','收費及最終對帳'), role:'admin', page:'billing'},
+  messages: {label:t('Conversations','對話'), role:'admin', page:'messages'},
+  teacher: {label:t('Progress chart','學習進度'), role:'teacher', page:'progress'},
+  classroom: {label:t('My classroom','我的課堂'), role:'teacher', page:'classroom'},
+  teacherSchedule: {label:t('My schedule','我的課表'), role:'teacher', page:'schedule'},
+  notes: {label:t('Lesson records','課堂紀錄'), role:'teacher', page:'notes'},
+  student: {label:t('Student binder','學生學習冊'), role:'student', page:'work'},
+  parent: {label:t('Parent app','家長應用程式'), role:'parent', page:'overview'},
+  parentLessons: {label:t('Parent lessons','家長課堂頁面'), role:'parent', page:'lessons', studentId:'twn-c64262b4d67d'},
+  parentPayments: {label:t('Parent payments','家長繳費頁面'), role:'parent', page:'payments', studentId:'chloe'},
+  tw: {label:t('Tsuen Wan','荃灣'), role:'admin', page:'schedule', branch:'tw'},
+  hh: {label:t('Hang Hau','坑口'), role:'admin', page:'schedule', branch:'hh'}
 };
 const scenes = {
   system: ['schedule','teacher','student','parent'],
@@ -46,7 +48,7 @@ function selectedView(key) {
 }
 function shell(id) {
   const chosen = selection.get(id)||scenes[id][0];
-  return `<div class="live-demo" data-live-demo="${id}"><div class="live-demo-toolbar"><div class="live-demo-views" role="group" aria-label="Demo views">${scenes[id].map(key=>`<button type="button" data-demo-view="${key}" aria-pressed="${chosen===key}">${views[key].label}</button>`).join('')}</div><button type="button" class="demo-expand" data-demo-expand aria-expanded="false">Expand ↗</button></div><div class="demo-viewport"><div class="demo-loading"><span class="demo-loading-mark">M</span><button type="button" data-demo-start>Open ${esc(views[chosen].label)}</button></div></div></div>`;
+  return `<div class="live-demo" data-live-demo="${id}"><div class="live-demo-toolbar"><div class="live-demo-views" role="group" aria-label="${t('Demo views','示範畫面')}">${scenes[id].map(key=>`<button type="button" data-demo-view="${key}" aria-pressed="${chosen===key}">${views[key].label}</button>`).join('')}</div><button type="button" class="demo-expand" data-demo-expand aria-expanded="false">${t('Expand ↗','放大 ↗')}</button></div><div class="demo-viewport"><div class="demo-loading"><span class="demo-loading-mark">M</span><button type="button" data-demo-start>${t(`Open ${esc(views[chosen].label)}`,`開啟${esc(views[chosen].label)}`)}</button></div></div></div>`;
 }
 function sizeFrame() {
   if (!active) return;
@@ -94,7 +96,7 @@ function mount(id, key) {
   const box=host.querySelector('.live-demo'),stage=box.querySelector('.demo-viewport');
   const frame=document.createElement('iframe');
   frame.className='actual-demo-frame';
-  frame.title=`MathConcept demo — ${view.label}`;
+  frame.title=t(`MathConcept demo — ${view.label}`,`MathConcept 示範 — ${view.label}`);
   frame.setAttribute('allow','fullscreen');
   frame.addEventListener('load',()=>{
     if (active?.frame!==frame) return;
@@ -117,7 +119,7 @@ function choose(id,key) {
     return;
   }
   active.view=view;
-  active.frame.title=`MathConcept demo — ${view.label}`;
+  active.frame.title=t(`MathConcept demo — ${view.label}`,`MathConcept 示範 — ${view.label}`);
   if(active.ready)navigateFrame(view);else active.pendingView=view;
   syncControls();sizeFrame();
 }
@@ -130,10 +132,10 @@ function expand(value) {
   active.box.classList.toggle('is-expanded',enabled);
   document.body.classList.toggle('demo-expanded',enabled);
   active.box.setAttribute('role',enabled?'dialog':'region');
-  active.box.setAttribute('aria-label',enabled?'Expanded MathConcept demo':'MathConcept demo');
+  active.box.setAttribute('aria-label',enabled?t('Expanded MathConcept demo','已放大的 MathConcept 示範'):t('MathConcept demo','MathConcept 示範'));
   if (enabled) active.box.setAttribute('aria-modal','true'); else active.box.removeAttribute('aria-modal');
   const button=active.box.querySelector('[data-demo-expand]');
-  button.textContent=enabled?'Close expanded view ×':'Expand ↗';
+  button.textContent=enabled?t('Close expanded view ×','關閉放大畫面 ×'):t('Expand ↗','放大 ↗');
   button.setAttribute('aria-expanded',String(enabled));
   for (const element of document.querySelectorAll('.sidebar,.topbar,.presentation-footer')) element.inert=enabled;
   requestAnimationFrame(sizeFrame);
@@ -144,10 +146,39 @@ export function activateDemo(id) {
   if (active?.id===id) return;
   if (scenes[id]) mount(id); else unmount();
 }
-const phases=[{label:'Discover',title:'Understand the real collection and routines.',body:'Inventory a representative sample of materials and operational records. Confirm the authoritative versions, essential workflows, device requirements and owners.',items:['Material formats, page counts and exceptions','Sample schedules, balances and bank exports','Pilot scope, responsibilities and success measures'],gate:'An agreed scope and a realistic migration estimate.'},{label:'Build the pilot',title:'Make one centre’s core journeys work.',body:'Implement the agreed library, teaching, student, parent and administration flows. Start with a limited curriculum set and the selected devices.',items:['Role permissions and controlled content delivery','Save, retry, review and correction flows','Training, migration checks and support arrangements'],gate:'Staff can complete the agreed journeys with validated data.'},{label:'Validate',title:'Test the parts a screen cannot prove.',body:'Run the pilot with real staff routines. Measure content fidelity, writing behaviour, scheduling consistency and financial exceptions.',items:['Print success, failure and retry behaviour','Bank matching, duplicate imports and allocations','Access boundaries, recovery and launch blockers'],gate:'Owners accept the evidence and resolve launch blockers.'},{label:'Expand',title:'Roll out what the pilot has established.',body:'Move additional materials and centres in manageable batches. Extend native authoring and AI assistance after their content checks are proven.',items:['Batch migration with exception reports','Centre onboarding and support coverage','Overseas policies, languages and curriculum entitlements'],gate:'Each centre is ready before its access and operations go live.'}];
+const phases=[
+  {
+    label:t('Discover','了解現況'),
+    title:t('Understand the real collection and routines.','了解現有教材及日常運作。'),
+    body:t('Inventory a representative sample of materials and operational records. Confirm the authoritative versions, essential workflows, device requirements and owners.','抽取具代表性的教材及營運紀錄作盤點，確認正式版本、核心流程、裝置要求及負責人。'),
+    items:[t('Material formats, page counts and exceptions','教材格式、頁數及特殊情況'),t('Sample schedules, balances and bank exports','課表、結餘及銀行匯出檔案樣本'),t('Pilot scope, responsibilities and success measures','試點範圍、分工及成效指標')],
+    gate:t('An agreed scope and a realistic migration estimate.','雙方確認範圍，並完成切實可行的資料遷移估算。')
+  },
+  {
+    label:t('Build the pilot','建立試點'),
+    title:t('Make one centre’s core journeys work.','先讓一間中心的核心流程運作起來。'),
+    body:t('Implement the agreed library, teaching, student, parent and administration flows. Start with a limited curriculum set and the selected devices.','落實已議定的教材庫、教學、學生、家長及行政流程，先採用指定裝置及小部分課程內容。'),
+    items:[t('Role permissions and controlled content delivery','角色權限及受控的教材提供方式'),t('Save, retry, review and correction flows','儲存、重試、覆核及更正流程'),t('Training, migration checks and support arrangements','培訓、資料遷移核對及支援安排')],
+    gate:t('Staff can complete the agreed journeys with validated data.','員工能使用已核實的資料完成議定流程。')
+  },
+  {
+    label:t('Validate','驗證'),
+    title:t('Test the parts a screen cannot prove.','驗證單靠畫面無法證明的實際表現。'),
+    body:t('Run the pilot with real staff routines. Measure content fidelity, writing behaviour, scheduling consistency and financial exceptions.','按員工的實際工作流程試行，評估教材還原程度、書寫表現、排課一致性及財務異常情況。'),
+    items:[t('Print success, failure and retry behaviour','列印成功、失敗及重試時的表現'),t('Bank matching, duplicate imports and allocations','銀行紀錄配對、重複匯入及款項分配'),t('Access boundaries, recovery and launch blockers','存取權限範圍、復原能力及妨礙啟用的問題')],
+    gate:t('Owners accept the evidence and resolve launch blockers.','負責人確認驗證結果，並解決所有妨礙啟用的問題。')
+  },
+  {
+    label:t('Expand','逐步推展'),
+    title:t('Roll out what the pilot has established.','將試點驗證的方案逐步推廣。'),
+    body:t('Move additional materials and centres in manageable batches. Extend native authoring and AI assistance after their content checks are proven.','分批遷移更多教材及讓更多中心採用。待內容核查流程驗證可靠後，再擴展平台內的教材編寫及 AI 輔助功能。'),
+    items:[t('Batch migration with exception reports','分批遷移並提供異常報告'),t('Centre onboarding and support coverage','中心導入安排及支援範圍'),t('Overseas policies, languages and curriculum entitlements','海外政策、語言及課程使用權限')],
+    gate:t('Each centre is ready before its access and operations go live.','各中心準備就緒後，才開放存取權限並正式投入運作。')
+  }
+];
 function renderRollout() {
   const item=phases[phase];
-  $('#demo-rollout').innerHTML=`<div class="demo-toolbar"><strong>Delivery sequence · dates to agree</strong></div><div class="phase-track">${phases.map((p,i)=>`<button class="${phase===i?'active':''}" data-phase="${i}" aria-pressed="${phase===i}"><span>${String(i+1).padStart(2,'0')}</span><strong>${p.label}</strong></button>`).join('')}</div><div class="phase-content"><div><h3>${item.title}</h3><p>${item.body}</p></div><ul>${item.items.map(text=>`<li>${text}</li>`).join('')}</ul><div class="phase-gate"><span>PROCEED WHEN</span><strong>${item.gate}</strong></div></div>`;
+  $('#demo-rollout').innerHTML=`<div class="demo-toolbar"><strong>${t('Delivery sequence · dates to agree','交付次序 · 日期有待議定')}</strong></div><div class="phase-track">${phases.map((p,i)=>`<button class="${phase===i?'active':''}" data-phase="${i}" aria-pressed="${phase===i}"><span>${String(i+1).padStart(2,'0')}</span><strong>${p.label}</strong></button>`).join('')}</div><div class="phase-content"><div><h3>${item.title}</h3><p>${item.body}</p></div><ul>${item.items.map(text=>`<li>${text}</li>`).join('')}</ul><div class="phase-gate"><span>${t('PROCEED WHEN','進入下一階段的條件')}</span><strong>${item.gate}</strong></div></div>`;
 }
 export function initDemos() {
   for (const id of Object.keys(scenes)) {const host=$('#demo-'+id);if(host)host.innerHTML=shell(id);}
