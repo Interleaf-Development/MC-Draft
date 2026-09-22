@@ -5,20 +5,64 @@ const demo = (id,label='MathConcept workflows') => `<div class="demo-wrap"><div 
 
 export const chapters = [
  {id:'vision',title:'Proposal overview'},
- {id:'system',title:'System scope and user responsibilities',heading:'System scope and user responsibilities',intro:'The proposed system covers curriculum management, teaching, student work, centre administration and parent services. The responsibilities below define how each user group participates.',body:
-  demo('system','User roles and connected workflows')+
-  table(['User group','Included functions','Responsibility'],[
-   ['HQ','Approve teaching materials and editions; grant curriculum access to centres; set shared operating policies.','Own publication decisions, curriculum entitlements and network policies.'],
-   ['Centre staff','Manage enrolment, timetables, parent requests, invoices and unresolved operational work.','Confirm lesson arrangements, approve payment proofs, issue receipts and follow up outstanding items.'],
-   ['Teachers','Find approved materials, assign classwork and homework, review progress, mark work and request corrections.','Choose suitable work and decide when prepared assignments are released.'],
-   ['Students','Complete assigned work, submit corrections and revisit completed work in a digital binder.','Access only the work assigned and released to them.'],
-   ['Parents','Submit leave requests and preferred replacement dates; manage payment proofs and relevant communications.','Provide the information needed for staff to confirm arrangements and review payments.']
-  ])+
-  detail('Shared records and access',list([
-   'Assignments retain the approved edition issued to the student. Student working, teacher marks and corrections stay associated with that edition.',
-   'Each role receives the records and materials it is permitted to use. Answer keys and teacher notes are restricted to authorised staff.',
-   'The existing demo includes Admin, Teacher, Parent and Student workflows. Demonstration records do not sync across devices. HQ publishing, curriculum permissions and live business-service connections are proposed additions.'
+
+ {id:'student',title:'Student learning experience',heading:'Student learning experience',intro:'Keep the familiar past, current and future binder while moving worksheet delivery, handwriting and corrections into a proposed native student app. Portrait tablets are the primary learning format. The interactive screen below is a browser demonstration of the intended workflow.',body:
+  demo('student','Student binder and worksheet working')+
+  detail('From the paper binder to digital learning',table(['Stage','Current paper workflow','Proposed student experience'],[
+   ['Prepare the lesson','The teacher finds the worksheet in folders, prints it and places the copy in the student’s binder.','The teacher selects the worksheet from the progress chart and sends it to the student, or prepares it for a later lesson.'],
+   ['Find the right work','The binder separates past work, current work and corrections, and future worksheets.','A visual binder keeps the same three groups. Current work opens directly; future work stays locked until the teacher releases it.'],
+   ['Complete the worksheet','The student writes and shows working on the printed page.','The student opens a portrait worksheet and writes with a stylus. Binder navigation moves out of the way to preserve the working area.'],
+   ['Mark and correct','The teacher marks the paper and returns unfinished work or corrections for the next lesson.','Teacher marks and correction requests stay with the relevant question. The student resumes that work in the current section with earlier working retained.'],
+   ['Keep completed work','Finished worksheets remain in the past section for revision.','Completed worksheets move into past work with their handwriting, marks and corrections available for review.']
+  ]))+
+  detail('Student workspace requirements',list([
+   'Use a simple visual binder in Hong Kong Traditional Chinese. Opening a worksheet prioritises the page and handwriting space over menus or progress information.',
+   'Retain handwriting with the correct question when the student returns to a worksheet or changes the view. Keep the assigned edition with the student’s work.',
+   'Apply automatic marking only to validated question types. Teachers review handwritten reasoning and award method marks.'
+  ]))+
+  detail('Device acceptance',list([
+   'Validate the native student app on agreed portrait tablets and styluses, including comfortable writing, accidental touch handling and saved-work continuity.',
+   'Confirm that students can resume saved work after agreed interruptions without lost or misplaced handwriting. Any requirement to work without a connection needs separately agreed scope and acceptance measures.'
   ]))},
+
+ {id:'teacher',title:'Teacher assignment and feedback',heading:'Teacher assignment and feedback',intro:'Teachers move from finding and printing individual files to selecting approved worksheets from each student’s progress chart. Assignment, release, marking and corrections connect directly to the student’s digital binder.',body:
+  demo('teacher','Class selection, progress and assignment')+
+  `<p class="demo-context">In the demo, choose worksheets and select “Send to student”, then “View student app” to open that student’s binder. “Prepare for later” keeps the work locked.</p>`+
+  table(['Teaching step','Included function'],[
+   ['1. Select the class and student','Move between scheduled classes and students while keeping the selected student’s progress in view. The student’s grade is the starting point; other levels remain available.'],
+   ['2. Choose suitable worksheets','Browse approved collections by grade, topic and familiar worksheet code. See assigned work, work awaiting marking and outstanding corrections on the progress chart.'],
+   ['3. Send or prepare work','Assign selected worksheets as classwork or homework. Prepare work for a later lesson without making it available to the student before release.'],
+   ['4. Review and return corrections','Open the student’s working, record marks and request corrections. Keep feedback with the correct question and originally assigned edition.'],
+   ['5. Plan the next lesson','Use completed work and outstanding corrections to select the next assignment. Teachers remain responsible for judging suitable difficulty and readiness.']
+  ])},
+
+ {id:'library',title:'Digitising existing materials',heading:'Digitising existing materials',intro:'Make the existing teaching-material library usable for digital lessons in stages. Original worksheets can support teaching while selected material is prepared for question reuse and verified editing.',body:
+  demo('library','Curriculum catalogue and assignment')+
+  `<p class="demo-context">The catalogue demo uses the supplied curriculum indexes, with sample questions for P3 and P6. Original-worksheet access and editable conversion remain proposed work.</p>`+
+  table(['Stage','Usable result','Review and acceptance'],[
+   ['1. Catalogue the collection','Organise approved materials by grade, topic, collection and familiar worksheet codes. Identify formats, condition, duplicates and existing editions.','Confirm the approved source for each worksheet. Preserve intentional revisions and correct catalogue exceptions.'],
+   ['2. Use the original worksheets digitally','Preserve the original page layout and allow teachers to assign worksheets for digital handwriting. Keep the original collection within the controlled library.','Check readability, equations, diagrams and working space on the agreed tablets. The original page remains the teaching reference until converted content is verified.'],
+   ['3. Prepare reusable questions','Make selected questions, diagrams and corresponding answers available for use in new worksheets, retaining their source and curriculum context.','Agree which worksheet families to prioritise. Check question boundaries, related parts and answer associations before reuse.'],
+   ['4. Approve editable content','Let authorised authors edit verified wording, equations, diagrams and answers and publish new editions.','Review mathematical accuracy against the original. Material that cannot yet be converted faithfully remains usable in its original page form.']
+  ])+
+  detail('Migration acceptance',list([
+   'Begin with representative materials and agree coverage before extending the work. Check decimal points, fractions, units, diagrams, question parts and their corresponding answers against the originals.',
+   'Report catalogue coverage, worksheets ready for digital use, reusable questions, verified editable content and unresolved exceptions separately.',
+   'Library migration and editable conversion have separate scopes and acceptance measures. Confirm the delivery scope and cost after reviewing the collection.'
+  ]))},
+
+ {id:'authoring',title:'Creating new digital worksheets',heading:'Creating new digital worksheets',intro:'The proposed worksheet studio lets authors create a worksheet from a blank page, reuse approved questions and prepare material for both tablet learning and authorised printing. Authors control the content and layout; AI assistance supports drafting under review.',body:
+  table(['Feature','Included function','Condition or responsibility'],[
+   ['Visual authoring from scratch','Arrange headings, instructions, questions, equations, images, diagrams and answer areas on a page. Adjust the layout and reserve sufficient space for working.','Provide agreed question and layout tools that curriculum authors can use without coding.'],
+   ['Reusable questions and layout blocks','Build worksheets from approved questions, common instructions, page sections and layouts. Keep source, curriculum labels, answers and marking guidance with each question.','Authors select suitable content and check the assembled worksheet as a whole.'],
+   ['Digital responses and diagrams','Create handwriting areas, typed answers and selected interactive question or diagram types. Keep student responses associated with the right question.','Agree supported interactions and automatic-marking rules by teaching need. Handwritten reasoning remains subject to teacher review.'],
+   ['AI drafting and assistance','Draft questions from an author’s brief, suggest variations and help find suitable approved questions.','AI output remains a draft. An authorised reviewer checks mathematical meaning, difficulty, diagrams, answers and worked solutions before publication.'],
+   ['Traditional PDFs and other supplied materials','Keep approved traditional-format worksheets in the controlled library for permitted viewing, assignment and authorised printing. They can be used alongside newly authored material.','Importing a PDF does not automatically make its questions editable or interactive. Centre access does not grant unrestricted access to the original-file collection.'],
+   ['Tablet and print preview','Preview portrait-tablet and A4 layouts before publication.','Questions must remain readable, related parts must stay together and students must have sufficient working space in both formats.'],
+   ['Approval and editions','Submit a draft for review and publish an approved edition for teachers to assign. An update creates a new edition.','MathConcept names content reviewers and publication approvers. Work already issued retains the edition received by the student.'],
+   ['Restricted content','Keep answer keys and teacher notes unavailable through student materials, searches and exports.','Apply the agreed content permissions.']
+  ])+
+  detail('Content-processing permission',`<p>MathConcept must approve whether curriculum may be processed externally, for which purposes and under what confidentiality conditions. This proposal does not authorise external processing of the library. Worksheet authoring and AI assistance are proposed additions.</p>`) },
 
  {id:'protection',title:'Curriculum access and printing',heading:'Curriculum access and printing',intro:'HQ controls the master collection and decides which materials each centre and user may use. Proposed access and printing records support review of material distribution.',body:
   table(['Feature','Included function','Condition or responsibility'],[
@@ -33,55 +77,19 @@ export const chapters = [
    'Screenshots, photography and later copying remain possible. These controls reduce easy bulk copying and support investigation; they cannot prevent every leak.'
   ]))},
 
- {id:'library',title:'Existing library migration',heading:'Existing library migration',intro:'Bring the existing teaching-material library into the system. Establish the usable collection first, then introduce reusable and editable questions in agreed stages.',body:
-  `<p class="demo-context">The catalogue demo uses the supplied curriculum indexes, with sample questions for P3 and P6. Original-worksheet access and editable conversion remain proposed work.</p>`+
-  demo('library','Curriculum catalogue and assignment')+
-  table(['Feature','Included function','Condition or responsibility'],[
-   ['Collection review','Identify file formats, page counts, condition, approved editions and duplicate materials. Preserve intentional revisions and edition history.','Confirm coverage and cost after reviewing the collection.'],
-   ['Original worksheets','Keep worksheets readable in their original layout and provide space for digital working. Retain the original collection.','The original page remains the teaching reference until converted content has been verified.'],
-   ['Catalogue and search','Find approved materials by grade, topic, collection and familiar worksheet codes from the progress chart.','Review and correct inaccurate catalogue or search information.'],
-   ['Question reuse','Bring existing questions and diagrams into new worksheets with curriculum context and edition history.','Prioritise the worksheet families agreed with MathConcept.'],
-   ['Editable questions','Make verified wording, equations, diagrams and answers editable.','Review accuracy before approval. Questions that cannot yet be converted faithfully remain usable in their original page form.']
+ {id:'system',title:'Roles, permissions and shared records',heading:'Roles, permissions and shared records',intro:'Centre administration uses the same student and lesson records as teaching. The responsibilities below define who manages each part of the service, with access limited to the centre, role and work assigned.',body:
+  demo('system','User roles and connected workflows')+
+  table(['User group','Included functions','Responsibility'],[
+   ['HQ','Approve teaching materials and editions; grant curriculum access to centres; set shared operating policies.','Own publication decisions, curriculum entitlements and network policies.'],
+   ['Centre staff','Manage enrolment, timetables, parent requests, invoices and unresolved operational work.','Confirm lesson arrangements, approve payment proofs, issue receipts and follow up outstanding items.'],
+   ['Teachers','Find approved materials, assign classwork and homework, review progress, mark work and request corrections.','Choose suitable work and decide when prepared assignments are released.'],
+   ['Students','Complete assigned work, submit corrections and revisit completed work in a digital binder.','Access only the work assigned and released to them.'],
+   ['Parents','Submit leave requests and preferred replacement dates; manage payment proofs and relevant communications.','Provide the information needed for staff to confirm arrangements and review payments.']
   ])+
-  detail('Migration acceptance',list([
-   'Check decimal points, fractions, units, diagrams, question parts and their corresponding answers against the originals.',
-   'Report library coverage, verified editable questions and outstanding exceptions separately. Library migration and editable conversion have separate scopes and acceptance measures.'
-  ]))},
-
- {id:'authoring',title:'Worksheet authoring and approval',heading:'Worksheet authoring and approval',intro:'The proposed worksheet studio lets authors combine approved questions with new material, review accuracy and layout, and publish an edition for teaching.',body:
-  table(['Feature','Included function','Condition or responsibility'],[
-   ['Question preparation','Create text, equations, images, answer spaces and handwriting space. Keep wording, notation, diagrams, answers and marking guidance together.','Use curriculum labels to support question selection. Prioritise interactive diagrams by teaching need.'],
-   ['Question selection and AI assistance','Find relevant approved questions, suggest variations and assist conversion.','AI output remains a draft until reviewed by an authorised author or reviewer.'],
-   ['Accuracy review','Check mathematical meaning, difficulty, diagrams, answers and worked solutions.','MathConcept names the people responsible for content review and publication approval.'],
-   ['Tablet and print preview','Preview portrait-tablet and A4 layouts before publication.','Questions must remain readable, related parts must stay together and students must have sufficient working space.'],
-   ['Publication and editions','Publish an approved edition for teachers to assign. An update creates a new edition.','Work already issued retains the edition received by the student.'],
-   ['Restricted content','Keep answer keys and teacher notes unavailable through student materials, searches and exports.','Apply the agreed content permissions.']
-  ])+
-  detail('Content-processing permission',`<p>MathConcept must approve whether curriculum may be processed externally, for which purposes and under what confidentiality conditions. This proposal does not authorise external processing of the library. Worksheet authoring and AI assistance are proposed additions.</p>`)},
-
- {id:'teacher',title:'Teacher workflow',heading:'Teacher workflow',intro:'Teachers use their scheduled classes and each student’s progress chart to select, assign and review work. The student’s grade is the starting point; other levels remain available when appropriate.',body:
-  `<p class="demo-context">In the demo, choose worksheets and select “Send to student”, then “View student app” to open that student’s binder. “Prepare for later” keeps the work locked.</p>`+
-  demo('teacher','Class selection, progress and assignment')+
-  table(['Feature','Included function'],[
-   ['Class and student selection','Move between scheduled classes and students while keeping the selected student’s progress in view.'],
-   ['Progress chart','Browse worksheet collections by grade, topic and familiar worksheet code. Distinguish assigned work, student progress, work awaiting marking and corrections, and open the work behind each status.'],
-   ['Assignment','Assign approved worksheets as classwork or homework. Select work from another grade when the teacher judges it appropriate.'],
-   ['Release control','Prepare assignments for a later lesson. Prepared work remains locked until the teacher releases it.'],
-   ['Marking and corrections','Review the student’s working, record marks and request corrections. Keep these records with the correct question and originally assigned edition.']
-  ])},
-
- {id:'student',title:'Student workspace',heading:'Student workspace',intro:'The student binder groups current, completed and prepared work. The writing surface is designed for portrait tablets, with Hong Kong Traditional Chinese used in the student and parent interfaces.',body:
-  demo('student','Student binder and worksheet working')+
-  table(['Feature','Included function'],[
-   ['Current work','Open released classwork, homework and corrections from previous lessons.'],
-   ['Completed work','Keep finished worksheets available for revision.'],
-   ['Prepared work','Show work prepared for a future lesson without allowing the student to open it before release.'],
-   ['Handwritten working','Use a full-screen writing surface and retain working with the correct question when returning to a worksheet or changing the view.'],
-   ['Marking','Apply automatic marking only to validated question types. Teachers review handwritten reasoning and award method marks.']
-  ])+
-  detail('Device acceptance',list([
-   'Test comfortable stylus use, accidental touch handling and saved-work continuity on the agreed supported devices.',
-   'Confirm that students can resume saved work after agreed interruptions without lost or misplaced handwriting. Any requirement to work without a connection needs separately agreed scope and acceptance measures.'
+  detail('Shared records and access',list([
+   'Assignments retain the approved edition issued to the student. Student working, teacher marks and corrections stay associated with that edition.',
+   'Each role receives the records and materials it is permitted to use. Answer keys and teacher notes are restricted to authorised staff.',
+   'The existing demo includes Admin, Teacher, Parent and Student workflows. Demonstration records do not sync across devices. HQ publishing, curriculum permissions and live business-service connections are proposed additions.'
   ]))},
 
  {id:'operations',title:'Scheduling and parent communication',heading:'Scheduling and parent communication',intro:'Parents submit leave requests and staff confirm replacement lessons. Staff review availability, timetable clashes and changes to lesson entitlement before confirming an arrangement.',body:
@@ -174,11 +182,11 @@ export const references = {
   `<p class="reference-lead">A working scope for agreement. Proposed capabilities describe the intended delivery outcomes; the demonstration does not establish that they are ready for live use.</p><h3>Curriculum & content</h3>${list([
    'HQ controls the original collection, approved editions and access rights. Teachers find permitted materials through familiar worksheet codes, grades, topics and collections.',
    'Existing worksheets remain usable in their original layout. Reusable questions and verified editable content are introduced in agreed stages.',
-   'Authors can prepare text, equations, diagrams and working space, preview tablet and A4 use, and submit materials for review and publication.',
+   'Authors can start from a blank page or reuse approved questions and layout blocks, create text, equations, diagrams and answer areas, preview tablet and A4 use, and submit materials for review and publication.',
    'AI may help find questions, draft variations and assist conversion, subject to MathConcept’s content-processing permissions and human approval before publication.'
   ])}<h3>Teaching & learning</h3>${list([
    'Teachers select scheduled classes and students, review progress and assign appropriate materials across grade levels.',
-   'Students receive classwork, homework and corrections in their binder. Future work stays unavailable until released; completed work remains available for review.',
+   'The proposed native student app prioritises portrait tablets. Its visual binder groups current classwork, homework and corrections, locked future work, and completed work for review; opening a worksheet prioritises handwriting space.',
    'Assignments retain the issued edition, with student handwriting, teacher marking and corrections kept with the correct questions.',
    'The pilot verifies writing and saved-work continuity on supported devices. Work without a connection requires separately agreed scope and acceptance measures.'
   ])}<h3>Centre & parent operations</h3>${list([
@@ -199,7 +207,7 @@ export const references = {
    'Each centre and role receives the permitted curriculum and records. HQ controls publication, access approval and revocation.',
    'Access and printing records support review; shared reporting highlights unresolved operational work.',
    'Migration acceptance, training, continuity, support and ownership arrangements are agreed before expansion.'
-  ])}<h3>Demonstration boundaries</h3><p>The embedded screens let reviewers explore the existing MathConcept workflows using demonstration records. Demonstration records do not sync across devices. Tsuen Wan timetable names and slots come from supplied schedules; payment and other workflow records are examples. P3 and P6 contain sample questions; the remaining catalogue requires its original worksheets. Payment checks are simulated. HQ publishing, editable conversion, worksheet authoring, controlled printing and live access controls remain proposed scope.</p>`},
+  ])}<h3>Demonstration boundaries</h3><p>The embedded screens let reviewers explore the existing MathConcept workflows using demonstration records. Demonstration records do not sync across devices. Tsuen Wan timetable names and slots come from supplied schedules; payment and other workflow records are examples. P3 and P6 contain sample questions; the remaining catalogue requires its original worksheets. Payment checks are simulated. Native app delivery, HQ publishing, editable conversion, worksheet authoring, controlled printing and live access controls remain proposed scope.</p>`},
 
  safeguards:{title:'Protection & reliability',body:
   `<p class="reference-lead">Protect MathConcept’s teaching materials, keep daily work dependable and make responsibilities clear. These are proposed outcomes to demonstrate and agree during the pilot.</p><h3>Material access</h3>${list([

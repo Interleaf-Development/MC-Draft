@@ -158,7 +158,7 @@ function harness(hash = '#teacher') {
         body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
       }
       document.getElementById('main').append(new Element('section', { id: 'vision', class: 'chapter' }));
-      const chapterIds = ['vision', 'system', 'protection', 'library', 'authoring', 'teacher', 'student', 'operations', 'billing', 'franchise', 'rollout', 'proposal'];
+      const chapterIds = ['vision', 'student', 'teacher', 'library', 'authoring', 'protection', 'system', 'operations', 'billing', 'franchise', 'rollout', 'proposal'];
       scope.english = scope.chinese = {
         chapters: chapterIds.map(id => ({ id, title: id })), references: {},
         chapterHTML: chapter => `<section id="${chapter.id}" class="chapter">${[...scenes, 'rollout'].includes(chapter.id) ? `<div id="demo-${chapter.id}"></div>` : ''}</section>`

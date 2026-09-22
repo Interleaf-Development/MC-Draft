@@ -18,10 +18,10 @@ const views = {
   hh: {label:t('Hang Hau','坑口'), role:'admin', page:'schedule', branch:'hh'}
 };
 const scenes = {
-  system: ['schedule','teacher','student','parent'],
-  library: ['teacher','classroom'],
-  teacher: ['teacher','classroom','teacherSchedule','notes'],
   student: ['student'],
+  teacher: ['teacher','classroom','teacherSchedule','notes'],
+  library: ['teacher','classroom'],
+  system: ['schedule','teacher','student','parent'],
   operations: ['schedule','parentLessons','messages','students'],
   billing: ['billing','parentPayments'],
   franchise: ['tw','hh']
@@ -268,7 +268,7 @@ export function initDemos(options = {}) {
     if(event.key==='Escape'&&active?.box.classList.contains('is-expanded')){event.preventDefault();expand(false);}
   });
   // Start the requested scene first, then warm the rest without replacing it.
-  const first=scenes[location.hash.slice(1)]?location.hash.slice(1):'system';
+  const first=scenes[location.hash.slice(1)]?location.hash.slice(1):'student';
   mount(first);
   setTimeout(()=>{for(const id of Object.keys(scenes))if(!frames.has(id))mount(id);},0);
 }
