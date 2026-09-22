@@ -9,7 +9,8 @@ import { createBankCheckUI } from './bank-check-ui.js';
 import { normalizeBillingWorkflow, billingStage } from './billing-workflow.js';
 import { createBillingWorkflowUI } from './billing-workflow-ui.js';
 import { isFamilyRole, familyText, familyDate, familyContent } from './family-locale.js';
-import { roleFromUrl, syncEntryPoint } from './entry-points.js';
+import { syncEntryPoint } from './entry-points.js';
+import { createDemoContext, demoNavigationFromUrl, proposalEntryUrl, proposalMessage } from './demo-context.js';
 import { createEdgePager } from './schedule-drag.js';
 import { centreConfig } from './branch-config.js';
 import { createRegularScheduleUI } from './regular-schedule-ui.js';
@@ -20,11 +21,16 @@ import { createTeacherProgressUI } from './teacher-progress-ui.js';
 import { canStudentOpenAssignment, canStudentEditAssignment, releasePreparedAssignment } from './student-work.js';
 import { renderStudentBinder } from './student-binder-ui.js';
 import { normalizeTwnSchedule } from './twn-schedule.js';
+const demoContext = createDemoContext({url:new URL(location.href),getLocalStorage:()=>window.localStorage,getSessionStorage:()=>window.sessionStorage});
+// Keep all existing save paths behind one adapter. In proposal mode this uses
+// only a separate sessionStorage namespace, including billing and handwriting.
+const localStorage = demoContext.storage;
 const STORAGE = centreConfig.storageKey;
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
 seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);
 const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:centre.managerId, scheduleBookingId:null, scheduleRemarkDrafts:{}, date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Payments', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, paperZoom: 1, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:centre.managerId };
+if(demoContext.isProposal)try{localStorage.setItem(STORAGE,JSON.stringify(state));}catch{}
 const t = (en, zh) => isFamilyRole(ui.role) ? (zh ?? familyText(en, ui.role)) : en;
 const content = value => familyContent(value, ui.role);
 const paymentDocumentLabel = id => { const receipt=typeof id==='string'?state.receipts.find(item=>item.id===id):id; return isPaymentAcknowledgement(state,receipt)?t('Payment acknowledgement','付款確認'):t('Receipt','收據'); };
@@ -121,6 +127,7 @@ function closeModal() {
  $('#overlay').innerHTML='';document.body.style.overflow='';$('#app').inert=false;
  $('.parent-qr-button')?.setAttribute('aria-expanded','false');
  if(returnFocus?.isConnected)returnFocus.focus();else if(wasCheckIn)$('.parent-qr-button')?.focus();
+ if(ui.proposalRefreshPending)queueMicrotask(()=>{if(refreshProposalState())render();});
 }
 function modal(title, body, footer = '', wide = false) {
   returnFocus = document.activeElement;
@@ -133,12 +140,14 @@ const NAV = {
  parent: [['overview','home','Overview'],['lessons','calendar','Lessons'],['handbook','file','課堂報告'],['homework','book','功課'],['payments','wallet','Payments'],['messages','message','Messages']],
  student: [['work','edit','現在做'],['past','folder','做好了'],['future','lock','稍後做']]
 };
-const requestedRole = roleFromUrl(new URL(location.href));
+const requestedNavigation = demoNavigationFromUrl(new URL(location.href), students.map(student=>student.id));
+const requestedRole = requestedNavigation.role;
 if (Object.hasOwn(NAV, requestedRole)) {
  ui.role = requestedRole;
- ui.page = NAV[requestedRole][0][0];
+ ui.page = requestedNavigation.page;
  if (requestedRole === 'student' && students.some(student => student.id === state.demoWorksheetStudent)) ui.familyStudent = state.demoWorksheetStudent;
 }
+if(demoContext.isProposal)followProposalStudent(requestedNavigation.studentId);
 const identity = () => ui.role === 'admin' ? { name: centre.manager, title: 'Centre director', initials: centre.initials, colour: 'slate' } : ui.role === 'teacher' ? { name: centre.manager, title: 'Teacher', initials: centre.initials, colour: 'blue' } : ui.role === 'parent' ? { name: studentById(ui.familyStudent).parent, title: studentById(ui.familyStudent).name + ' · ' + studentById(ui.familyStudent).level, initials: 'PC', colour: 'rose' } : studentById(ui.familyStudent);
 const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),persist:()=>{previousState=null;persist();},render:()=>render(),modal,closeModal,toast,childSwitch:()=>childSwitch()});
 const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),change:saveBillingChange,modal,closeModal,toast,openReceipt:receiptDialog});
@@ -147,15 +156,54 @@ const bankCheckUI = createBankCheckUI({finalAudit:true,getState:()=>state,getVie
 const billingWorkflowUI = createBillingWorkflowUI({getState:()=>state,getViewer:()=>({role:ui.role}),save:saveBillingChange,render:()=>render(),modal,closeModal,toast,openReceipt:receiptDialog,renderAudit:()=>bankCheckUI.render(),renderReport:openBillingReport});
 const teacherProgressUI = createTeacherProgressUI({
  getState:()=>state, getTutorId:()=>centre.managerId, change, render:()=>render(),
- onStudentChange:id=>{ui.selectedStudent=id;},
+ onStudentChange:id=>{ui.selectedStudent=id;if(demoContext.isProposal&&state.demoWorksheetStudent!==id){state.demoWorksheetStudent=id;persist();}},
  openAssignment:id=>{ui.previousPage='progress';ui.assignmentId=id;ui.readonly=false;ui.showOriginal=false;ui.page='worksheet';ui.pen='pen';ui.workNotes=false;ui.expanded=false;ui.ink='#ce424b';render();},
  openFolder:id=>{ui.page='classroom';ui.selectedStudent=id;ui.standaloneFolder=true;collection('folder-work').page=1;render();},
  openStudentView:id=>{state.demoWorksheetStudent=id;persist();ui.role='student';ui.familyStudent=id;ui.assignmentId=null;ui.page='work';render();}
 });
+function followProposalStudent(studentId=state.demoWorksheetStudent) {
+ if(!students.some(student=>student.id===studentId))return;
+ ui.selectedStudent=studentId;ui.familyStudent=studentId;ui.thread='thread-'+studentId;
+ if(state.demoWorksheetStudent!==studentId){state.demoWorksheetStudent=studentId;persist();}
+}
+function refreshProposalState(force=false) {
+ if(!demoContext.isProposal)return false;
+ if(!force&&($('#overlay').children.length||ui.page==='worksheet'||ui.moveId)){ui.proposalRefreshPending=true;return false;}
+ ui.proposalRefreshPending=false;
+ try {
+  const saved=localStorage.getItem(STORAGE);
+  if(!saved||saved===JSON.stringify(state))return false;
+  const next=JSON.parse(saved);if(next?.version!==4)return false;
+  state=next;previousState=null;
+  seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);
+  conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();
+  ui.matchDraft=null;ui.profileDrafts={};ui.scheduleRemarkDrafts={};ui.picker=null;
+  followProposalStudent();
+  if(ui.role==='teacher')teacherProgressUI.selectStudent(ui.selectedStudent);
+  return true;
+ }catch{return false;}
+}
+function postProposalStatus(type='mc-proposal:state') {
+ if(demoContext.isProposal&&window.parent!==window)window.parent.postMessage({type,role:ui.role,page:ui.page,studentId:state.demoWorksheetStudent||ui.familyStudent},location.origin);
+}
+window.addEventListener('message',event=>{
+ const request=proposalMessage(event,{isProposal:demoContext.isProposal,parent:window.parent,self:window,origin:location.origin,studentIds:students.map(student=>student.id)});
+ if(!request)return;
+ if(request.type==='refresh'){if(refreshProposalState())render();postProposalStatus();return;}
+ closeModal();
+ refreshProposalState(true);
+ ui.role=request.role;ui.page=request.page;ui.assignmentId=null;ui.moveId=null;ui.standaloneFolder=false;ui.search='';ui.expanded=false;ui.workNotes=false;
+ followProposalStudent(request.studentId);
+ if(ui.role==='teacher')teacherProgressUI.selectStudent(ui.selectedStudent);
+ render();
+});
+if(demoContext.isProposal&&ui.role==='teacher')teacherProgressUI.selectStudent(ui.selectedStudent);
 function render() {
+  if(ui.proposalRefreshPending)refreshProposalState();
   finishScheduleDrag(false);
   closeScheduleColourMenu();
   document.documentElement.lang = isFamilyRole(ui.role) ? 'zh-HK' : 'en';
+  if(demoContext.isProposal){const url=proposalEntryUrl(ui.role,ui.page,new URL(location.href),state.demoWorksheetStudent);if(url!==location.pathname+location.search+location.hash)history.replaceState(null,'',url);}
   syncEntryPoint(ui.role);
   const nav = NAV[ui.role]; const user = identity();
   const staffView = ['admin', 'teacher'].includes(ui.role);
@@ -173,6 +221,7 @@ function render() {
   if(ui.role==='teacher'&&['progress','library'].includes(ui.page))teacherProgressUI.afterRender();
   if(paperScroll&&$('.paper-wrap')){$('.paper-wrap').scrollTop=paperScroll.top;$('.paper-wrap').scrollLeft=paperScroll.left;}
   if(pageKey!==lastPageKey){window.scrollTo(0,0);lastPageKey=pageKey;}
+  postProposalStatus();
 }
 function page() {
   if (['admin','teacher'].includes(ui.role) && ui.page === 'schedule') return schedulePage();
@@ -609,6 +658,7 @@ function assessmentOverview(){
 }
 const childSwitch=()=>{
  const demoStudents=ui.role==='student'?getTeacherStudents(state).filter(student=>!['chloe','mia'].includes(student.id)&&(state.assignments.some(assignment=>assignment.studentId===student.id)||student.id===ui.familyStudent)):[];
+ if(demoContext.isProposal&&!['chloe','mia'].includes(ui.familyStudent)&&!demoStudents.some(student=>student.id===ui.familyStudent))demoStudents.push(studentById(ui.familyStudent));
  return '<select class="btn" data-change="family-student" aria-label="'+t(ui.role==='student'?'Student':'Child',ui.role==='student'?'學生':'子女')+'"><option value="chloe"'+(ui.familyStudent==='chloe'?' selected':'')+'>Chloe Chan · '+t('P3')+'</option><option value="mia"'+(ui.familyStudent==='mia'?' selected':'')+'>Mia Cheung · '+t(state.assessment.enrolled?'P2':'Assessment')+'</option>'+demoStudents.map(student=>'<option value="'+student.id+'"'+(ui.familyStudent===student.id?' selected':'')+'>'+esc(student.name)+(student.level?' · '+t(student.level):'')+'</option>').join('')+'</select>';
 };
 
@@ -746,7 +796,7 @@ document.addEventListener('click', e => {
   if (billingWorkflowUI.handleAction(a,id,button)||proofUI.handleAction(a,id,button)||bankCheckUI.handleAction(a,id,button))return;
   if(a==='binder-section'){ui.page=button.dataset.section==='current'?'work':button.dataset.section;ui.assignmentId=null;render();$('[data-action="binder-section"][data-section="'+button.dataset.section+'"]')?.focus({preventScroll:true});return;}
   if (a==='navigate') { ui.page=button.dataset.page;if(ui.page==='progress')teacherProgressUI.selectStudent(ui.selectedStudent);if(ui.page==='classroom')ui.standaloneFolder=false; ui.assignmentId=null; ui.search=''; render(); }
-  else if (a==='role') { closeModal(); ui.standaloneFolder=false;ui.role=button.dataset.role;if(ui.role==='student'&&state.demoWorksheetStudent)ui.familyStudent=state.demoWorksheetStudent;else if(ui.role==='parent'&&!['chloe','mia'].includes(ui.familyStudent))ui.familyStudent='chloe'; ui.page=NAV[ui.role][0][0]; ui.moveId=null; ui.assignmentId=null; render(); }
+  else if (a==='role') { closeModal(); ui.standaloneFolder=false;ui.role=button.dataset.role;if(demoContext.isProposal)followProposalStudent();else if(ui.role==='student'&&state.demoWorksheetStudent)ui.familyStudent=state.demoWorksheetStudent;else if(ui.role==='parent'&&!['chloe','mia'].includes(ui.familyStudent))ui.familyStudent='chloe'; ui.page=NAV[ui.role][0][0]; ui.moveId=null; ui.assignmentId=null; render(); }
   else if (a==='close-modal') closeModal();
   else if (a==='toggle-menu') $('.sidebar').classList.toggle('open');
   else if (a==='calendar-view') {ui.scheduleView=button.dataset.view;render();}
@@ -1060,7 +1110,7 @@ document.addEventListener('change',e=>{
  if(type==='library-filter'){ui.libraryFilter=target.value;render();}
  else if(type==='class-session'){ui.standaloneFolder=false;const [date,start,tutor]=target.value.split('|');ui.classDate=date;ui.classStart=Number(start);ui.classTutor=tutor;ui.selectedStudent=teachingBookings()[0]?.studentId||'chloe';render();}
  else if(type==='record-student'){ui.selectedStudent=target.value;render();}
- else if(type==='family-student'){ui.familyStudent=target.value;ui.thread='thread-'+target.value;render();}
+ else if(type==='family-student'){ui.familyStudent=target.value;ui.thread='thread-'+target.value;if(demoContext.isProposal&&students.some(student=>student.id===target.value)){state.demoWorksheetStudent=target.value;persist();}render();}
  else if(type==='report-month'){collection('matched').page=1;collection('exceptions').page=1;ui.reportMonth=target.value;openBillingReport();}
  else if(target.id==='student-working'&&currentAssignment()&&ui.role==='student'&&canDraw()){currentAssignment().working=target.value;persist();}
  else if(target.id==='work-feedback'&&currentAssignment()&&ui.role==='teacher'){currentAssignment().note=target.value;persist();}
@@ -1193,6 +1243,7 @@ window.addEventListener('pagehide',()=>finishScheduleDrag(false));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)finishScheduleDrag();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('#overlay').children.length)closeModal();else if(ui.workNotes)setWorksheetNotes(false);else if(ui.moveId){ui.moveId=null;render();}else $('.sidebar')?.classList.remove('open');}if(e.key==='Tab'&&$('.modal')){const focusables=$$('button,input,select,textarea,a[href],summary', $('.modal')).filter(el=>!el.disabled&&el.getClientRects().length>0);const first=focusables[0],last=focusables.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 render();
+postProposalStatus('mc-proposal:ready');
 if(document.modelContext?.registerTool){
  const lifecycle=new AbortController();
  const register=tool=>{try{Promise.resolve(document.modelContext.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};
