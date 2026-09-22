@@ -1,4 +1,4 @@
-import { TODAY, centre, allStudents, uid, validateSlot, record } from './model.js';
+import { TODAY, centre, allStudents, uid, validateSlot, record, resolveRegularScheduleRule } from './model.js';
 
 const DAY = 86400000;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -26,25 +26,29 @@ function invoiceIdFor(state, requested) {
 }
 
 /** Four centre teaching weeks. Only an explicitly fully closed week is skipped. */
-export function buildTeachingCycle({ startDate, sessions = [{ weekday: 3 }], closedWeeks = [] }) {
+export function buildTeachingCycle({ startDate, sessions = [{ weekday: 3 }], closedWeeks = [], sessionsOnDate }) {
   requireDate(startDate);
   if (!Array.isArray(sessions) || !sessions.length || sessions.some(slot => !Number.isInteger(slot.weekday) || slot.weekday < 1 || slot.weekday > 7)) throw new Error('Choose a regular teaching day.');
   if (!Array.isArray(closedWeeks)) throw new Error('Choose valid fully closed weeks.');
   const closed = new Set(closedWeeks.map(date => monday(requireDate(date))));
-  const teachingWeeks = [], skippedWeeks = [], lessonDates = [];
+  const teachingWeeks = [], skippedWeeks = [], lessonDates = [], resolvedLessons = [];
   let cursor = monday(startDate);
-  // A partial starting week with no remaining scheduled lesson is not counted.
-  if (!sessions.some(slot => addDays(cursor, slot.weekday - 1) >= startDate)) cursor = addDays(cursor, 7);
   for (let scanned = 0; teachingWeeks.length < 4 && scanned < 260; scanned++, cursor = addDays(cursor, 7)) {
     if (closed.has(cursor)) { skippedWeeks.push(cursor); continue; }
-    const dates = [...new Set(sessions.map(slot => addDays(cursor, slot.weekday - 1)).filter(date => date >= startDate))].sort();
+    const lessons = Array.from({ length: 7 }, (_, offset) => addDays(cursor, offset)).filter(date => date >= startDate).flatMap(date => {
+      const datedSessions = sessionsOnDate ? sessionsOnDate(date) : sessions;
+      return datedSessions.filter(slot => slot.weekday === weekday(date)).map(slot => ({ date, start: slot.start, duration: slot.duration, tutor: slot.tutor }));
+    });
+    // A partial starting week with no remaining scheduled lesson is not counted.
+    if (!teachingWeeks.length && !lessons.length) continue;
+    const dates = [...new Set(lessons.map(lesson => lesson.date))].sort();
     const week = { start: cursor, end: addDays(cursor, 6), lessonDates: dates };
-    teachingWeeks.push(week); lessonDates.push(...dates);
+    teachingWeeks.push(week); lessonDates.push(...dates); resolvedLessons.push(...lessons);
   }
   if (teachingWeeks.length !== 4) throw new Error('Could not find four open teaching weeks.');
   const firstLessonDate = lessonDates[0], lastLessonDate = lessonDates.at(-1);
   return { startDate: firstLessonDate, endDate: teachingWeeks.at(-1).end, firstLessonDate, lastLessonDate, teachingWeeks, skippedWeeks, lessonDates,
-    nextInvoiceOn: addDays(teachingWeeks[2].end, 1), nextCycleStart: addDays(teachingWeeks.at(-1).end, 1) };
+    nextInvoiceOn: addDays(teachingWeeks[2].end, 1), nextCycleStart: addDays(teachingWeeks.at(-1).end, 1), ...(sessionsOnDate ? { resolvedLessons } : {}) };
 }
 
 export function teachingCycleLabel(cycle) {
@@ -54,7 +58,7 @@ export function teachingCycleLabel(cycle) {
 }
 
 function cycleLessonPlan(cycle, sessions) {
-  const lessonDates = cycle.teachingWeeks.flatMap(week => sessions.map(slot => ({ date: addDays(week.start, slot.weekday - 1), start: slot.start, duration: slot.duration, tutor: slot.tutor })))
+  const lessonDates = (cycle.resolvedLessons || cycle.teachingWeeks.flatMap(week => sessions.map(slot => ({ date: addDays(week.start, slot.weekday - 1), start: slot.start, duration: slot.duration, tutor: slot.tutor }))))
     .filter(lesson => lesson.date >= cycle.firstLessonDate && lesson.date <= cycle.endDate)
     .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
   return { lessonCount: lessonDates.length, lessonPlan: { lessonCount: lessonDates.length, lessonDates, makeUpLessonCount: 0 } };
@@ -162,11 +166,17 @@ export function runTuitionBilling(state, { today = TODAY } = {}) {
     for (let count = 0; count < 120; count++) {
       const current = plan.currentCycle;
       if (today < current.nextInvoiceOn) break;
-      const next = buildTeachingCycle({ startDate: current.nextCycleStart, sessions: plan.sessions, closedWeeks: state.billingCalendar?.closedWeeks || [] });
+      const next = buildTeachingCycle({ startDate: current.nextCycleStart, sessions: plan.sessions, closedWeeks: state.billingCalendar?.closedWeeks || [], sessionsOnDate: date => {
+        const rule = resolveRegularScheduleRule(state.regularSchedules?.[plan.studentId], date);
+        return rule ? [rule] : plan.sessions;
+      } });
       const key = plan.studentId + ':' + next.firstLessonDate;
-      let invoice = (state.invoices || []).find(item => item.tuitionCycleKey === key);
+      // A changed weekday changes the first lesson date, but does not create a
+      // second charge for the same already-issued four-week calendar cycle.
+      let invoice = (state.invoices || []).find(item => item.studentId === plan.studentId && (item.tuitionCycleKey === key || item.tuitionCycleStart === current.nextCycleStart
+        || item.automaticallyIssued && item.teachingCycle?.teachingWeeks?.[0]?.start === next.teachingWeeks[0].start));
       if (!invoice) {
-        invoice = cycleInvoice(state, { id: 'INV-CYCLE-' + plan.studentId + '-' + next.firstLessonDate.replaceAll('-', ''), studentId: plan.studentId, cycle: next, sessions: plan.sessions, amount: plan.amount, issued: current.nextInvoiceOn, tuitionCycleKey: key, automaticallyIssued: true });
+        invoice = cycleInvoice(state, { id: 'INV-CYCLE-' + plan.studentId + '-' + next.firstLessonDate.replaceAll('-', ''), studentId: plan.studentId, cycle: next, sessions: plan.sessions, amount: plan.amount, issued: current.nextInvoiceOn, tuitionCycleKey: key, tuitionCycleStart: current.nextCycleStart, automaticallyIssued: true });
         created.push(invoice);
         appendAudit(state, `Issued ${invoice.id} after teaching week 3; payment due ${invoice.due}`);
       }

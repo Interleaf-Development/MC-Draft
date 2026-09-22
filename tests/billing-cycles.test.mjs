@@ -5,7 +5,7 @@ import { buildTeachingCycle, teachingCycleLabel, createAssessmentInvoice, submit
 import { normalizeBillingWorkflow, confirmInvoicePayment, billingStage } from '../dist/billing-workflow.js';
 import { submitPaymentProof } from '../dist/billing-automation.js';
 import { renderReceiptDocument } from '../dist/receipt-document.js';
-import { getRemainingStudentLessons, previewRegularScheduleChange } from '../dist/regular-schedule.js';
+import { getRemainingStudentLessons, previewRegularScheduleChange, applyRegularScheduleChange } from '../dist/regular-schedule.js';
 
 const sessions = [{ weekday: 3, start: 1020, duration: 60, tutor: centre.managerId }];
 const firstApplication = state => submitEnrolmentApplication(state, { studentId: 'mia', parent: 'Mrs Cheung', phone: '9000 0000', firstLessonDate: '2026-10-07', start: 1020, tutor: centre.managerId });
@@ -169,4 +169,50 @@ test('multiple weekly sessions keep their separate dated entitlements within fou
   assert.equal(invoice.teachingWeeks, 4);
   assert.equal(invoice.lessonCount, 8);
   assert.equal(invoice.lessonPlan.lessonDates.length, 8);
+});
+
+test('a permanent timetable change carries into the next new cycle without replacing the paid cycle', () => {
+  const state = seed(); state.bookings = [];
+  state.tuitionPlans = { chloe: { studentId: 'chloe', status: 'active', amount: 2000, sessions: [{ ...sessions[0], start: 960 }], currentCycle: buildTeachingCycle({ startDate: '2026-09-07', sessions }) } };
+  const [invoice] = runTuitionBilling(state);
+  invoice.proof = true;
+  const { receipt } = confirmInvoicePayment(state, invoice.id);
+  const input = { studentId: 'chloe', invoiceId: invoice.id, effectiveDate: '2026-10-07', weekday: 4, start: 960, tutor: centre.managerId };
+  const preview = previewRegularScheduleChange(state, input);
+  applyRegularScheduleChange(state, input, { fingerprint: preview.fingerprint });
+  const issuedBefore = clone(invoice), receiptBefore = clone(state.receipts.find(item => item.id === receipt.id));
+  // applyRegularScheduleChange transactionally replaces state objects.
+  const currentInvoiceBefore = clone(state.invoices.find(item => item.id === issuedBefore.id));
+  const created = runTuitionBilling(state, { today: '2026-10-26' });
+  assert.equal(created.length, 1, 'Changing the old first lesson date cannot create a second October invoice');
+  assert.deepEqual(created[0].lessonPlan.lessonDates.map(lesson => lesson.date), ['2026-11-05', '2026-11-12', '2026-11-19', '2026-11-26']);
+  assert.ok(created[0].lessonPlan.lessonDates.every(lesson => lesson.start === 960));
+  assert.equal(created[0].due, '2026-11-04');
+  assert.deepEqual(state.invoices.find(item => item.id === invoice.id), currentInvoiceBefore);
+  assert.deepEqual(state.receipts.find(item => item.id === receipt.id), receiptBefore);
+  assert.equal(runTuitionBilling(state, { today: '2026-10-26' }).length, 0);
+});
+
+test('renewals resolve temporary timetables on each date and return to the previous timetable', () => {
+  const state = { invoices: [], audit: [], regularSchedules: { chloe: { ...sessions[0], weekday: 4, start: 960, effectiveDate: '2026-10-05', endDate: '2026-10-18', previousRule: { ...sessions[0] } } },
+    tuitionPlans: { chloe: { studentId: 'chloe', status: 'active', amount: 2000, sessions, currentCycle: buildTeachingCycle({ startDate: '2026-09-07', sessions }) } } };
+  const [invoice] = runTuitionBilling(state);
+  assert.deepEqual(invoice.lessonPlan.lessonDates.map(lesson => [lesson.date, lesson.start]), [['2026-10-08', 960], ['2026-10-15', 960], ['2026-10-21', 1020], ['2026-10-28', 1020]]);
+  assert.equal(invoice.due, '2026-10-07');
+  const [nextInvoice] = runTuitionBilling(state, { today: '2026-10-26' });
+  assert.deepEqual(nextInvoice.lessonPlan.lessonDates.map(lesson => lesson.date), ['2026-11-04', '2026-11-11', '2026-11-18', '2026-11-25']);
+  assert.equal(nextInvoice.due, '2026-11-03');
+});
+
+test('a changed timetable never silently rewrites an already-issued renewal or duplicates its charge', () => {
+  for (const paid of [false, true]) {
+    const state = { invoices: [], audit: [], tuitionPlans: { chloe: { studentId: 'chloe', status: 'active', amount: 2000, sessions, currentCycle: buildTeachingCycle({ startDate: '2026-09-07', sessions }) } } };
+    const [invoice] = runTuitionBilling(state);
+    delete invoice.tuitionCycleStart; // Earlier saved four-week invoices used only first-lesson keys.
+    if (paid) invoice.receiptId = 'R-SAVED';
+    const before = clone(invoice);
+    state.regularSchedules = { chloe: { ...sessions[0], weekday: 4, effectiveDate: '2026-10-01', previousRule: { ...sessions[0] } } };
+    assert.deepEqual(runTuitionBilling(state), []);
+    assert.deepEqual(state.invoices, [before]);
+  }
 });
