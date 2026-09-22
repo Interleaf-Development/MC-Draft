@@ -131,20 +131,16 @@ p { color: var(--muted); }
 .document-footer p, .document-footer a { font-size: 11px; }
 .document-footer a { margin-left: auto; }
 
-/* Optional working examples. The application itself is styled inside its frame. */
-.demo-disclosure { margin: 22px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.demo-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; color: #444; font-size: 13px; font-weight: 500; list-style: none; }
-.demo-disclosure > summary::-webkit-details-marker { display: none; }
-.demo-disclosure > summary > span:last-child { color: var(--muted); font-size: 12px; font-weight: 400; }
-.demo-disclosure[open] > summary { margin-bottom: 2px; }
-.demo-disclosure[open] > .demo-wrap { margin-bottom: 15px; }
-.demo-wrap { min-width: 0; max-width: 100%; }
+/* Inline working examples. The application itself is styled inside its frame. */
+.demo-wrap { min-width: 0; max-width: 100%; margin: 20px 0 28px; }
 .demo-context { margin: 18px 0; font-size: 13px; }
 .demo-caption { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 8px; color: var(--muted); font-size: 11px; }
 .demo-caption span:first-child { font-weight: 500; }
 .demo { min-width: 0; overflow: hidden; border: 1px solid var(--line); background: #fff; }
 #demo-rollout { overflow: visible; border: 0; }
 #demo-rollout > .feature-table-wrap { margin-top: 0; }
+.rollout-interactive { border: 1px solid var(--line); }
+.rollout-print { display: none; }
 .demo-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 11px 14px; border-bottom: 1px solid var(--line); background: #fafafa; }
 .demo-toolbar strong { font-size: 12px; font-weight: 600; }
 .live-demo { position: relative; background: var(--soft); }
@@ -282,7 +278,8 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   @page { margin: 15mm 14mm; }
   :root { color: #000; background: #fff; }
   body { font-size: 10pt; line-height: 1.5; }
-  .sidebar, .topbar, .presentation-footer, .document-footer, .demo-disclosure, .demo-wrap, .demo-caption, .actual-demo-frame, .demo-loading, .demo-expand, .document-links, .button-row, .skip, #toast, dialog { display: none !important; }
+  .sidebar, .topbar, .presentation-footer, .document-footer, .demo-wrap, .demo-caption, .actual-demo-frame, .demo-loading, .demo-expand, .document-links, .button-row, .skip, #toast, dialog, .rollout-interactive { display: none !important; }
+  .rollout-print { display: block; }
   .demo-wrap:has(#demo-rollout) { display: block !important; }
   .page-shell { margin: 0; }
   main, .present-mode main { padding: 0; }

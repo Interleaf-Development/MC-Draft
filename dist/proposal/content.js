@@ -1,13 +1,12 @@
 const detail = (title, body) => `<section class="feature-detail"><h3>${title}</h3>${body}</section>`;
 const list = items => `<ul class="plain-list">${items.map(x=>`<li>${x}</li>`).join('')}</ul>`;
 const table = (headers, rows) => `<div class="feature-table-wrap"><table class="feature-table"><thead><tr>${headers.map(x=>`<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map((x,i)=>i===0?`<th scope="row">${x}</th>`:`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-const demo = (id,label='MathConcept workflows') => id==='rollout'
- ? `<div class="demo-wrap"><div class="demo-caption">${label}</div><div class="demo" data-demo="${id}" id="demo-${id}"></div></div>`
- : `<details class="demo-disclosure"><summary>Interactive demo: ${label}<span>Open</span></summary><div class="demo-wrap"><div class="demo" data-demo="${id}" id="demo-${id}"></div></div></details>`;
+const demo = (id,label='MathConcept workflows') => `<div class="demo-wrap"><div class="demo-caption">${id==='rollout'?'':'Interactive demo: '}${label}</div><div class="demo" data-demo="${id}" id="demo-${id}"></div></div>`;
 
 export const chapters = [
  {id:'vision',title:'Proposal overview'},
  {id:'system',title:'System scope and user responsibilities',heading:'System scope and user responsibilities',intro:'The proposed system covers curriculum management, teaching, student work, centre administration and parent services. The responsibilities below define how each user group participates.',body:
+  demo('system','User roles and connected workflows')+
   table(['User group','Included functions','Responsibility'],[
    ['HQ','Approve teaching materials and editions; grant curriculum access to centres; set shared operating policies.','Own publication decisions, curriculum entitlements and network policies.'],
    ['Centre staff','Manage enrolment, timetables, parent requests, invoices and unresolved operational work.','Confirm lesson arrangements, review payment exceptions and follow up outstanding items.'],
@@ -19,8 +18,7 @@ export const chapters = [
    'Assignments retain the approved edition issued to the student. Student working, teacher marks and corrections stay associated with that edition.',
    'Each role receives the records and materials it is permitted to use. Answer keys and teacher notes are restricted to authorised staff.',
    'The existing demo includes Admin, Teacher, Parent and Student workflows. Demonstration records do not sync across devices. HQ publishing, curriculum permissions and live business-service connections are proposed additions.'
-  ]))+
-  demo('system','User roles and connected workflows')},
+  ]))},
 
  {id:'protection',title:'Curriculum access and printing',heading:'Curriculum access and printing',intro:'HQ controls the master collection and decides which materials each centre and user may use. Proposed access and printing records support review of material distribution.',body:
   table(['Feature','Included function','Condition or responsibility'],[
@@ -36,6 +34,8 @@ export const chapters = [
   ]))},
 
  {id:'library',title:'Existing library migration',heading:'Existing library migration',intro:'The proposed migration covers a collection described as more than 200,000 files. Establish the usable collection first, then introduce reusable and editable questions in agreed stages.',body:
+  `<p class="demo-context">The catalogue demo uses the supplied curriculum indexes, with sample questions for P3 and P6. Original-worksheet access and editable conversion remain proposed work.</p>`+
+  demo('library','Curriculum catalogue and assignment')+
   table(['Feature','Included function','Condition or responsibility'],[
    ['Collection review','Identify file formats, page counts, condition, approved editions and duplicate materials. Preserve intentional revisions and edition history.','Confirm coverage and cost after reviewing the collection. A file count is not a question count.'],
    ['Original worksheets','Keep worksheets readable in their original layout and provide space for digital working. Retain the original collection.','The original page remains the teaching reference until converted content has been verified.'],
@@ -46,9 +46,7 @@ export const chapters = [
   detail('Migration acceptance',list([
    'Check decimal points, fractions, units, diagrams, question parts and their corresponding answers against the originals.',
    'Report library coverage, verified editable questions and outstanding exceptions separately. Library migration and editable conversion have separate scopes and acceptance measures.'
-  ]))+
-  `<p class="demo-context">The catalogue demo uses the supplied curriculum indexes, with sample questions for P3 and P6. Original-worksheet access and editable conversion remain proposed work.</p>`+
-  demo('library','Curriculum catalogue and assignment')},
+  ]))},
 
  {id:'authoring',title:'Worksheet authoring and approval',heading:'Worksheet authoring and approval',intro:'The proposed worksheet studio lets authors combine approved questions with new material, review accuracy and layout, and publish an edition for teaching.',body:
   table(['Feature','Included function','Condition or responsibility'],[
@@ -62,17 +60,18 @@ export const chapters = [
   detail('Content-processing permission',`<p>MathConcept must approve whether curriculum may be processed externally, for which purposes and under what confidentiality conditions. This proposal does not authorise external processing of the library. Worksheet authoring and AI assistance are proposed additions.</p>`)},
 
  {id:'teacher',title:'Teacher workflow',heading:'Teacher workflow',intro:'Teachers use their scheduled classes and each student’s progress chart to select, assign and review work. The student’s grade is the starting point; other levels remain available when appropriate.',body:
+  `<p class="demo-context">In the demo, choose worksheets and select “Send to student”, then “View student app” to open that student’s binder. “Prepare for later” keeps the work locked.</p>`+
+  demo('teacher','Class selection, progress and assignment')+
   table(['Feature','Included function'],[
    ['Class and student selection','Move between scheduled classes and students while keeping the selected student’s progress in view.'],
    ['Progress chart','Browse worksheet collections by grade, topic and familiar worksheet code. Distinguish assigned work, student progress, work awaiting marking and corrections, and open the work behind each status.'],
    ['Assignment','Assign approved worksheets as classwork or homework. Select work from another grade when the teacher judges it appropriate.'],
    ['Release control','Prepare assignments for a later lesson. Prepared work remains locked until the teacher releases it.'],
    ['Marking and corrections','Review the student’s working, record marks and request corrections. Keep these records with the correct question and originally assigned edition.']
-  ])+
-  `<p class="demo-context">In the demo, choose worksheets and select “Send to student”, then “View student app” to open that student’s binder. “Prepare for later” keeps the work locked.</p>`+
-  demo('teacher','Class selection, progress and assignment')},
+  ])},
 
  {id:'student',title:'Student workspace',heading:'Student workspace',intro:'The student binder groups current, completed and prepared work. The writing surface is designed for portrait tablets, with Hong Kong Traditional Chinese used in the student and parent interfaces.',body:
+  demo('student','Student binder and worksheet working')+
   table(['Feature','Included function'],[
    ['Current work','Open released classwork, homework and corrections from previous lessons.'],
    ['Completed work','Keep finished worksheets available for revision.'],
@@ -83,10 +82,10 @@ export const chapters = [
   detail('Device acceptance',list([
    'Test comfortable stylus use, accidental touch handling and saved-work continuity on the agreed supported devices.',
    'Confirm that students can resume saved work after agreed interruptions without lost or misplaced handwriting. Any requirement to work without a connection needs separately agreed scope and acceptance measures.'
-  ]))+
-  demo('student','Student binder and worksheet working')},
+  ]))},
 
  {id:'operations',title:'Scheduling and parent communication',heading:'Scheduling and parent communication',intro:'Parents submit leave requests and staff confirm replacement lessons. Staff review availability, timetable clashes and changes to lesson entitlement before confirming an arrangement.',body:
+  demo('operations','Leave, timetable changes and make-up lessons')+
   table(['Feature','Included function','Condition or responsibility'],[
    ['Parent leave request','Confirm the leave request and invite optional preferred replacement dates. Tell the parent that centre staff will contact them to complete the make-up arrangement.','Submitting leave or preferred dates does not confirm a replacement time.'],
    ['Leave and make-up tracking','Mark the cancelled lesson in the timetable and retain it in the leave bin. Keep unconfirmed arrangements visible for staff follow-up.','Staff agree the replacement time with the parent and confirm it before it becomes scheduled.'],
@@ -94,10 +93,10 @@ export const chapters = [
    ['Temporary and ongoing changes','Record the start date and, for temporary changes, the end date. Resume the original regular schedule when a temporary change ends.','Staff review the affected date range.'],
    ['Lesson entitlement','Show any increase or reduction in affected lessons before confirmation and display remaining lesson dates.','Extra lessons and make-up credits require an explicit decision.'],
    ['Communication and records','Keep parent communications and lesson remarks with the relevant student and lesson. Link related receipt and schedule amendments, retaining previous records and reasons for changes.','Agree document revision and date rules.']
-  ])+
-  demo('operations','Leave, timetable changes and make-up lessons')},
+  ])},
 
  {id:'billing',title:'Invoice review and bank reconciliation',heading:'Invoice review and bank reconciliation',intro:'Track each invoice through payment proof, review and receipt issuance. Final audit is a separate process that compares issued receipts with bank records and identifies unresolved differences.',body:
+  demo('billing','Payment review, receipts and final audit')+
   table(['Feature','Included function','Condition or responsibility'],[
    ['Invoice status and queue','Track status per invoice. Prioritise centre review, older proofs, payment deadlines and overdue bills, with recent receipts easy to find.','A student may have an older unpaid invoice, one awaiting review and another completed invoice at the same time.'],
    ['Search and filters','Find invoices by student name, student number or invoice number. Filter by charge type or billing month and use compact pages of around 25 invoices.','The month filter is optional so older unpaid invoices remain visible.'],
@@ -110,19 +109,18 @@ export const chapters = [
   detail('Payment exceptions and validation',list([
    'Agree handling for cash, cheques, combined payments, partial payments and refunds. An optional direct bank connection is subject to confirmation.',
    'Payment checks in the demonstration are simulated. Validate real proof checks and reconciliation rules against representative records before live use.'
-  ]))+
-  demo('billing','Payment review, receipts and final audit')},
+  ]))},
 
  {id:'franchise',title:'Multi-centre management',heading:'Multi-centre management',intro:'HQ manages curriculum publication and common policies. Each centre carries out teaching and administration within its permitted curriculum and student records.',body:
+  `<p class="demo-context">Tsuen Wan and Hang Hau use the same application with their own centre identity, teachers and demonstration records. HQ permissions and network reporting are proposed additions. Ownership, licensing and handover terms are set out in the commercial section.</p>`+
+  demo('franchise','Tsuen Wan and Hang Hau')+
   table(['Feature','Included function','Condition or responsibility'],[
    ['Centre and staff access','Limit access to permitted student records and curriculum, including staff who work across several centres.','Agree roles and responsibilities, then grant and withdraw access accordingly.'],
    ['Central publication','Control approved editions and curriculum entitlements across the network.','HQ approves publication and centre access.'],
    ['Access and printing review','Flag unusual access or printing volumes using agreed thresholds.','A flag prompts investigation; it does not establish misconduct.'],
    ['Operational reporting','Show unresolved scheduling and payment work to HQ and authorised centre staff.','Agree consistent reporting definitions before comparing centres.'],
    ['Centre rollout and changes','Cover centre onboarding, staff changes, franchise offboarding, support coverage and language requirements.','Confirm the requirements for each expansion stage.']
-  ])+
-  `<p class="demo-context">Tsuen Wan and Hang Hau use the same application with their own centre identity, teachers and demonstration records. HQ permissions and network reporting are proposed additions. Ownership, licensing and handover terms are set out in the commercial section.</p>`+
-  demo('franchise','Tsuen Wan and Hang Hau')},
+  ])},
 
  {id:'rollout',title:'Delivery, pilot and acceptance',heading:'Delivery, pilot and acceptance',intro:'Use a representative centre, material sample and supported equipment to validate teaching and operational workflows. Each delivery stage ends with review of agreed acceptance measures and outstanding exceptions.',body:
   detail('Delivery responsibilities',table(['Party','Required contribution'],[
