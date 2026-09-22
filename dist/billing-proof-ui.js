@@ -1,3 +1,4 @@
+import { renderPaymentPdf } from './billing-pdf-preview.js';
 import { money, studentById, centre, TODAY, billingPayerName } from './model.js';
 import { PROOF_SCENARIOS, previewPaymentProof, submitPaymentProof } from './billing-automation.js';
 import { familyText, familyDate, familyContent } from './family-locale.js';
@@ -80,7 +81,7 @@ const COPY = {
   'Possible duplicate payment': '付款可能重複', 'Proof needs review': '付款證明待覆核',
   'The centre needs to review this proof. You can submit a clearer or corrected copy.': '中心需要覆核這份證明。你可以重新提交較清晰或更正後的版本。',
   'These are simulated results. No AI read the uploaded file.': '以上結果均為模擬，並非由 AI 讀取上載檔案得出。',
-  'A receipt is issued after the proof checks pass. Bank reconciliation is a separate step.': '付款證明通過核對後會發出收據，銀行對賬會另行處理。',
+  'A receipt is issued after staff approve the payment proof.': '中心核對及確認付款後，便會發出收據。',
   'Open receipt': '查看收據', 'Upload another proof': '重新上載證明', 'Close': '關閉',
   'Proof accepted. Receipt issued automatically.': '付款證明已獲接納，收據已自動發出。',
   'Proof submitted for review.': '付款證明已提交，待中心覆核。'
@@ -104,7 +105,7 @@ const safeAttachment = file => file && MIME_TYPES.has(file.mimeType) && typeof f
 
 /** Payment evidence UI. The host owns persistence, application rendering and modals. */
 export function createProofUI({ getState, getViewer, change, modal, closeModal, toast, openReceipt }) {
-  let draft = null;
+  let draft = null, cancelPdf = null;
   const t = (value, zh) => ['parent', 'student'].includes(getViewer().role) ? (zh ?? COPY[value] ?? familyText(value, getViewer().role)) : value;
   const content = value => familyContent(value, getViewer().role);
   const safeDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(Date.parse(value)) ? familyDate(value, getViewer().role) : t('Not readable');
@@ -162,8 +163,19 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
     const image = file.mimeType.startsWith('image/');
     return `<div class="proof-preview">${image
       ? `<img class="proof-preview-image" src="${esc(file.dataUrl)}" alt="${t('Selected payment proof')}">`
-      : `<object class="proof-pdf-preview" data="${esc(file.dataUrl)}" type="application/pdf" aria-label="${t('Selected payment proof PDF')}"><p>${t('PDF preview is unavailable in this browser.')}</p><a class="btn" href="${esc(file.dataUrl)}" download="${esc(file.name)}">${t('Download PDF')}</a></object>`}
+      : `<div class="proof-pdf-preview" id="proof-pdf-preview" role="region" aria-label="${t('Selected payment proof PDF')}"><p role="status">${t('Opening file…')}</p></div>`}
       <div class="proof-file-meta">${icons.file}<span>${esc(file.name)}</span><span>${Math.max(1, Math.round(Number(file.size || 0) / 1024))} KB</span></div></div>`;
+  }
+
+  function mountPdf(file) {
+    cancelPdf?.(); cancelPdf = null;
+    const target = document.querySelector('#proof-pdf-preview');
+    if (!target || file?.mimeType !== 'application/pdf' || !safeAttachment(file)) return;
+    const family = ['parent', 'student'].includes(getViewer().role);
+    cancelPdf = renderPaymentPdf(target, file.dataUrl, { label: t('Payment proof'), ...(family ? { copy: {
+      loading: '正在開啟 PDF…', previous: '上一頁', next: '下一頁', page: (current, total) => `第 ${current} 頁，共 ${total} 頁`,
+      unavailable: '未能預覽此 PDF。請改用圖片或沒有密碼保護的 PDF。'
+    } } : {}) });
   }
 
   function draftOptions() {
@@ -208,13 +220,14 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
     modal(t('Submit payment proof'), `<div class="proof-flow" data-proof-editor="${esc(invoice.id)}">${invoiceSummary(invoice)}${invoice.proofDisposition === 'returned' ? `<div class="notice"><strong>${t('Waiting for replacement proof')}</strong><p>${esc(invoice.proofReturnReason || '')}</p><p>${t('Please upload a replacement proof. You do not need to pay again.')}</p></div>` : ''}${payerFields}${upload}${draft.loading ? `<p class="small muted" role="status">${t('Opening file…')}</p>` : ''}${controls}</div>`,
       button('close', t('Cancel')) + button('submit', t('Submit proof'), 'btn primary', `data-id="${esc(invoice.id)}"${!hasEvidence || draft.loading ? ' disabled' : ''}`));
     document.querySelector('.modal')?.classList.add('proof-modal');
+    mountPdf(draft.file);
   }
 
   function openSubmit(invoiceId) {
     return safely(() => {
       const invoice = invoiceFor(invoiceId);
       if (billingStage(getState(), invoice) === 'archive') throw new Error('This invoice is archived.');
-      if (invoice.receiptId) return openProof(invoiceId);
+      if (invoice.receiptId || billingStage(getState(), invoice) === 'review') return openProof(invoiceId);
       draft = { invoiceId, viewer: viewerKey(), scenario: 'pass', reference: invoice.proofReference || (invoice.id === 'INV-1024' ? 'FPS 910277' : `FPS-${invoice.id.replace(/^INV-/, '')}`), paymentDate: invoice.claimedPaymentDate || TODAY, payerName: invoice.proofPayer || billingPayerName(getState(), invoice.studentId), paymentMethod: PAYMENT_METHODS.some(([id]) => id === invoice.paymentMethod) ? invoice.paymentMethod : 'fps', sample: false, file: null, loading: false, readVersion: 0 };
       renderDraft();
       return true;
@@ -243,9 +256,10 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
           ? `<details class="proof-demo-controls proof-check-details"><summary>Proof check details</summary><div class="proof-check-details-content">${checkDetails}${bankNote}</div></details>`
           : `<section class="proof-demo-controls"><h3 class="proof-section-title">${t('Demo check')}</h3>${checkDetails}</section>${bankNote}`;
       }
-      const receiptAction = invoice.receiptId ? button('receipt', icons.receipt + ' ' + t(acknowledgement ? 'Open payment acknowledgement' : 'Open receipt'), 'btn primary', `data-id="${esc(invoice.id)}"`) : button('replace', t('Upload another proof'), 'btn primary', `data-id="${esc(invoice.id)}"`);
+      const receiptAction = invoice.receiptId ? button('receipt', icons.receipt + ' ' + t(acknowledgement ? 'Open payment acknowledgement' : 'Open receipt'), 'btn primary', `data-id="${esc(invoice.id)}"`) : invoice.proofDisposition === 'returned' ? button('replace', t('Upload another proof'), 'btn primary', `data-id="${esc(invoice.id)}"`) : '';
       modal(t('Payment proof'), `<div class="proof-flow${admin ? ' proof-record-admin' : ''}" data-proof-record="${esc(invoice.id)}">${body}</div>`, button('close', t('Close')) + receiptAction);
       document.querySelector('.modal')?.classList.add('proof-modal');
+      mountPdf(review?.file);
       return true;
     });
   }
@@ -274,14 +288,13 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
     if (!draft.sample && !draft.file) throw new Error('Choose an image, PDF or demo proof first.');
     if (draft.loading) throw new Error('Wait for the file to finish opening.');
     const options = draftOptions();
-    let result;
     if (change(() => {
       invoiceFor(invoiceId);
-      try { result = submitPaymentProof(getState(), invoiceId, options); }
+      try { submitPaymentProof(getState(), invoiceId, options); }
       catch (error) { throw new Error(t(error.message)); }
     })) {
       openProof(invoiceId);
-      toast(t(result.receipt ? (isPaymentAcknowledgement(getState(), result.receipt) ? 'Proof accepted. Payment acknowledgement issued automatically.' : 'Proof accepted. Receipt issued automatically.') : 'Proof submitted for review.'));
+      toast(t('Proof submitted for review.'));
     }
   }
 
@@ -289,7 +302,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
     if (!action.startsWith('proof-')) return false;
     safely(() => {
       const actionName = action.slice(6);
-      if (actionName === 'close') { draft = null; closeModal(); return; }
+      if (actionName === 'close') { cancelPdf?.(); cancelPdf = null; draft = null; closeModal(); return; }
       if (actionName === 'open-submit' || actionName === 'replace') { openSubmit(id); return; }
       if (actionName === 'open') { openProof(id); return; }
       if (actionName === 'receipt') {
@@ -339,5 +352,5 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
     return true;
   }
 
-  return { openSubmit, openProof, handleAction, onChange };
+  return { openSubmit, openProof, handleAction, onChange, onModalClosed: () => { cancelPdf?.(); cancelPdf = null; draft = null; } };
 }

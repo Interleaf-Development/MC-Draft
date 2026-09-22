@@ -239,3 +239,5 @@ object.proof-pdf-preview { display: block; min-height: 0; height: 230px; padding
   .bank-channel-tab { padding: 11px 12px; font-size: 12px; }
   .bank-workspace .billing-toolbar > .btn.primary { flex: 1; }
 }
+
+.proof-preview .proof-pdf-preview { display: block; padding: 0; max-height: 340px; overflow: auto; background: #fff; text-align: left; }

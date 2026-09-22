@@ -2,6 +2,8 @@
 // remain language-neutral; never run free-form user messages through this map.
 export const isFamilyRole = role => role === 'parent' || role === 'student';
 const words = {
+  'First tuition · 4 teaching weeks':'首次學費 · 四個教學週', 'Recurring tuition · 4 teaching weeks':'續期學費 · 四個教學週', 'Paid entrance assessment':'入學評估費',
+  'Choose a first lesson on or after the application date.':'首次上課日期不可早於申請日期。', 'This student is already enrolled.':'此學生已正式入學。', 'Choose a valid date.':'請選擇有效日期。',
   'Admin':'行政', 'Teacher':'老師', 'Parent':'家長', 'Student':'學生',
   'Family':'家長專區', 'My classroom':'我的課堂', 'Overview':'主頁',
   'Lessons':'課堂', 'Handbook':'學習手冊', 'Payments':'繳費', 'Messages':'訊息',
@@ -119,6 +121,9 @@ const fixtureContent = {
 export function familyContent(value, role) {
   if (isFamilyRole(role)) {
     const months = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Sept:9, Oct:10, Nov:11, Dec:12 };
+    const range = /^(\d{1,2}) (\w+)(?: (\d{4}))? [–-] (\d{1,2}) (\w+) (\d{4})$/.exec(value || '');
+    if (range && months[range[2]] && months[range[5]]) return `${range[3] || range[6]} 年 ${months[range[2]]} 月 ${Number(range[1])} 日至${range[3] && range[3] !== range[6] ? range[6] + ' 年 ' : ''}${months[range[5]]} 月 ${Number(range[4])} 日`;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return familyDate(value, role, {year:'numeric'});
     const period = /^(\w+)[–-](\w+) (\d{4})$/.exec(value || '');
     if (period && months[period[1]] && months[period[2]]) return `${period[3]} 年 ${months[period[1]]} 至 ${months[period[2]]} 月`;
     const day = /^(\d{1,2}) (\w+) (\d{4})$/.exec(value || '');

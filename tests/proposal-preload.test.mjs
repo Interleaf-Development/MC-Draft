@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
 const source = await readFile(new URL('../dist/proposal/demos.js', import.meta.url), 'utf8');
+const appSource = await readFile(new URL('../dist/proposal/app.js', import.meta.url), 'utf8');
 const origin = 'https://demo.example';
 const scenes = ['system', 'library', 'teacher', 'student', 'operations', 'billing', 'franchise'];
 
@@ -19,11 +20,14 @@ class Element {
     this.clientWidth = 900;
     this.clientHeight = 700;
     this.messages = [];
+    this.listeners = new Map();
     if (tagName === 'iframe') this.contentWindow = {
       postMessage: (data, targetOrigin) => this.messages.push({ data, targetOrigin })
     };
     this.classList = {
       contains: name => this.className.split(/\s+/).includes(name),
+      add: name => this.classList.toggle(name, true),
+      remove: name => this.classList.toggle(name, false),
       toggle: (name, force) => {
         const classes = new Set(this.className.split(/\s+/).filter(Boolean));
         const enabled = force ?? !classes.has(name);
@@ -35,6 +39,8 @@ class Element {
   }
   get className() { return this.attributes.class || ''; }
   set className(value) { this.attributes.class = value; }
+  get href() { return this.attributes.href || ''; }
+  set href(value) { this.attributes.href = value; }
   get dataset() {
     return Object.fromEntries(Object.entries(this.attributes)
       .filter(([name]) => name.startsWith('data-'))
@@ -49,9 +55,26 @@ class Element {
     this.parentNode = null;
   }
   focus() {}
+  addEventListener(type, callback) {
+    if (!this.listeners.has(type)) this.listeners.set(type, []);
+    this.listeners.get(type).push(callback);
+  }
+  scrollIntoView() {}
+  getClientRects() { return [{}]; }
+  getBoundingClientRect() { return { top: 1000, left: 0, right: 900, bottom: 1700 }; }
+  insertAdjacentHTML(position, html) {
+    assert.equal(position, 'beforeend');
+    const fragment = new Element('div'); fragment.innerHTML = html;
+    for (const child of [...fragment.children]) this.append(child);
+  }
   matches(selector) {
+    if (selector.includes(',')) return selector.split(',').some(part => this.matches(part.trim()));
+    const compound = selector.match(/^([a-z][a-z0-9-]*)(\[.+\])$/i);
+    if (compound) return this.tagName === compound[1] && this.matches(compound[2]);
     if (selector.startsWith('#')) return this.attributes.id === selector.slice(1);
     if (selector.startsWith('.')) return this.classList.contains(selector.slice(1));
+    const prefix = selector.match(/^\[([^\]]+)\^="([^"]*)"\]$/);
+    if (prefix) return (this.attributes[prefix[1]] || '').startsWith(prefix[2]);
     const attribute = selector.match(/^\[([^=\]]+)(?:="([^"]*)")?\]$/);
     if (attribute) return attribute[2] === undefined
       ? Object.hasOwn(this.attributes, attribute[1])
@@ -101,16 +124,21 @@ function harness(hash = '#teacher') {
     listeners.get(type).push(callback);
   };
   const timers = new Map();
+  const notices = [];
   let timerId = 0;
   const document = {
     body, addEventListener,
+    documentElement: { style: { setProperty() {} } },
+    getElementById: id => body.querySelector('#' + id),
     querySelector: selector => body.querySelector(selector),
     querySelectorAll: selector => body.querySelectorAll(selector),
     createElement: tagName => new Element(tagName)
   };
+  const address = { origin, hash, href: origin + '/proposal/' + hash };
   const scope = vm.createContext({
-    document, window: { addEventListener }, location: { origin, hash },
-    URLSearchParams, t: english => english,
+    document, window: { addEventListener, scrollTo() {}, print() {}, innerHeight: 1000 }, location: address,
+    history: { replaceState(_state, _title, url) { const next = new URL(url, address.href); address.href = next.href; address.hash = next.hash; } },
+    URL, URLSearchParams, t: english => english,
     setTimeout(callback, delay) { const id = ++timerId; timers.set(id, { callback, delay }); return id; },
     clearTimeout: id => timers.delete(id),
     requestAnimationFrame: callback => callback(),
@@ -121,8 +149,31 @@ function harness(hash = '#teacher') {
   const host = id => document.querySelector('#demo-' + id);
   const frame = id => host(id).querySelector('iframe');
   return {
-    document, host, frame, emit,
-    init() { scope.initDemos(); },
+    document, host, frame, emit, notices, address,
+    init() { scope.initDemos({ notify: message => notices.push(message) }); },
+    loadApp() {
+      for (const child of [...body.children]) child.remove();
+      body.append(new Element('meta', { name: 'description' }));
+      for (const id of ['chapters', 'menu', 'references', 'close-dialog', 'prev', 'next', 'language-switch', 'main', 'detail-dialog', 'dialog-title', 'dialog-body', 'toast', 'chapter-label', 'slide-counter', 'mode', 'presentation-footer', 'sidebar', 'print-document']) {
+        body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
+      }
+      document.getElementById('main').append(new Element('section', { id: 'vision', class: 'chapter' }));
+      const chapterIds = ['vision', 'system', 'protection', 'library', 'authoring', 'teacher', 'student', 'operations', 'billing', 'franchise', 'rollout', 'proposal'];
+      scope.english = scope.chinese = {
+        chapters: chapterIds.map(id => ({ id, title: id })), references: {},
+        chapterHTML: chapter => `<section id="${chapter.id}" class="chapter">${[...scenes, 'rollout'].includes(chapter.id) ? `<div id="demo-${chapter.id}"></div>` : ''}</section>`
+      };
+      scope.language = 'en'; scope.shellText = {};
+      scope.proposalLanguageUrl = href => href + '?lang=zh-HK';
+      vm.runInContext('(function(){\n' + appSource.replace(/^import[^\n]+\n/gm, '').replaceAll('export function ', 'function ') + '\n})()', scope);
+    },
+    click(target) {
+      const event = { target, prevented: false, preventDefault() { this.prevented = true; } };
+      for (const callback of target.listeners.get('click') ?? []) callback(event);
+      emit('click', event);
+      return event;
+    },
+    isSaving() { return scope.demoIsSaving(); },
     warm() {
       for (const [id, timer] of [...timers]) if (timer.delay === 0) { timers.delete(id); timer.callback(); }
     },
@@ -247,4 +298,111 @@ test('hidden chapters keep their frame dimensions and resize correctly when show
   assert.equal(frame.style.width, '1440px');
   assert.equal(frame.style.transform, 'scale(0.5)');
   assert.equal(stage.style.height, '500px');
+});
+
+test('saving accepts only boolean messages from current same-origin frames and protects every scene until unlocked', () => {
+  const h = harness('#billing'); h.init(); h.warm(); h.activate('billing');
+  h.ready('billing', 'admin', 'billing'); h.ready('franchise');
+  const billing = h.frame('billing'), franchise = h.frame('franchise');
+  const saving = { type: 'mc-proposal:saving', saving: true };
+  h.message({}, saving);
+  h.message(billing.contentWindow, saving, 'https://untrusted.example');
+  h.message(billing.contentWindow, { ...saving, saving: 'true' });
+  assert.equal(h.isSaving(), false);
+  h.message(billing.contentWindow, saving);
+  assert.equal(h.isSaving(), true);
+  assert.equal(billing.inert, false);
+  assert.equal(franchise.inert, true, 'Other iframe apps cannot accept input and overwrite the review while it saves');
+
+  h.choose('billing', 'parentPayments');
+  h.choose('franchise', 'hh');
+  h.activate('teacher');
+  h.message(franchise.contentWindow, { type: 'mc-proposal:focused' });
+  assert.equal(messages(billing, 'mc-proposal:navigate').length, 0);
+  assert.equal(messages(billing, 'mc-proposal:deactivate').length, 0);
+  assert.equal(messages(franchise, 'mc-proposal:activate').length, 0);
+  assert.equal(h.frame('franchise'), franchise);
+  assert.equal(h.document.querySelectorAll('iframe').length, scenes.length);
+  assert.ok(h.notices.every(message => /Saving payment review/.test(message)));
+  assert.equal(h.notices.length, 2);
+
+  const unloading = { prevented: false, preventDefault() { this.prevented = true; } };
+  h.emit('beforeunload', unloading);
+  assert.equal(unloading.prevented, true);
+  assert.equal(unloading.returnValue, '');
+  h.message({}, { ...saving, saving: false });
+  h.message(billing.contentWindow, { ...saving, saving: false }, 'https://untrusted.example');
+  assert.equal(h.isSaving(), true);
+  h.message(billing.contentWindow, { ...saving, saving: false });
+  assert.equal(h.isSaving(), false);
+  assert.equal(franchise.inert, false);
+  const allowed = { prevented: false, preventDefault() { this.prevented = true; } };
+  h.emit('beforeunload', allowed);
+  assert.equal(allowed.prevented, false);
+  h.choose('billing', 'parentPayments');
+  assert.equal(messages(billing, 'mc-proposal:navigate').at(-1).data.role, 'parent');
+  h.choose('franchise', 'hh');
+  assert.notEqual(h.frame('franchise'), franchise);
+});
+
+test('expanded demos cannot close by button or Escape during saving and can close after recovery', () => {
+  const h = harness('#billing'); h.init(); h.warm(); h.activate('billing'); h.ready('billing', 'admin', 'billing');
+  const frame = h.frame('billing');
+  const expand = h.host('billing').querySelector('[data-demo-expand]');
+  h.emit('click', { target: expand });
+  assert.equal(h.document.body.classList.contains('demo-expanded'), true);
+  h.message(frame.contentWindow, { type: 'mc-proposal:saving', saving: true });
+  h.emit('click', { target: expand });
+  let prevented = false;
+  h.emit('keydown', { key: 'Escape', preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(h.document.body.classList.contains('demo-expanded'), true);
+  assert.equal(h.notices.length, 2);
+  h.message(frame.contentWindow, { type: 'mc-proposal:saving', saving: false });
+  h.emit('click', { target: expand });
+  assert.equal(h.document.body.classList.contains('demo-expanded'), false);
+  assert.equal(h.frame('billing'), frame);
+});
+
+test('a view requested before another frame starts saving stays queued until all saving finishes', () => {
+  const h = harness('#billing'); h.init(); h.warm(); h.activate('billing'); h.ready('billing', 'admin', 'billing');
+  h.choose('system', 'student');
+  const billing = h.frame('billing'), system = h.frame('system');
+  h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: true });
+  h.ready('system');
+  assert.equal(messages(system, 'mc-proposal:navigate').length, 0);
+  h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: false });
+  assert.equal(messages(system, 'mc-proposal:navigate').length, 1);
+  assert.equal(messages(system, 'mc-proposal:navigate')[0].data.role, 'student');
+});
+
+test('the proposal shell blocks chapter, language and reading-mode navigation while its payment review saves', () => {
+  const h = harness('#billing'); h.loadApp(); h.warm(); h.ready('billing', 'admin', 'billing');
+  const billing = h.frame('billing');
+  const doc = h.document;
+  const chapterLink = doc.querySelector('a[href="#teacher"]');
+  const mode = doc.getElementById('mode');
+  h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: true });
+  assert.equal(h.click(chapterLink).prevented, true);
+  assert.equal(h.click(doc.getElementById('language-switch')).prevented, true);
+  h.click(mode);
+  h.click(doc.getElementById('next'));
+  assert.equal(h.address.hash, '#billing');
+  assert.equal(doc.getElementById('chapter-label').textContent, 'billing');
+  assert.equal(doc.body.classList.contains('present-mode'), false);
+  assert.match(doc.getElementById('toast').textContent, /Saving payment review/);
+  h.address.hash = '#student';
+  h.emit('hashchange');
+  assert.equal(h.address.hash, '#billing');
+  assert.equal(messages(billing, 'mc-proposal:deactivate').length, 0);
+
+  h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: false });
+  assert.equal(h.click(doc.getElementById('language-switch')).prevented, false);
+  h.click(mode);
+  assert.equal(doc.body.classList.contains('present-mode'), true);
+  h.click(chapterLink);
+  assert.equal(h.address.hash, '#teacher');
+  assert.equal(doc.getElementById('chapter-label').textContent, 'teacher');
+  assert.equal(h.frame('billing'), billing);
+  assert.equal(messages(billing, 'mc-proposal:deactivate').length, 1);
 });

@@ -30,6 +30,7 @@ function renderer(role = 'parent') {
   const t = (en, zh) => ui.role === 'parent' ? (zh ?? familyText(en, ui.role)) : en;
   const context = vm.createContext({
     ...model, ui, state, t, esc,
+    billingWorkflowUI: { isSaving: () => false },
     dateLabel: (date, options) => familyDate(date, ui.role, options),
     heading: (title, actions = '') => '<h1>' + esc(title) + '</h1>' + actions,
     action: (name, label, cls = '', attrs = '') => '<button data-action="' + name + '" class="' + cls + '" ' + attrs + '>' + t(label) + '</button>',
@@ -53,7 +54,7 @@ function renderer(role = 'parent') {
       return selected.map(value => ({ value: String(value) }));
     }
   });
-  const names = ['change', 'nextLessons', 'lessonRow', 'parentLessonGroups', 'parentOverview', 'makeupPreferencesSummary', 'parentMakeupCard', 'parentLessons', 'openMakeupPreferences', 'openMakeup', 'handleAction'];
+  const names = ['change', 'nextLessons', 'lessonRow', 'parentLessonGroups', 'parentOverview', 'makeupPreferencesSummary', 'parentMakeupCard', 'parentLessons', 'openMakeupPreferences', 'canArrangeScheduleMakeup', 'openMakeup', 'handleAction'];
   vm.runInContext('let previousState = null;\n' + names.map(functionSource).join('\n'), context);
   return {
     ui, dialog, error, messages,

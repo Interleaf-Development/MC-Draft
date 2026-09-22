@@ -13,25 +13,30 @@ function stateWithQueues(count = 28) {
   return { invoices, receipts: [{ id: 'R-ISSUED', invoiceId: 'INV-ISSUED', studentId: 'chloe', amount: 1800, issuedAt: '2026-06-22T11:30:00+08:00', issuedDate: '2026-06-22' }], billingSettings: { autoSent: true }, audit: [] };
 }
 
-function harness(initial = stateWithQueues()) {
+const settle = () => new Promise(resolve => setImmediate(resolve));
+
+function harness(initial = stateWithQueues(), options = {}) {
   let state = initial, failSave = false;
   const calls = { renders: 0, saves: 0, closed: 0, modals: [], receipts: [], toasts: [], reports: 0 }, viewer = { role: 'admin' }, nodes = new Map();
   const document = { activeElement: null, querySelector: selector => nodes.get(selector) || null };
-  const element = (id, value = '') => ({ id, value, checked: true, selectionStart: 0, selectionEnd: 0, textContent: '', classList: { add() {} }, focus() { document.activeElement = this; }, setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; } });
+  const element = (id, value = '') => ({ id, value, checked: true, selectionStart: 0, selectionEnd: 0, textContent: '', style: {}, classList: { add() {}, remove() {} }, focus() { document.activeElement = this; }, setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; } });
   const setControls = html => {
-    for (const [, id] of html.matchAll(/\bid="([^"]+)"/g)) nodes.set('#' + id, element(id));
+    for (const [, id] of html.matchAll(/\bid="([^"]+)"/g)) if (id !== 'billingflow-pdf-preview') nodes.set('#' + id, element(id));
     const reason = html.match(/<textarea id="billingflow-return-reason"[^>]*>([^<]*)<\/textarea>/);
     if (reason) nodes.get('#billingflow-return-reason').value = reason[1];
   };
   const ui = createBillingWorkflowUI({
     getState: () => state, getViewer: () => viewer,
+    waitForSave: options.waitForSave || (() => Promise.resolve()), onSavingChange: options.onSavingChange,
     save: callback => {
       calls.saves++;
       const before = structuredClone(state);
       try {
         callback();
         if (failSave) throw new Error('Browser storage is full. Please free space and retry.');
-        calls.renders++; setControls(ui.render()); return true;
+        calls.renders++; setControls(ui.render());
+        if (options.rejectAfterSave) return Promise.reject(new Error('Confirmation connection lost.'));
+        return true;
       } catch (error) {
         state = before;
         const area = nodes.get('#form-error');
@@ -53,17 +58,16 @@ function harness(initial = stateWithQueues()) {
 test('default queue counts invoices, leaves month unrestricted and renders only 25 compact rows', () => {
   const app = harness(), html = app.ui.render();
   assert.match(html, /data-id="review" aria-pressed="true"/);
-  assert.match(html, /Waiting for centre review: 29 invoices/);
+  assert.match(html, /待中心核對: 29 invoices/);
   assert.match(html, /<option value="" selected>All billing months/);
   assert.match(html, /1–25 of 29 invoices/);
   assert.match(html, /INV-REVIEW-00/);
   assert.doesNotMatch(html, /INV-REVIEW-27/);
   assert.equal((html.match(/data-action="billingflow-review"/g) || []).length, 25);
-  assert.match(html, /id="billingflow-auto-sent"[^>]+checked/);
-  assert.match(html, /New proofs passing demo checks/);
+  assert.doesNotMatch(html, /Auto-sent|billingflow-auto-sent|automatically issue/);
   assert.match(html, /data-action="billingflow-archive"/);
   assert.doesNotMatch(html.match(/<nav[\s\S]*?<\/nav>/)[0], /Archive/);
-  const order = ['Waiting for parent payment', 'Waiting for centre review', 'Receipt issued', 'Final audit'].map(label => html.indexOf(label));
+  const order = ['待家長付款', '待中心核對', '已發收據', 'Final audit'].map(label => html.indexOf(label));
   assert.deepEqual([...order].sort((a, b) => a - b), order);
 });
 
@@ -78,7 +82,7 @@ test('filters, search and paging retain selection when opening and closing a rev
   assert.match(app.modal.body, /billingflow-review-columns/);
   assert.ok(app.modal.body.indexOf('billingflow-invoice') < app.modal.body.indexOf('billingflow-proof'));
   assert.match(app.modal.body, /Sample proof/);
-  assert.match(app.modal.footer, /Confirm payment and issue receipt/);
+  assert.match(app.modal.footer, /確認並發出收據/);
   app.ui.handleAction('billingflow-close');
   assert.equal(app.ui.render(), before);
   const input = app.nodes.get('#billingflow-search');
@@ -93,7 +97,7 @@ test('filters, search and paging retain selection when opening and closing a rev
   app.ui.reset();
 });
 
-test('confirm saves once, keeps the modal open on persistence failure and returns to the filtered page on success', () => {
+test('confirm saves once, keeps the modal open on persistence failure and returns to the filtered page on success', async () => {
   const app = harness();
   app.ui.onChange({ target: { id: 'billingflow-charge', value: 'recurring' } });
   app.ui.handleAction('billingflow-page', null, { dataset: { page: '2' } });
@@ -101,11 +105,13 @@ test('confirm saves once, keeps the modal open on persistence failure and return
   const receiptCount = app.state.receipts.length;
   app.failSave(true);
   app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-27');
+  await settle();
   assert.equal(app.calls.closed, 0);
   assert.equal(app.state.receipts.length, receiptCount);
   assert.match(app.nodes.get('#form-error').textContent, /storage is full/);
   app.failSave(false);
   app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-27');
+  await settle();
   assert.equal(app.calls.closed, 1);
   assert.equal(app.state.receipts.length, receiptCount + 1);
   assert.match(app.ui.render(), /26–27 of 27 invoices/);
@@ -114,12 +120,14 @@ test('confirm saves once, keeps the modal open on persistence failure and return
   assert.match(app.ui.render(), /INV-REVIEW-27/);
 });
 
-test('return requires a reason, retains it through failed save and moves the invoice to parent payment', () => {
+test('return requires a reason, retains it through failed save and moves the invoice to parent payment', async () => {
   const app = harness(stateWithQueues(1));
   app.ui.handleAction('billingflow-review', 'INV-REVIEW-00');
   app.ui.handleAction('billingflow-return', 'INV-REVIEW-00');
+  await settle();
   assert.match(app.modal.body, /id="billingflow-return-reason"/);
   app.ui.handleAction('billingflow-return', 'INV-REVIEW-00');
+  await settle();
   assert.equal(app.calls.saves, 0);
   assert.match(app.nodes.get('#form-error').textContent, /Enter a reason/);
   const input = app.nodes.get('#billingflow-return-reason');
@@ -127,11 +135,13 @@ test('return requires a reason, retains it through failed save and moves the inv
   app.ui.onInput({ target: input });
   app.failSave(true);
   app.ui.handleAction('billingflow-return', 'INV-REVIEW-00');
+  await settle();
   assert.equal(app.calls.closed, 0);
   assert.equal(input.value, 'Please include the full amount.');
   assert.equal(app.state.invoices[0].proofDisposition, undefined);
   app.failSave(false);
   app.ui.handleAction('billingflow-return', 'INV-REVIEW-00');
+  await settle();
   assert.equal(app.calls.closed, 1);
   assert.equal(app.state.invoices[0].proofReturnReason, 'Please include the full amount.');
   app.ui.handleAction('billingflow-stage', 'parent');
@@ -168,23 +178,17 @@ test('saved images and PDFs are shown while unsafe attachments cannot become pre
   assert.doesNotMatch(app.modal.body, /Sample proof/);
   invoice.proofReview.file = { mimeType: 'application/pdf', dataUrl: 'data:application/pdf;base64,JVBERg==', name: 'parent.pdf' };
   app.ui.handleAction('billingflow-review', invoice.id);
-  assert.match(app.modal.body, /<object data="data:application\/pdf;base64,JVBERg==" type="application\/pdf"/);
+  assert.match(app.modal.body, /id="billingflow-pdf-preview"[^>]+aria-label="Uploaded payment proof PDF"/);
+  assert.doesNotMatch(app.modal.body, /<object/);
   invoice.proofReview.file = { mimeType: 'image/png', dataUrl: 'javascript:alert(1)', name: '<unsafe>' };
   app.ui.handleAction('billingflow-review', invoice.id);
   assert.match(app.modal.body, /saved proof could not be displayed/);
   assert.doesNotMatch(app.modal.body, /javascript:|Sample proof|<unsafe>/);
 });
 
-test('Auto-sent saves transactionally, archive is separate, and final audit opens the existing workspace', () => {
-  const app = harness(stateWithQueues(1)), toggle = { id: 'billingflow-auto-sent', checked: false };
+test('archive is separate and final audit opens the existing workspace', () => {
+  const app = harness(stateWithQueues(1));
   assert.doesNotMatch(app.ui.render(), /data-action="billingflow-report"/);
-  app.failSave(true);
-  app.ui.onChange({ target: toggle });
-  assert.equal(toggle.checked, true);
-  assert.equal(app.state.billingSettings.autoSent, true);
-  app.failSave(false); toggle.checked = false;
-  app.ui.onChange({ target: toggle });
-  assert.equal(app.state.billingSettings.autoSent, false);
   app.ui.handleAction('billingflow-archive');
   assert.match(app.ui.render(), /INV-ARCHIVE/);
   assert.doesNotMatch(app.ui.render(), /INV-REVIEW-00/);
@@ -211,7 +215,7 @@ test('staff-only controls reject unauthorized and stale review actions without m
     assert.equal(app.ui.render(), '');
     app.ui.handleAction('billingflow-review', 'INV-REVIEW-00');
     app.ui.handleAction('billingflow-remind', 'INV-PARENT');
-    app.ui.onChange({ target: { id: 'billingflow-auto-sent', checked: false } });
+    app.ui.onChange({ target: { id: 'billingflow-charge', value: 'recurring' } });
     app.ui.onInput({ target: { id: 'billingflow-search', value: 'unauthorized' } });
     assert.throws(() => app.ui.openAudit(), /Admin view/);
   }
@@ -222,4 +226,101 @@ test('staff-only controls reject unauthorized and stale review actions without m
   app.ui.handleAction('billingflow-unknown');
   assert.match(app.calls.toasts.at(-1)[0], /Unknown billing action/);
   app.ui.reset();
+});
+
+
+test('saving blocks duplicate approval, closing and queue navigation until the result is known', async () => {
+  let release;
+  const transitions = [], app = harness(stateWithQueues(1), { waitForSave: () => new Promise(resolve => { release = resolve; }), onSavingChange: value => transitions.push(value) });
+  app.ui.handleAction('billingflow-review', 'INV-REVIEW-00');
+  app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00');
+  assert.equal(app.ui.isSaving(), true);
+  assert.equal(app.ui.canClose(), false);
+  app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00');
+  app.ui.handleAction('billingflow-close');
+  app.ui.onModalClosed();
+  app.ui.handleAction('billingflow-stage', 'issued');
+  assert.equal(app.ui.openAudit(), false);
+  assert.equal(app.ui.reset(), false);
+  assert.equal(app.calls.closed, 0);
+  assert.equal(app.calls.saves, 0);
+  assert.match(app.ui.render(), /data-id="review" aria-pressed="true"/);
+  release(); await settle();
+  assert.equal(app.calls.saves, 1);
+  assert.equal(app.calls.closed, 1);
+  assert.equal(app.ui.canClose(), true);
+  assert.deepEqual(transitions, [true, false]);
+});
+
+test('interrupted confirmation stays open, checks the persisted result and does not issue twice', async () => {
+  const app = harness(stateWithQueues(1)), receiptsBefore = app.state.receipts.length;
+  app.ui.handleAction('billingflow-review', 'INV-REVIEW-00');
+  app.ui.onChange({ target: { id: 'billingflow-save-outcome', value: 'uncertain' } });
+  app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00'); await settle();
+  assert.equal(app.calls.closed, 0);
+  assert.equal(app.state.receipts.length, receiptsBefore + 1);
+  assert.match(app.nodes.get('#form-error').textContent, /save result was not confirmed/);
+  assert.match(app.nodes.get('#billingflow-recovery').innerHTML, /Check saved result/);
+  app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00');
+  assert.equal(app.calls.saves, 1);
+  app.ui.handleAction('billingflow-recover');
+  assert.equal(app.calls.closed, 1);
+  assert.equal(app.state.receipts.length, receiptsBefore + 1);
+  assert.equal(app.calls.saves, 1);
+});
+
+test('demo failure retains evidence and a safe retry completes the same review', async () => {
+  const app = harness(stateWithQueues(1)), receiptsBefore = app.state.receipts.length;
+  app.ui.handleAction('billingflow-review', 'INV-REVIEW-00');
+  const before = app.modal.body;
+  app.ui.onChange({ target: { id: 'billingflow-save-outcome', value: 'failed' } });
+  app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00'); await settle();
+  assert.equal(app.calls.closed, 0);
+  assert.equal(app.calls.saves, 0);
+  assert.equal(app.modal.body, before);
+  assert.equal(app.state.receipts.length, receiptsBefore);
+  assert.match(app.nodes.get('#form-error').textContent, /save failed/);
+  app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00'); await settle();
+  assert.equal(app.calls.closed, 1);
+  assert.equal(app.state.receipts.length, receiptsBefore + 1);
+});
+
+test('invoice and proof have separate scroll regions and independent zoom levels', () => {
+  const app = harness(stateWithQueues(1));
+  app.ui.handleAction('billingflow-review', 'INV-REVIEW-00');
+  assert.equal((app.modal.body.match(/class="billingflow-document-scroll"/g) || []).length, 2);
+  assert.match(app.modal.body, /aria-label="Invoice document"/);
+  assert.match(app.modal.body, /aria-label="Payment proof document"/);
+  app.ui.handleAction('billingflow-zoom', null, { dataset: { document: 'proof', step: '25' } });
+  assert.equal(app.nodes.get('#billingflow-proof-document').style.zoom, 1.25);
+  assert.equal(app.nodes.get('#billingflow-proof-document').style.width, '125%');
+  assert.equal(app.nodes.get('#billingflow-proof-zoom').textContent, '125%');
+  assert.equal(app.nodes.get('#billingflow-invoice-document').style.zoom, undefined);
+  for (let n = 0; n < 8; n++) app.ui.handleAction('billingflow-zoom', null, { dataset: { document: 'proof', step: '25' } });
+  assert.equal(app.nodes.get('#billingflow-proof-document').style.zoom, 2);
+  app.ui.handleAction('billingflow-zoom', null, { dataset: { document: 'proof', step: 'reset' } });
+  assert.equal(app.nodes.get('#billingflow-proof-document').style.zoom, 1);
+});
+
+test('closing a review invalidates stale actions even when the host closes the modal', () => {
+  const app = harness(stateWithQueues(1));
+  app.ui.handleAction('billingflow-review', 'INV-REVIEW-00');
+  app.ui.onModalClosed();
+  app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00');
+  assert.equal(app.calls.saves, 0);
+  assert.equal(app.ui.isSaving(), false);
+});
+
+
+test('a rejected save response is recovered from persisted state instead of issuing a second receipt', async () => {
+  const app = harness(stateWithQueues(1), { rejectAfterSave: true }), receiptsBefore = app.state.receipts.length;
+  app.ui.handleAction('billingflow-review', 'INV-REVIEW-00');
+  app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00'); await settle();
+  assert.equal(app.calls.closed, 0);
+  assert.equal(app.ui.isSaving(), false);
+  assert.match(app.nodes.get('#billingflow-recovery').innerHTML, /Check saved result/);
+  app.ui.handleAction('billingflow-recover');
+  assert.equal(app.calls.closed, 1);
+  assert.equal(app.state.receipts.length, receiptsBefore + 1);
+  assert.equal(app.calls.saves, 1);
 });

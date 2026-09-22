@@ -49,7 +49,9 @@ export function getSchedulePeriods(state, studentId) {
   }).sort((a, b) => a.start.localeCompare(b.start));
 }
 
-function closureOn(state, date) {
+function closureOn(state, date, teachingCycle = false) {
+  const weekStart = addDays(date, 1 - weekdayOf(date));
+  if (teachingCycle && (state.billingCalendar?.closedWeeks || []).some(closed => validDate(closed) && addDays(closed, 1 - weekdayOf(closed)) === weekStart)) return { start: weekStart, end: addDays(weekStart, 6), closed: true };
   return [...(state.centreHolidays || []), ...(state.holidays || []), ...(state.closures || [])].find(item => {
     if (typeof item === 'string') return item === date;
     if (!item || item.closed === false || item.status === 'cancelled') return false;
@@ -59,7 +61,7 @@ function closureOn(state, date) {
 function datesForRule(state, period, rule, start = period.start) {
   const lessons = [];
   for (let date = start > period.start ? start : period.start; date <= period.end; date = addDays(date, 1)) {
-    if (weekdayOf(date) === rule.weekday && !closureOn(state, date)) lessons.push({ date, start: rule.start, duration: rule.duration, tutor: rule.tutor });
+    if (weekdayOf(date) === rule.weekday && !closureOn(state, date, Boolean(period.teachingCycle))) lessons.push({ date, start: rule.start, duration: rule.duration, tutor: rule.tutor });
   }
   return lessons;
 }
@@ -72,7 +74,7 @@ function invoicePlan(state, invoice, period, rule) {
   if (!explicit) {
     for (let date = period.start; date <= period.end; date = addDays(date, 1)) {
       const datedRule = getRegularSchedule(state, invoice.studentId, date);
-      if (weekdayOf(date) === datedRule.weekday && !closureOn(state, date)) scheduled.push({ date, start: datedRule.start, duration: datedRule.duration, tutor: datedRule.tutor });
+      if (weekdayOf(date) === datedRule.weekday && !closureOn(state, date, Boolean(invoice.teachingCycle))) scheduled.push({ date, start: datedRule.start, duration: datedRule.duration, tutor: datedRule.tutor });
     }
   }
   const dates = explicit ? explicit.map(item => {
@@ -198,6 +200,9 @@ export function previewRegularScheduleChange(state, requested) {
   if (latestRule?.effectiveDate && input.effectiveDate < latestRule.effectiveDate) throw new Error('This change must start on or after the last regular schedule change.');
   const newRule = { weekday: input.weekday, start: input.start, duration: oldRule.duration, tutor: input.tutor, effectiveDate: input.effectiveDate, ...(temporary ? { endDate: input.endDate, temporary: true } : {}) };
   const invoice = state.invoices.find(item => item.id === input.invoiceId), plan = invoicePlan(state, invoice, period, oldRule), beforeLessons = plan.lessons;
+  // The new billing calendar governs teaching-week invoices. Historical paid
+  // block documents retain their original dates and existing closure rules.
+  period.teachingCycle = invoice.teachingCycle;
   const conflicts = [];
   if (!Number.isInteger(plan.expected) || plan.expected < 0 || !Number.isInteger(plan.makeUpLessonCount) || plan.makeUpLessonCount < 0 || beforeLessons.length + plan.makeUpLessonCount !== plan.expected) conflicts.push(blocking('plan', 'The receipt lesson count cannot be mapped to this calendar. Record its exact lesson dates before changing the regular schedule.'));
   if (beforeLessons.some(lesson => !validDate(lesson.date) || lesson.date < period.start || lesson.date > period.end || !Number.isFinite(lesson.start) || ![30, 60, 90].includes(lesson.duration)) || new Set(beforeLessons.map(key)).size !== beforeLessons.length) conflicts.push(blocking('plan', 'The existing invoice lesson plan contains invalid or duplicate dates.'));
@@ -230,7 +235,7 @@ export function previewRegularScheduleChange(state, requested) {
     const explicitlyPreserved = lesson.bookingId && preserved.some(item => item.bookingId === lesson.bookingId);
     const existing = trial.bookings.find(booking => booking.studentId === input.studentId && (explicitlyPreserved ? booking.id === lesson.bookingId : activeBooking(booking) && key(booking) === key(lesson)));
     if (existing && explicitlyPreserved && (activeBooking(existing) || bookingException(existing))) continue;
-    const error = closureOn(state, lesson.date) ? 'The centre is closed on this date.' : validateSlot(trial, { ...lesson, studentId: input.studentId });
+    const error = closureOn(state, lesson.date, Boolean(invoice.teachingCycle)) ? 'The centre is closed on this date.' : validateSlot(trial, { ...lesson, studentId: input.studentId });
     if (error) conflicts.push(blocking('schedule', error, lesson.date));
     trial.bookings.push({ ...lesson, studentId: input.studentId, status: 'scheduled' });
   }
@@ -276,7 +281,7 @@ export function applyRegularScheduleChange(state, input, decisions = {}) {
     if (recorded && (activeBooking(recorded) || bookingException(recorded))) continue;
     const existing = trial.bookings.find(item => item.studentId === preview.input.studentId && activeBooking(item) && !bookingException(item) && key(item) === key(lesson));
     const booking = existing || { id: uid('lesson'), ...fields(lesson), studentId: preview.input.studentId, status: 'scheduled', attendance: 'unmarked', note: '' };
-    const error = closureOn(trial, lesson.date) ? 'The centre is closed on this date.' : validateSlot(trial, booking, existing ? [existing.id] : []);
+    const error = closureOn(trial, lesson.date, Boolean(invoice.teachingCycle)) ? 'The centre is closed on this date.' : validateSlot(trial, booking, existing ? [existing.id] : []);
     if (error) throw new Error(lesson.date + ': ' + error);
     Object.assign(booking, { invoiceId: invoice.id, regularScheduleChangeId: changeId });
     if (!existing) { trial.bookings.push(booking); created.push(booking.id); }

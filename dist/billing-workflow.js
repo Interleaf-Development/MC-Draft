@@ -1,4 +1,5 @@
 import { TODAY, allStudents, billingPayerName, issueReceipt, record, uid } from './model.js';
+import { normalizeTeachingBilling, prepareFirstEnrolmentActivation, activateFirstEnrolment } from './billing-cycles.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const studentsById = new Map(allStudents.map(student => [student.id, student]));
@@ -159,6 +160,7 @@ export function confirmInvoicePayment(state, id, { now } = {}) {
   if (existing) return { invoice, receipt: existing, createdReceipt: false };
   if (billingStage(state, invoice) !== 'review') throw new Error('Review a current payment proof before confirming payment.');
   const clock = instant(now);
+  const activation = prepareFirstEnrolmentActivation(state, invoice);
   state.receipts ??= [];
   state.audit ??= [];
   const usedIds = new Set(state.receipts.map(receipt => receipt.id));
@@ -178,9 +180,11 @@ export function confirmInvoicePayment(state, id, { now } = {}) {
     invoice.receiptId = candidate;
     if (state.audit[0]?.text?.startsWith('Issued ' + originalId + ' ')) state.audit[0].text = state.audit[0].text.replace('Issued ' + originalId + ' ', 'Issued ' + candidate + ' ');
   }
-  Object.assign(receipt, { documentType: 'receipt', issuedAt: clock.timestamp, issuedBy: 'Centre review' });
+  Object.assign(receipt, { documentType: 'receipt', issuedAt: clock.timestamp, sentAt: clock.timestamp, issuedBy: 'Centre review', deliveryMode: 'demo' });
   Object.assign(invoice, { proofDisposition: 'confirmed', proofConfirmedAt: clock.timestamp });
-  return { invoice, receipt, createdReceipt: true };
+  const activatedEnrolment = activateFirstEnrolment(state, invoice, activation, { now: clock.date });
+  if (invoice.chargeType === 'assessment' && state.assessment?.studentId === invoice.studentId && state.assessment.assessmentDate === invoice.assessmentDate) state.assessment.paid = true;
+  return { invoice, receipt, createdReceipt: true, activatedEnrolment };
 }
 
 export function returnInvoiceProof(state, id, { reason, now } = {}) {
@@ -227,8 +231,11 @@ export function remindInvoiceParent(state, id, { now } = {}) {
 export function setBillingAutoSent(state, enabled) {
   if (typeof enabled !== 'boolean') throw new Error('Choose whether automatic sending is enabled.');
   state.billingSettings ??= {};
-  state.billingSettings.autoSent = enabled;
-  return enabled;
+  // Kept as a compatibility adapter for old saved views. All new proofs need
+  // staff approval; a legacy toggle must never silently bypass that decision.
+  state.billingSettings.autoSent = false;
+  state.billingSettings.approvalRequired = true;
+  return false;
 }
 
 function seedWorkflowExamples(state) {
@@ -259,11 +266,13 @@ function seedWorkflowExamples(state) {
 
 export function normalizeBillingWorkflow(state) {
   state.billingSettings ??= {};
-  state.billingSettings.autoSent ??= true;
+  state.billingSettings.autoSent = false;
+  state.billingSettings.approvalRequired = true;
   state.invoices ??= [];
   state.receipts ??= [];
   state.billingReminderEvents ??= [];
   if (!state.billingWorkflowVersion) seedWorkflowExamples(state);
   state.billingWorkflowVersion = Math.max(1, Number(state.billingWorkflowVersion) || 0);
+  normalizeTeachingBilling(state);
   return state;
 }

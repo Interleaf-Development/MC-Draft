@@ -9,12 +9,12 @@ import { isPaymentAcknowledgement } from '../dist/receipt-document.js';
 const setup = () => normalizeBillingWorkflow(normalizeBillingAutomation(seed()));
 const options = { scenario: 'pass', reference: 'FPS 910277', paymentDate: '2026-09-30', payerName: 'Elaine Chan', paymentMethod: 'fps' };
 
-test('Auto-sent and manual review issue one receipt without creating a bank match', () => {
+test('staff approval is required with either legacy Auto-sent setting', () => {
   for (const autoSent of [true, false]) {
     const state = setup(); setBillingAutoSent(state, autoSent);
     const result = submitPaymentProof(state, 'INV-1024', options);
-    assert.equal(billingStage(state, result.invoice), autoSent ? 'issued' : 'review');
-    assert.equal(Boolean(result.receipt), autoSent);
+    assert.equal(billingStage(state, result.invoice), 'review');
+    assert.equal(result.receipt, null);
     const savedProof = clone(result.review);
     if (!autoSent) {
       setBillingAutoSent(state, true);
@@ -59,7 +59,8 @@ test('manually accepted uncertain proof cannot be reused to auto-issue another r
 
 test('final audit links a new receipt without creating a second parent document', () => {
   const state = setup();
-  const { receipt } = submitPaymentProof(state, 'INV-1024', options);
+  submitPaymentProof(state, 'INV-1024', options);
+  const { receipt } = confirmInvoicePayment(state, 'INV-1024');
   const count = state.receipts.length, issued = receipt.issuedAt;
   importBankStatement(state, { name: 'Payment audit.csv', rows: [{ transactionId: 'QA-910277', date: '2026-09-30', amount: 2000, reference: 'FPS 910277', payer: 'Elaine Chan' }] });
   const reconciled = state.receipts.find(r => r.id === receipt.id);

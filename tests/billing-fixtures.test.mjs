@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { TODAY, students, seed, seedCentreVolume, seedBillingLedger, BILLING_FIXTURE_VERSION, clone } from '../dist/model.js';
 import { normalizeBillingAutomation, demoStatementRows, importBankStatement, submitPaymentProof, previewPaymentProof } from '../dist/billing-automation.js';
 
+import { confirmInvoicePayment } from '../dist/billing-workflow.js';
+
 const fresh = () => normalizeBillingAutomation(seedCentreVolume(seed()));
 function assertLedger(state) {
   for (const key of ['invoices', 'receipts', 'bankTransactions']) assert.equal(new Set(state[key].map(item => item.id)).size, state[key].length, 'Unique ' + key);
@@ -56,6 +58,7 @@ test('700-student ledger is mostly paid, chronologically coherent, and has few a
 test('sample import adds new real ledger rows and leaves just the deliberate reconciliation exceptions', () => {
   const state = fresh();
   submitPaymentProof(state, 'INV-1024', { scenario: 'pass', reference: '910277', paymentDate: TODAY });
+  confirmInvoicePayment(state, 'INV-1024');
   const rows = demoStatementRows(state), batch = importBankStatement(state, { name: 'Demo statement', rows });
   assert.equal(batch.added, 8); assert.equal(batch.duplicates, 1); assert.equal(batch.ignored, 0); assert.equal(batch.addedDebits, 1);
   assert.equal(batch.counts.autoMatched, 3); assert.equal(batch.counts.ambiguous, 1); assert.equal(batch.counts.amountMismatch, 1); assert.equal(batch.counts.missing, 0);

@@ -564,3 +564,6 @@
 .makeup-strip-date { margin-left: auto; padding-left: 6px; flex-shrink: 0; color: var(--muted); font-size: 11px; }
 button.makeup-strip:hover { background: #f0f3f6; border-color: #bbc5d2; }
 button.makeup-strip:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+.makeup-strip[draggable="true"] { cursor: grab; }
+.makeup-strip[draggable="true"]:active { cursor: grabbing; }

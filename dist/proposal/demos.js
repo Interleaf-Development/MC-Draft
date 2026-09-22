@@ -29,9 +29,22 @@ const scenes = {
 const dimensions = {admin:[1440,1000],teacher:[1440,1000],student:[1024,1366],parent:[390,844]};
 const selection = new Map();
 const frames = new Map();
-let active = null, initialised = false, phase = 0;
+let active = null, initialised = false, phase = 0, notify = () => {};
 const worksheetStudents = new Map();
 const $ = selector => document.querySelector(selector);
+
+export function demoIsSaving() {
+  return [...frames.values()].some(entry=>entry.saving);
+}
+export function demoNavigationBlocked() {
+  if (!demoIsSaving()) return false;
+  notify(t('Saving payment review. Please wait before leaving this view.','正在儲存付款核對，請稍候才離開目前畫面。'));
+  return true;
+}
+function syncSavingFrames() {
+  const saving=demoIsSaving();
+  for(const entry of frames.values())entry.frame.inert=saving&&!entry.saving;
+}
 
 function sourceURL(view) {
   const base = view.branch === 'hh' ? '/hh/' : '/';
@@ -79,10 +92,12 @@ function send(entry,type,details={}) {
   entry.frame.contentWindow.postMessage({type,...details},location.origin);
 }
 function setActive(entry) {
-  if (active===entry) return;
+  if (active===entry) return true;
+  if (demoIsSaving()) return false;
   if (active?.ready) send(active,'mc-proposal:deactivate');
   active=entry;
   if (active?.ready) send(active,'mc-proposal:activate');
+  return true;
 }
 function mount(id, key) {
   const chosen=key||selection.get(id)||scenes[id][0];
@@ -105,8 +120,9 @@ function mount(id, key) {
   frame.title=t(`MathConcept demo — ${view.label}`,`MathConcept 示範 — ${view.label}`);
   frame.setAttribute('allow','fullscreen');
   frame.loading='eager';
-  const entry={id,box,stage,frame,view,ready:false,pendingView:null};
+  const entry={id,box,stage,frame,view,ready:false,pendingView:null,saving:false};
   frames.set(id,entry);
+  syncSavingFrames();
   frame.src=sourceURL(view);
   stage.append(frame);
   sizeFrame(entry);
@@ -121,6 +137,7 @@ function mount(id, key) {
 }
 function choose(id,key) {
   if (!scenes[id]?.includes(key)) return;
+  if (demoNavigationBlocked()) return;
   const view=selectedView(key);
   const expanded=frames.get(id)?.box.classList.contains('is-expanded');
   selection.set(id,key);
@@ -133,12 +150,14 @@ function choose(id,key) {
   if(expanded&&!entry.box.classList.contains('is-expanded'))expand(true);
 }
 function navigateFrame(entry,view) {
+  if(demoIsSaving()){entry.pendingView=view;return;}
   send(entry,'mc-proposal:navigate',{role:view.role,page:view.page,...(view.studentId?{studentId:view.studentId}:{})});
 }
 function expand(value) {
   if (!active) return;
   const entry=active;
   const enabled=value??!entry.box.classList.contains('is-expanded');
+  if (!enabled && demoNavigationBlocked()) return;
   entry.box.classList.toggle('is-expanded',enabled);
   document.body.classList.toggle('demo-expanded',enabled);
   entry.box.setAttribute('role',enabled?'dialog':'region');
@@ -152,7 +171,7 @@ function expand(value) {
   button.focus({preventScroll:true});
 }
 export function activateDemo(id) {
-  if (!initialised || document.body.classList.contains('demo-expanded')) return;
+  if (!initialised || demoIsSaving() || document.body.classList.contains('demo-expanded')) return;
   const entry=scenes[id]?mount(id):null;
   setActive(entry);
   if(entry)sizeFrame(entry);
@@ -191,7 +210,8 @@ function renderRollout() {
   const item=phases[phase];
   $('#demo-rollout').innerHTML=`<div class="rollout-interactive"><div class="phase-track" role="group" aria-label="${t('Delivery phases','交付階段')}">${phases.map((p,i)=>`<button type="button" class="${phase===i?'active':''}" data-phase="${i}" aria-pressed="${phase===i}"><span>${String(i+1).padStart(2,'0')}</span><strong>${p.label}</strong></button>`).join('')}</div><div class="phase-content"><div><h3>${item.title}</h3><p>${item.body}</p></div><ul>${item.items.map(text=>`<li>${text}</li>`).join('')}</ul><div class="phase-gate"><span>${t('Completion requirement','完成條件')}</span><strong>${item.gate}</strong></div></div></div><div class="feature-table-wrap rollout-print"><table class="feature-table"><thead><tr><th scope="col">${t('Phase','階段')}</th><th scope="col">${t('Activities','工作內容')}</th><th scope="col">${t('Completion requirement','完成條件')}</th></tr></thead><tbody>${phases.map((item,i)=>`<tr><th scope="row">${i+1}. ${item.label}</th><td><p>${item.body}</p><ul class="plain-list">${item.items.map(text=>`<li>${text}</li>`).join('')}</ul></td><td>${item.gate}</td></tr>`).join('')}</tbody></table></div>`;
 }
-export function initDemos() {
+export function initDemos(options = {}) {
+  if (typeof options.notify === 'function') notify=options.notify;
   for (const id of Object.keys(scenes)) {const host=$('#demo-'+id);if(host)host.innerHTML=shell(id);}
   renderRollout();initialised=true;
   document.addEventListener('click',event=>{
@@ -199,10 +219,14 @@ export function initDemos() {
     const view=event.target.closest('[data-demo-view]');
     if (view&&box) choose(box.dataset.liveDemo,view.dataset.demoView);
     if (event.target.closest('[data-demo-retry]')&&box) {
+      if (demoNavigationBlocked()) return;
       const entry=frames.get(box.dataset.liveDemo);
       if(entry){entry.ready=false;entry.frame.src=sourceURL(entry.view);}
     }
-    if (event.target.closest('[data-demo-expand]')&&box) {setActive(mount(box.dataset.liveDemo));expand();}
+    if (event.target.closest('[data-demo-expand]')&&box) {
+      if(demoIsSaving()&&active?.id!==box.dataset.liveDemo){demoNavigationBlocked();return;}
+      setActive(mount(box.dataset.liveDemo));expand();
+    }
     const phaseButton=event.target.closest('[data-phase]');
     if(phaseButton){phase=Number(phaseButton.dataset.phase);renderRollout();$('#demo-rollout [data-phase="'+phase+'"]').focus({preventScroll:true});}
   });
@@ -211,6 +235,16 @@ export function initDemos() {
     const entry=[...frames.values()].find(item=>event.source===item.frame.contentWindow);
     if(!entry)return;
     const data=event.data;
+    if(data?.type==='mc-proposal:saving'){
+      if(typeof data.saving!=='boolean')return;
+      if(data.saving&&!demoIsSaving())setActive(entry);
+      entry.saving=data.saving;
+      syncSavingFrames();
+      if(!demoIsSaving())for(const pending of frames.values())if(pending.ready&&pending.pendingView){
+        const view=pending.pendingView;pending.pendingView=null;navigateFrame(pending,view);
+      }
+      return;
+    }
     if(data?.type==='mc-proposal:focused'){setActive(entry);return;}
     if(!data||!['mc-proposal:ready','mc-proposal:state'].includes(data.type)||!Object.hasOwn(dimensions,data.role))return;
     if(data.type==='mc-proposal:ready'){
@@ -225,6 +259,11 @@ export function initDemos() {
     syncControls(entry);sizeFrame(entry);
   });
   window.addEventListener('resize',()=>{for(const entry of frames.values())sizeFrame(entry);});
+  window.addEventListener('beforeunload',event=>{
+    if(!demoIsSaving())return;
+    event.preventDefault();
+    event.returnValue='';
+  });
   window.addEventListener('keydown',event=>{
     if(event.key==='Escape'&&active?.box.classList.contains('is-expanded')){event.preventDefault();expand(false);}
   });

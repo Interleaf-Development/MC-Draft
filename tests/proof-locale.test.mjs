@@ -98,7 +98,7 @@ test('every simulated Parent result is translated without rewriting stored proof
   }
 });
 
-test('Parent submission keeps references and uploaded names intact, and exposes the receipt', t => {
+test('Parent submission keeps references and uploaded names intact while awaiting staff approval', t => {
   const { state, ui, fields, current } = setup(t);
   ui.openSubmit('INV-1024'); ui.handleAction('proof-sample');
   fields.get('proof-reference').value = 'USER-REFERENCE 876543';
@@ -106,14 +106,15 @@ test('Parent submission keeps references and uploaded names intact, and exposes 
   const invoice = state.invoices.find(item => item.id === 'INV-1024');
   assert.equal(invoice.proofReview.extracted.recipient, centre.name);
   assert.equal(invoice.proofReference, 'USER-REFERENCE 876543');
-  assert.ok(invoice.receiptId);
-  assert.match(current.body, /已發出收據/);
-  assert.match(current.footer, /查看收據/);
-  assert.equal(current.toast, '付款證明已獲接納，收據已自動發出。');
+  assert.equal(invoice.receiptId, null);
+  assert.match(current.body, /付款證明已提交，待中心覆核/);
+  assert.doesNotMatch(current.footer, /查看收據|重新上載證明/);
+  assert.equal(current.toast, '付款證明已提交，待中心覆核。');
   invoice.proofReview.file = { name: 'Payment proof', mimeType: 'application/pdf', size: 3, dataUrl: 'data:application/pdf;base64,YWJj' };
   const before = clone(state);
   ui.openProof(invoice.id);
-  assert.match(current.body, /download="Payment proof"/);
+  assert.match(current.body, /id="proof-pdf-preview"/);
+  assert.doesNotMatch(current.body, /<object/);
   assert.match(current.body, /<span>Payment proof<\/span>/);
   assert.match(current.body, /aria-label="已選擇的付款證明 PDF"/);
   assert.deepEqual(state, before);
@@ -139,12 +140,12 @@ test('staff saved proof keeps original evidence and consequential results outsid
     const visible = current.body.replace(disclosure, '');
     assert.match(visible, /src="data:image\/png;base64,YWJj"/);
     assert.match(visible, /Parent transfer\.png/);
-    assert.match(visible, new RegExp(scenario === 'pass' ? 'Receipt issued' : scenario === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review'));
+    assert.match(visible, new RegExp(scenario === 'pass' ? 'Proof submitted for centre review' : scenario === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review'));
     assert.deepEqual(state, before, scenario);
   }
   invoice.proofReview.file = { name: 'Parent transfer.pdf', mimeType: 'application/pdf', size: 3, dataUrl: 'data:application/pdf;base64,YWJj' };
   ui.openProof(invoice.id);
-  assert.match(current.body.split('<details')[0], /<object[^>]+data="data:application\/pdf;base64,YWJj"/);
+  assert.match(current.body.split('<details')[0], /id="proof-pdf-preview"[^>]+aria-label="Selected payment proof PDF"/);
 });
 
 
@@ -165,9 +166,8 @@ test('Parent account name, method and transaction date persist independently fro
   assert.equal(invoice.paymentMethod, 'bank-transfer');
   assert.equal(invoice.claimedPaymentDate, '2026-09-29');
   assert.equal(invoice.proofDate, TODAY);
-  assert.ok(invoice.receiptId);
-  assert.equal(state.receipts.find(item => item.id === invoice.receiptId).bankId, null);
-  assert.match(current.body, /銀行入賬會由中心另行核對/);
+  assert.equal(invoice.receiptId, null);
+  assert.match(current.body, /中心會覆核付款證明並發出收據/);
 });
 
 test('Parent cannot submit a proof with an empty paying-account name', t => {
@@ -204,4 +204,15 @@ test('returned parent proof shows the staff reason and says no second payment is
   ui.openSubmit('INV-1024');
   assert.match(current.body, /請提供完整截圖。/);
   assert.match(current.body, /不必再次付款/);
+});
+
+
+test('a submitted proof stays available for review without offering another upload', t => {
+  const { state, ui, current } = setup(t);
+  ui.openSubmit('INV-1024'); ui.handleAction('proof-sample'); ui.handleAction('proof-submit', 'INV-1024');
+  const before = clone(state);
+  ui.openSubmit('INV-1024');
+  assert.match(current.body, /付款證明已提交，待中心覆核/);
+  assert.doesNotMatch(current.footer, /proof-replace|proof-submit/);
+  assert.deepEqual(state, before);
 });

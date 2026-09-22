@@ -1,6 +1,6 @@
 import { TODAY, centre, allStudents as students, uid, matchReceipt, record, seedBillingLedger, billingPayerName } from './model.js';
 
-import { billingStage, demoNow, invoiceReceipt, confirmInvoicePayment } from './billing-workflow.js';
+import { billingStage, demoNow, invoiceReceipt } from './billing-workflow.js';
 
 export const MATCH_DATE_WINDOW_DAYS = 7;
 export const PROOF_SCENARIOS = [
@@ -131,13 +131,8 @@ export function submitPaymentProof(state, invoiceId, options) {
   const history = { ...review };
   if (history.file) { const { dataUrl, ...metadata } = history.file; history.file = metadata; }
   invoice.proofReviewHistory.push(history);
-  const receipt = review.status === 'passed' && state.billingSettings?.autoSent !== false ? confirmInvoicePayment(state, invoiceId, { now }).receipt : null;
-  if (receipt) {
-    Object.assign(receipt, { documentType: 'receipt', issuedAt: now, sentAt: now, issuedBy: 'Auto-sent', deliveryMode: 'demo' });
-    invoice.proofDisposition = 'confirmed';
-  }
   record(state, 'Demonstration proof check for ' + invoiceId + ': ' + review.status, 'Payment proof demo');
-  return { invoice, review, receipt, createdReceipt: Boolean(receipt) };
+  return { invoice, review, receipt: null, createdReceipt: false };
 }
 
 function evidence(state, receipt, bank) {

@@ -34,6 +34,8 @@ function renderer() {
   const t = (en, zh) => zh ?? familyText(en, ui.role);
   const context = vm.createContext({
     ...model, makeCheckInPass, qrSvg, state, ui, document, esc, t,
+    billingWorkflowUI: { isSaving: () => false, onModalClosed() {} },
+    proofUI: { onModalClosed() {} },
     dateLabel: (value, options) => familyDate(value, ui.role, options),
     persist: () => { persisted++; },
     icon: () => '<svg aria-hidden="true"></svg>',

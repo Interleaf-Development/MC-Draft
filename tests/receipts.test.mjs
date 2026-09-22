@@ -4,6 +4,8 @@ import { TODAY, seed, seedCentreVolume, money, matchReceipt } from '../dist/mode
 import { normalizeBillingAutomation, submitPaymentProof, importBankStatement } from '../dist/billing-automation.js';
 import { receiptPeriod, receiptRegister, receiptBankStatus, hasReceiptProof, createReceiptsUI } from '../dist/receipts-ui.js';
 
+import { confirmInvoicePayment } from '../dist/billing-workflow.js';
+
 const fresh = () => normalizeBillingAutomation(seedCentreVolume(seed()));
 const createUI = state => {
   const calls = { renders: 0, receipts: [], proofs: [] };
@@ -15,6 +17,7 @@ const singleReceipt = () => {
   state.invoices = state.invoices.filter(invoice => invoice.id === 'INV-1024');
   state.receipts = []; state.bankTransactions = [];
   submitPaymentProof(state, 'INV-1024', { scenario: 'pass', reference: 'FPS RECEIPTS-TEST', paymentDate: TODAY });
+  confirmInvoicePayment(state, 'INV-1024');
   return state;
 };
 const deposit = overrides => ({ id: 'BANK-RECEIPTS', date: '2026-09-29', amount: 2000, reference: 'FPS RECEIPTS-TEST', payer: 'Elaine Chan', direction: 'credit', ...overrides });
@@ -78,10 +81,11 @@ test('busy week contains every receipt once across seven columns, without hiding
   assert.equal(JSON.stringify(state), before, 'Reading the receipt register never modifies fixture records');
 });
 
-test('new automatically issued receipt appears in today’s group with its saved payment proof', () => {
+test('new staff-approved receipt appears in today’s group with its saved payment proof', () => {
   const state = fresh();
   assert.equal(receiptRegister(state, { query: 'Chloe Chan' }).total, 0);
   submitPaymentProof(state, 'INV-1024', { scenario: 'pass', reference: 'FPS RECEIPTS-TEST', paymentDate: TODAY });
+  confirmInvoicePayment(state, 'INV-1024');
   const result = receiptRegister(state, { query: 'Chloe Chan' });
   assert.equal(result.total, 1);
   assert.deepEqual(result.groups.find(group => group.date === TODAY).rows.map(row => row.receipt.id), ['R-1024']);

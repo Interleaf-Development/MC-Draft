@@ -14,7 +14,8 @@ test('normalization preserves saved settings and invoice records, and seeds only
   normalizeBillingWorkflow(state);
   assert.equal(state.billingSettings.autoSent, false);
   assert.equal(state.billingSettings.otherSetting, 'keep');
-  assert.deepEqual(state.invoices.slice(0, original.length), original);
+  assert.deepEqual(state.invoices.slice(0, original.length).filter(invoice => invoice.receiptId), original.filter(invoice => invoice.receiptId), 'Historical documents are preserved');
+  assert.equal(state.invoices[0].teachingWeeks, 4);
   assert.equal(state.invoices.length, original.length + 6);
   assert.equal(state.receipts.length, receiptCount + 1);
   const examples = state.invoices.filter(item => item.workflowFixture);
@@ -27,7 +28,9 @@ test('normalization preserves saved settings and invoice records, and seeds only
   const actual = stateFor([invoice('ACTUAL-1', { studentId: 'twn-real-student' })]);
   normalizeBillingWorkflow(actual);
   assert.equal(actual.invoices.length, 1);
-  assert.equal(actual.billingSettings.autoSent, true);
+  assert.equal(actual.billingSettings.autoSent, false);
+  setBillingAutoSent(actual, true);
+  assert.equal(actual.billingSettings.autoSent, false, 'The current policy requires staff approval');
   setBillingAutoSent(actual, false);
   normalizeBillingWorkflow(actual);
   assert.equal(actual.billingSettings.autoSent, false);

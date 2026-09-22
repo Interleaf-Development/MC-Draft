@@ -42,6 +42,7 @@ class Element {
     if (selector.includes(',')) return selector.split(',').some(part => this.matches(part.trim()));
     if (selector === '[data-slot]') return 'slot' in this.dataset;
     if (selector === '[data-leave-dropzone]') return 'leaveDropzone' in this.dataset;
+    if (selector === '.makeup-strip[draggable=true]') return this.classes.has('makeup-strip') && this.draggable;
     if (selector === '.booking-chip[draggable=true]') return this.classes.has('booking-chip') && this.draggable;
     if (selector === '.timetable:not(.drag-source-table)') return this.classes.has('timetable') && !this.classes.has('drag-source-table');
     if (selector === '.timetable:not(.drag-source-table) [data-slot]') return 'slot' in this.dataset && Boolean(this.parent?.closest('.timetable:not(.drag-source-table)'));
@@ -113,11 +114,11 @@ function setup({ role = 'admin', booking = {}, scheduleTutor = 'chan' } = {}) {
     createEdgePager: options => createEdgePager({ ...options, setTimer: clock.setTimer, clearTimer: clock.clearTimer }),
     moveTo: (id, destination) => moves.push({ id, destination: { ...destination } }),
     parkBookingForMakeup: (...args) => { parked.push(args); return { id: 'new-makeup', studentId: 'chloe' }; },
-    change: (apply, message, undoable) => { changes.push({ message, undoable }); apply(); return true; },
+    change: (apply, message, undoable) => { changes.push({ message, undoable }); try { apply(); return true; } catch (error) { toasts.push([error.message]); return false; } },
     identity: () => ({ name: 'Koko Ko' }), collection: name => { assert.equal(name, 'makeups'); return queue; },
     toast: (...args) => toasts.push(args), render: () => renders.push(true)
   });
-  vm.runInContext('let scheduleDrag=null;\n' + ['shiftedWeek', 'slotBookings', 'calendarCell', 'timetable', 'scheduleDragBounds', 'scheduleDragEdge', 'pageDraggedWeek', 'finishScheduleDrag', 'canParkScheduleBooking', 'parkScheduleBooking'].map(functionSource).join('\n') + '\nconst scheduleEdgePager=createEdgePager({onPage:pageDraggedWeek,onHint:showScheduleDragHint});\n' + source.slice(listenerStart, listenerEnd), context);
+  vm.runInContext('let scheduleDrag=null;\n' + ['shiftedWeek', 'slotBookings', 'calendarCell', 'timetable', 'scheduleDragBounds', 'scheduleDragEdge', 'pageDraggedWeek', 'finishScheduleDrag', 'canParkScheduleBooking', 'parkScheduleBooking', 'canArrangeScheduleMakeup', 'arrangeMakeupOnCalendar'].map(functionSource).join('\n') + '\nconst scheduleEdgePager=createEdgePager({onPage:pageDraggedWeek,onHint:showScheduleDragHint});\n' + source.slice(listenerStart, listenerEnd), context);
   const original = gridFromHTML(context.timetable(model.WEEK, 'chan', { 960: 176 })); scroll.append(original);
   const originalSlot = original.children.find(node => node.dataset.date === model.TODAY && node.dataset.start === '960');
   const chip = new Element('booking-chip', { id: 'drag-lesson' }); chip.draggable = true; originalSlot.append(chip);
@@ -361,4 +362,67 @@ test('dragenter does not accept the Leave bin for external, attended, inactive o
   const entered = external.emit('dragenter', { target: external.bin });
   assert.equal(entered.prevented, false); assert.equal(external.bin.classList.contains('drag-over'), false);
   external.emit('drop', { target: external.bin }); assert.deepEqual(external.parked, []);
+});
+
+function pendingStrip(app, overrides = {}) {
+  const source = app.state.bookings[0]; source.status = 'absent';
+  const makeup = { id: 'pending-drag', studentId: source.studentId, sourceId: source.id, minutes: 60, used: 0, expiry: '2026-11-30', ...overrides };
+  app.state.makeups = [makeup];
+  const strip = new Element('makeup-strip', { id: makeup.id, makeupId: makeup.id }); strip.draggable = true; app.body.append(strip);
+  return { makeup, strip };
+}
+
+test('admin and teacher can drag a pending make-up onto the calendar, consuming its time once', () => {
+  for (const role of ['admin', 'teacher']) {
+    const app = setup({ role }), { makeup, strip } = pendingStrip(app);
+    const slot = app.visible().children.find(node => node.dataset.date === model.TODAY && node.dataset.start === '1020');
+    app.emit('dragstart', { target: strip });
+    assert.equal(app.drag().kind, 'makeup');
+    assert.equal(app.emit('dragover', { target: slot }).prevented, true);
+    app.emit('drop', { target: slot }); app.emit('drop', { target: slot });
+    assert.equal(makeup.used, 60);
+    assert.equal(app.state.bookings.length, 2);
+    assert.equal(app.state.bookings[0].status, 'moved');
+    assert.equal(app.state.bookings[1].sourceId, 'drag-lesson');
+    assert.equal(app.state.bookings[1].start, 1020);
+    assert.equal(app.ui.scheduleBookingId, app.state.bookings[1].id);
+    assert.equal(app.drag(), null);
+  }
+});
+
+test('make-up strip stays connected across week paging and drops into the new week', () => {
+  const app = setup({ role: 'teacher' }), { makeup, strip } = pendingStrip(app);
+  app.emit('dragstart', { target: strip }); app.hover(850);
+  assert.equal(app.ui.weekOffset, 1); assert.equal(strip.isConnected, true);
+  const slot = app.visible().children.find(node => node.dataset.date === '2026-10-07' && node.dataset.start === '1020');
+  app.emit('drop', { target: slot });
+  assert.equal(makeup.used, 60); assert.equal(app.state.bookings[1].date, '2026-10-07');
+});
+
+test('expired, conflicting, unavailable and past targets leave make-up unconsumed', () => {
+  for (const scenario of ['expiry', 'conflict', 'off', 'past']) {
+    const app = setup(), { makeup, strip } = pendingStrip(app, scenario === 'expiry' ? { expiry: '2026-09-29' } : {});
+    if (scenario === 'conflict') app.state.bookings.push({ ...app.state.bookings[0], id: 'occupied', status: 'scheduled', start: 1020 });
+    const date = scenario === 'past' ? '2026-09-28' : scenario === 'off' ? '2026-09-29' : model.TODAY;
+    const slot = app.visible().children.find(node => node.dataset.date === date && node.dataset.start === '1020');
+    app.emit('dragstart', { target: strip }); app.emit('drop', { target: slot });
+    assert.equal(makeup.used, 0, scenario); assert.equal(app.state.bookings[0].status, 'absent');
+    assert.equal(app.toasts.length, 1);
+  }
+});
+
+test('make-up drag rejects bin drops, spent credits, unrelated teachers and stale permissions', () => {
+  const bin = setup(); const pending = pendingStrip(bin); bin.emit('dragstart', { target: pending.strip }); bin.emit('drop', { target: bin.bin });
+  assert.equal(pending.makeup.used, 0); assert.equal(bin.parked.length, 0);
+  for (const scenario of ['spent', 'teacher', 'revoked']) {
+    const app = setup({ role: scenario === 'teacher' ? 'teacher' : 'admin' });
+    const { makeup, strip } = pendingStrip(app, scenario === 'spent' ? { used: 60 } : {});
+    if (scenario === 'teacher') app.state.bookings[0].tutor = 'lam';
+    app.emit('dragstart', { target: strip });
+    if (scenario === 'revoked') app.ui.role = 'parent';
+    else assert.equal(app.drag(), null);
+    const slot = app.visible().children.find(node => node.dataset.date === model.TODAY && node.dataset.start === '1020');
+    app.emit('drop', { target: slot });
+    assert.equal(makeup.used, scenario === 'spent' ? 60 : 0); assert.equal(app.state.bookings.length, 1);
+  }
 });

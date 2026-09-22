@@ -9,7 +9,7 @@ import { getP6Students, assignP6Worksheets, normalizeP6Progress } from '../dist/
 import { canStudentOpenAssignment } from '../dist/student-work.js';
 import { createTeacherProgressUI } from '../dist/teacher-progress-ui.js';
 import { normalizeBillingAutomation, submitPaymentProof } from '../dist/billing-automation.js';
-import { normalizeBillingWorkflow, billingStage } from '../dist/billing-workflow.js';
+import { normalizeBillingWorkflow, billingStage, confirmInvoicePayment } from '../dist/billing-workflow.js';
 
 const url = path => new URL(path, 'https://demo.example');
 const students = model.allStudents.map(student => student.id);
@@ -137,8 +137,12 @@ test('actual assignments, parent leave and payment proof survive proposal view c
   const adminState = JSON.parse(admin.storage.getItem(key));
   assert.ok(adminState.makeups.some(item => item.id === leave.makeupId));
   assert.ok(adminState.leaveRequests.some(item => item.sourceId === lesson.id || item.bookingId === lesson.id));
-  assert.equal(billingStage(adminState, adminState.invoices.find(item => item.id === proof.invoice.id)), 'issued');
-  assert.ok(adminState.receipts.some(item => item.id === proof.receipt.id));
+  assert.equal(billingStage(adminState, adminState.invoices.find(item => item.id === proof.invoice.id)), 'review');
+  assert.equal(proof.receipt, null);
+  const approved = confirmInvoicePayment(adminState, proof.invoice.id);
+  admin.storage.setItem(key, JSON.stringify(adminState));
+  assert.equal(billingStage(adminState, approved.invoice), 'issued');
+  assert.ok(JSON.parse(parent.storage.getItem(key)).receipts.some(item => item.id === approved.receipt.id));
   assert.deepEqual(JSON.parse(local.getItem(key)), { version: 4, marker: 'ordinary saved work' });
 });
 
@@ -153,7 +157,7 @@ test('app refresh defers during dialogs and worksheet editing, then loads the la
   const scope = {
     demoContext: { isProposal: true }, state: { version: 4, marker: 'old' }, ui, previousState: {},
     localStorage: { getItem: () => saved }, STORAGE: key, $: () => overlay,
-    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp,
+    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp, runTuitionBilling: noOp,
     conversationUI: resettable, bankCheckUI: resettable, billingWorkflowUI: resettable, regularScheduleUI: resettable, teacherProgressUI: resettable,
     followProposalStudent() { follows++; }
   };
@@ -190,7 +194,7 @@ async function proposalFrameHarness(state, ui = {}) {
     students: model.allStudents, state, previousState: {},
     ui: { role: 'student', page: 'work', selectedStudent: 'chloe', familyStudent: 'chloe', ...ui },
     localStorage: { getItem: () => saved }, STORAGE: key, $: () => overlay,
-    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp,
+    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp, runTuitionBilling: noOp,
     conversationUI: { reset: noOp }, bankCheckUI: { reset: noOp }, billingWorkflowUI: { reset: noOp }, regularScheduleUI: { reset: noOp }, teacherProgressUI: { reset: noOp, selectStudent: noOp },
     persist() { counts.saves++; saved = JSON.stringify(scope.state); },
     closeModal() { counts.closes++; overlay.children = []; },

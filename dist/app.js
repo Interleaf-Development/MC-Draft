@@ -8,6 +8,7 @@ import { createProofUI } from './billing-proof-ui.js';
 import { createBankCheckUI } from './bank-check-ui.js';
 import { normalizeBillingWorkflow, billingStage } from './billing-workflow.js';
 import { createBillingWorkflowUI } from './billing-workflow-ui.js';
+import { submitEnrolmentApplication, reviewEnrolmentApplication, createAssessmentInvoice, runTuitionBilling } from './billing-cycles.js';
 import { isFamilyRole, familyText, familyDate, familyContent } from './family-locale.js';
 import { syncEntryPoint } from './entry-points.js';
 import { createDemoContext, demoNavigationFromUrl, proposalEntryUrl, proposalMessage } from './demo-context.js';
@@ -29,7 +30,7 @@ const localStorage = demoContext.storage;
 const STORAGE = centreConfig.storageKey;
 let state;
 try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
-seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);
+seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);runTuitionBilling(state);
 const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:centre.managerId, scheduleBookingId:null, scheduleRemarkDrafts:{}, date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Payments', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, paperZoom: 1, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:centre.managerId };
 if(demoContext.isProposal)try{const saved=JSON.stringify(state);if(localStorage.getItem(STORAGE)!==saved)localStorage.setItem(STORAGE,saved);}catch{}
 const t = (en, zh) => isFamilyRole(ui.role) ? (zh ?? familyText(en, ui.role)) : en;
@@ -124,6 +125,9 @@ function saveBillingChange(fn) {
  previousState = null; render(); return true;
 }
 function closeModal() {
+ if(billingWorkflowUI.isSaving())return false;
+ billingWorkflowUI.onModalClosed();
+ proofUI.onModalClosed();
  const wasCheckIn=!!$('.checkin-modal');
  $('#overlay').innerHTML='';document.body.style.overflow='';$('#app').inert=false;
  $('.parent-qr-button')?.setAttribute('aria-expanded','false');
@@ -154,7 +158,12 @@ const conversationUI = createConversationUI({getState:()=>state,getViewer:()=>({
 const proofUI = createProofUI({getState:()=>state,getViewer:()=>({role:ui.role,studentId:ui.familyStudent}),change:saveBillingChange,modal,closeModal,toast,openReceipt:receiptDialog});
 const regularScheduleUI = createRegularScheduleUI({getState:()=>state,getViewer:()=>({role:ui.role}),change,modal,closeModal,openReceipt:receiptDialog});
 const bankCheckUI = createBankCheckUI({finalAudit:true,getState:()=>state,getViewer:()=>({role:ui.role}),change:saveBillingChange,render:()=>render(),modal,closeModal,toast,openMatch:openPaymentReview});
-const billingWorkflowUI = createBillingWorkflowUI({getState:()=>state,getViewer:()=>({role:ui.role}),save:saveBillingChange,render:()=>render(),modal,closeModal,toast,openReceipt:receiptDialog,renderAudit:()=>bankCheckUI.render(),renderReport:openBillingReport});
+const billingWorkflowUI = createBillingWorkflowUI({getState:()=>state,getViewer:()=>({role:ui.role}),save:saveBillingChange,render:()=>render(),modal,closeModal,toast,openReceipt:receiptDialog,renderAudit:()=>bankCheckUI.render(),renderReport:openBillingReport,onSavingChange:saving=>{
+ $('#app').inert=saving;
+ if(demoContext.isProposal&&window.parent!==window)window.parent.postMessage({type:'mc-proposal:saving',saving},location.origin);
+}});
+window.addEventListener('beforeunload',event=>{if(billingWorkflowUI.isSaving()){event.preventDefault();event.returnValue='';}});
+document.addEventListener('keydown',event=>{if(billingWorkflowUI.isSaving()){event.preventDefault();event.stopImmediatePropagation();}},true);
 const teacherProgressUI = createTeacherProgressUI({
  getState:()=>state, getTutorId:()=>centre.managerId, change, render:()=>render(),
  onStudentChange:id=>{ui.selectedStudent=id;persistProposalStudentSelection(id);},
@@ -180,7 +189,7 @@ function refreshProposalState(force=false) {
   if(!saved||saved===JSON.stringify(state))return false;
   const next=JSON.parse(saved);if(next?.version!==4)return false;
   state=next;previousState=null;
-  seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);
+  seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);runTuitionBilling(state);
   conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();
   ui.matchDraft=null;ui.profileDrafts={};ui.scheduleRemarkDrafts={};ui.picker=null;
   followProposalStudent();
@@ -223,6 +232,7 @@ document.addEventListener('keydown',activateProposalInteraction,true);
 window.addEventListener('message',event=>{
  const request=proposalMessage(event,{isProposal:demoContext.isProposal,parent:window.parent,self:window,origin:location.origin,studentIds:students.map(student=>student.id)});
  if(!request)return;
+ if(billingWorkflowUI.isSaving())return;
  if(request.type==='activate'){activateProposalFrame();return;}
  if(request.type==='deactivate'){proposalIsActive=false;return;}
  if(request.type==='refresh'){if(refreshProposalState())render();postProposalStatus();return;}
@@ -339,6 +349,23 @@ function slotBookings(date,start,tutor){
 }
 function canParkScheduleBooking(b){
  return Boolean(b&&activeBooking(b)&&b.attendance!=='present'&&(ui.role==='admin'||ui.role==='teacher'&&b.tutor===centre.managerId));
+}
+function canArrangeScheduleMakeup(m){
+ return Boolean(m&&m.minutes>m.used&&(ui.role==='admin'||ui.role==='teacher'&&(state.bookings.find(b=>b.id===m.sourceId)?.tutor||studentById(m.studentId).tutor)===centre.managerId));
+}
+function arrangeMakeupOnCalendar(id,slot){
+ const makeup=state.makeups.find(m=>m.id===id);
+ if(ui.page!=='schedule'||!canArrangeScheduleMakeup(makeup)||ui.role==='teacher'&&slot.tutor!==centre.managerId)return false;
+ const duration=makeup.minutes-makeup.used;
+ if(![30,60,90].includes(duration)){openMakeup(id);return false;}
+ if(slot.date<TODAY){toast('Choose today or a future date for the make-up.',false,true);return false;}
+ if(isTutorOffTime(state,slot.tutor,slot.date,slot.start,duration)){toast('This tutor is not available during this session.',false,true);return false;}
+ const scroll=$('.calendar-scroll'),position=scroll?{top:scroll.scrollTop,left:scroll.scrollLeft}:null;
+ let replacement;
+ const saved=change(()=>{[replacement]=bookMakeup(state,id,[{...slot,duration}]);},'Make-up booked. The parent’s lesson list is updated.',true);
+ if(saved){ui.scheduleBookingId=replacement.id;render();}
+ if(position&&$('.calendar-scroll')){$('.calendar-scroll').scrollTop=position.top;$('.calendar-scroll').scrollLeft=position.left;}
+ return saved;
 }
 function parkScheduleBooking(id){
  if(ui.page!=='schedule')return false;
@@ -619,8 +646,8 @@ function scheduleQueues(){
   const student=studentById(m.studentId),source=state.bookings.find(b=>b.id===m.sourceId),date=source?.date||m.sourceDate;
   const label=student.name+(student.level?' ('+student.level+')':''),stamp=date?dateLabel(date).replace(/\s+/g,''):'—';
   const body='<span class="makeup-strip-name">'+esc(student.name)+'</span>'+(student.level?'<span class="makeup-strip-grade">('+esc(student.level)+')</span>':'')+'<span class="makeup-strip-date">'+esc(stamp)+'</span>';
-  const attrs='data-makeup-id="'+esc(m.id)+'" title="'+esc(label+' · '+(date?dateLabel(date):'Date not recorded'))+'"';
-  return ui.role==='admin'?action('makeup-book',body,'makeup-strip',attrs+' data-id="'+esc(m.id)+'" aria-label="Arrange make-up for '+esc(label+' · '+(date?dateLabel(date):'Date not recorded'))+'"'):'<div class="makeup-strip" '+attrs+'>'+body+'</div>';
+  const attrs='data-makeup-id="'+esc(m.id)+'" title="'+esc(label+' · '+(date?dateLabel(date):'Date not recorded')+' · Drag to calendar or click to arrange')+'"';
+  return action('makeup-book',body,'makeup-strip',attrs+' draggable="true" data-id="'+esc(m.id)+'" aria-label="Arrange make-up for '+esc(label+' · '+(date?dateLabel(date):'Date not recorded'))+'"');
  }).join(''):'<p class="small muted">All make-ups are arranged.</p>')+pager('makeups',makeupsPage,true)+'</section>';
 }
 
@@ -742,9 +769,19 @@ function parentHandbook(){
  return heading('學習手冊',childSwitch())+'<div class="family-grid"><div class="stack">'+(list.length?list.map(noteCard).join(''):'<div class="panel">'+empty('暫無課堂紀錄','老師會在課後分享學習近況。',15)+'</div>')+'</div><section class="panel"><div class="panel-head"><h3>已批改功課</h3></div>'+(completed.length?completed.map(a=>assignmentRow(a,true)).join(''):empty('暫無已批改功課','老師批改後，功課會顯示於這裏。'))+'</section></div>';
 }
 
+function parentPaymentDetails(invoice){
+ const details=state.paymentDetails||{recipient:centre.name,fpsId:'DEMO-'+centre.code};
+ const copy=(label,value)=>'<div class="between wrap"><span class="small">'+label+' <strong>'+esc(value)+'</strong></span>'+action('copy-payment-detail','複製','btn small','data-copy-value="'+esc(value)+'" aria-label="複製'+label+'"')+'</div>';
+ return '<div class="stack-sm mt-16">'+copy('收款人',details.recipient)+copy('FPS 識別碼',details.fpsId)+copy('付款備註',invoice.id)+'<p class="small muted">示範付款資料，請勿用作實際轉帳。</p></div>';
+}
 function parentPayments(){
  const invoices=state.invoices.filter(i=>i.studentId===ui.familyStudent&&billingStage(state,i)!=='archive');
- return heading(t('Payments','繳費'),childSwitch())+'<div class="stack">'+(invoices.length?invoices.map(i=>{const status=invoiceStatus(i);return '<section class="panel"><div class="panel-head"><div><h3>'+esc(content(i.period))+'</h3><p class="small muted mt-8">'+i.id+' · '+t('Issued','發出日期')+' '+familyDate(i.issued,ui.role)+'</p></div>'+tag(i.receiptId?paymentIssuedLabel(i.receiptId):status==='returned'?t('Waiting for replacement proof','待重新提交付款證明'):status==='review'?t('Proof needs attention','付款證明待覆核'):i.proof?t('Proof submitted','已提交付款證明'):t('Due','繳費限期')+' '+familyDate(i.due,ui.role),i.receiptId?'green':['review','returned'].includes(status)?'amber':i.proof?'blue':'amber')+'</div><div class="panel-body between wrap"><div><h2>'+money(i.amount)+'</h2><p class="small muted mt-8">'+esc(content(i.description))+'</p></div><div class="flex">'+action('view-invoice',t('View invoice','查看繳費通知'),'btn','data-id="'+i.id+'"')+(i.receiptId?action('view-receipt',icon('receipt')+' '+paymentDocumentLabel(i.receiptId),'btn primary','data-id="'+i.receiptId+'"'):status==='returned'?action('view-proof',t('View reason and replace proof','查看原因並重新提交'),'btn primary','data-id="'+i.id+'"'):i.proof?action('view-proof',status==='review'?t('View result','查看結果'):t('View proof','查看付款證明'),'btn','data-id="'+i.id+'"'):action('submit-proof',icon('upload')+' '+t('Submit payment proof','提交付款證明'),'btn primary','data-id="'+i.id+'"'))+'</div></div></section>';}).join(''):'<div class="panel">'+empty(t('No invoices yet','暫時沒有繳費通知'),t('Your centre will issue an invoice after enrolment.','完成報名後，中心會發出繳費通知。'),14)+'</div>')+'</div>';
+ return heading('繳費',childSwitch())+'<div class="stack">'+(invoices.length?invoices.map(i=>{
+  const stage=billingStage(state,i),returned=i.proofDisposition==='returned';
+  const label=stage==='issued'?'已發出收據':stage==='review'?'待中心核對':returned?'待重新提交付款證明':'待付款';
+  const next=stage==='issued'?action('view-receipt',icon('receipt')+' 查看收據','btn primary','data-id="'+i.receiptId+'"'):stage==='review'||returned?action('view-proof',returned?'查看原因並重新提交':'查看付款證明',returned?'btn primary':'btn','data-id="'+i.id+'"'):action('submit-proof',icon('upload')+' 上載付款證明','btn primary','data-id="'+i.id+'"');
+  return '<section class="panel"><div class="panel-head"><div><h3>'+esc(content(i.period))+'</h3><p class="small muted mt-8">'+esc(i.id)+'</p></div>'+tag(label,stage==='issued'?'green':stage==='review'?'blue':'amber')+'</div><div class="panel-body"><div class="between wrap"><h2>'+money(i.amount)+'</h2><p class="small">繳費限期：'+familyDate(i.due,ui.role)+'</p></div><p class="small muted mt-8">'+esc(content(i.description))+'</p>'+(stage==='parent'&&!returned?parentPaymentDetails(i):'')+(returned?'<p class="notice mt-16">請重新提交付款證明。如已付款，無需再次繳費。</p>':'')+'<div class="flex wrap mt-16">'+action('view-invoice','查看繳費通知','btn','data-id="'+i.id+'"')+next+'</div></div></section>';
+ }).join(''):'<div class="panel">'+empty('暫時沒有繳費通知','中心審核報名申請後，會發出首次繳費通知。',14)+'</div>')+'</div>';
 }
 
 function studentWork(){
@@ -817,6 +854,7 @@ function attachDrawing(){
 }
 
 document.addEventListener('click', e => {
+  if(billingWorkflowUI.isSaving()){e.preventDefault();return;}
   conversationUI.onDocumentClick(e);
   const button = e.target.closest('[data-action]');
   if (!button) {
@@ -849,7 +887,7 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>'+t('This is a front-end prototype. Tsuen Wan timetable names and lesson slots come from the supplied schedules; payment and other workflow examples are sample data. Changes stay in this browser. No messages, payments or reports are sent to an external service.','這是介面示範。荃灣的學生姓名及課堂時段來自提供的時間表；付款及其他流程使用示範資料。修改只儲存在此瀏覽器，不會向外傳送訊息、付款或報告。')+'</p><p class="mt-16 muted">'+t('The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.','示範課堂日期為 2026 年 9 月 30 日。銀行交易樣本包含跨月例子，可試用入賬日期調整及對賬流程。')+'</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>'+t('Restore the demo schedules and sample workflows. Your demo edits and handwriting in this browser will be cleared.','還原示範時間表及流程資料。你在此瀏覽器的示範修改及手寫內容將被清除。')+'</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent=null;ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Payments',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);runTuitionBilling(state);conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent=null;ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Payments',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeupPreferences(id,justConfirmed=false){
@@ -863,9 +901,8 @@ function openMakeupPreferences(id,justConfirmed=false){
 }
 function openMakeup(id,mode='single'){
  if(ui.role==='parent'){openMakeupPreferences(id);return;}
- if(ui.role!=='admin')return;
  const m=state.makeups.find(item=>item.id===id);
- if(!m||m.minutes<=m.used)return;
+ if(!canArrangeScheduleMakeup(m))return;
  const remaining=m.minutes-m.used,source=state.bookings.find(b=>b.id===m.sourceId);
  const leave=state.leaveRequests.find(r=>r.makeupId===m.id&&r.kind!=='makeup'),sourceDate=source?.date||m.sourceDate;
  const context=(sourceDate?'<p class="small muted mb-16">'+(m.kind==='schedule-shortfall'?'Schedule adjustment: ':'Leave: ')+dateLabel(sourceDate,{weekday:'short'})+(source?' · '+time(source.start)+'–'+time(source.start+source.duration):'')+'</p>':'')+(leave?.reason?'<p class="small mb-16">'+esc(leave.reason)+'</p>':'')+(m.policyReviewRequired?'<p class="notice mb-16">Reschedule limit reached · staff review needed</p>':'');
@@ -874,10 +911,11 @@ function openMakeup(id,mode='single'){
   ui.makeupDate=next?.date||TODAY;
   ui.makeupTutor=source?.tutor||next?.tutor||studentById(m.studentId).tutor||tutors[0].id;
  }
+ if(ui.role==='teacher')ui.makeupTutor=centre.managerId;
  ui.makeupMode=mode;ui.makeupId=id;ui.makeupLeaveRequestId=null;ui.makeupContextKey=id;
  const candidates=[];
  if(mode==='split'){
-  state.bookings.filter(b=>b.studentId===m.studentId&&activeBooking(b)&&b.date>=TODAY&&b.date<=m.expiry&&b.duration===60).forEach(b=>{const slot={date:b.date,start:b.start+b.duration,duration:30,tutor:b.tutor};if(!validateSlot(state,{...slot,studentId:m.studentId}))candidates.push(slot);});
+  state.bookings.filter(b=>b.studentId===m.studentId&&activeBooking(b)&&b.date>=TODAY&&b.date<=m.expiry&&b.duration===60&&(ui.role==='admin'||b.tutor===centre.managerId)).forEach(b=>{const slot={date:b.date,start:b.start+b.duration,duration:30,tutor:b.tutor};if(!validateSlot(state,{...slot,studentId:m.studentId}))candidates.push(slot);});
  }else{
   const duration=remaining>=90?90:remaining>=60?60:30;
   if(remaining>=duration&&ui.makeupDate>=TODAY&&ui.makeupDate<=m.expiry){
@@ -888,9 +926,9 @@ function openMakeup(id,mode='single'){
   }
  }
  ui.makeupCandidates=candidates;
- const filters=mode==='single'?'<div class="field-row mb-16">'+field('Date','<input type="date" id="makeup-date" data-change="makeup-date" aria-label="Make-up date" value="'+esc(ui.makeupDate)+'" min="'+TODAY+'" max="'+m.expiry+'">')+field('Teacher','<select id="makeup-tutor" data-change="makeup-tutor" aria-label="Make-up teacher">'+tutors.map(t=>'<option value="'+t.id+'"'+(t.id===ui.makeupTutor?' selected':'')+'>'+t.name+'</option>').join('')+'</select>')+'</div>':'';
+ const filters=mode==='single'?'<div class="field-row mb-16">'+field('Date','<input type="date" id="makeup-date" data-change="makeup-date" aria-label="Make-up date" value="'+esc(ui.makeupDate)+'" min="'+TODAY+'" max="'+m.expiry+'">')+field('Teacher','<select id="makeup-tutor" data-change="makeup-tutor" aria-label="Make-up teacher">'+tutors.filter(t=>ui.role==='admin'||t.id===centre.managerId).map(t=>'<option value="'+t.id+'"'+(t.id===ui.makeupTutor?' selected':'')+'>'+t.name+'</option>').join('')+'</select>')+'</div>':'';
  const unavailable=mode==='single'&&m.expiry>=TODAY?'No available times for this teacher on this date. Choose another date or teacher.':'No suitable times before this deadline. Extend the deadline to show more options.';
- modal('Arrange a make-up','<div class="between mb-16"><div><h3>'+studentById(m.studentId).name+'</h3><p class="small muted">'+remaining+' min remaining · Use by '+dateLabel(m.expiry)+'</p></div>'+action('extend-makeup','Extend deadline','inline-link','data-id="'+id+'"')+'</div>'+context+makeupPreferencesSummary(m)+'<p class="small muted mb-16">Confirm the arrangement with the parent before booking.</p><div class="segmented mb-16">'+action('makeup-mode','One lesson',mode==='single'?'active':'','data-mode="single"')+action('makeup-mode','30-minute extensions',mode==='split'?'active':'','data-mode="split"')+'</div>'+filters+'<div class="form-stack" style="gap:9px">'+candidates.map((s,i)=>'<label class="check-option"><input type="'+(mode==='split'?'checkbox':'radio')+'" name="makeup-slot" value="'+i+'"><span class="grow"><strong class="small">'+dateLabel(s.date,{weekday:'short'})+' · '+time(s.start)+'–'+time(s.start+s.duration)+'</strong><span class="row-meta" style="display:block">'+tutorName(s.tutor)+(mode==='split'?' · Extends the existing lesson':' · '+s.duration+' minutes')+'</span></span></label>').join('')+(candidates.length?'':'<p class="small muted">'+unavailable+'</p>')+'</div>'+(mode==='split'?'<div class="notice blue mt-16">Both half-hour extensions belong to the same missed lesson and use one reschedule.</div>':''),action('close-modal','Cancel','btn')+action('contact-makeup-parent','Contact parent','btn','data-id="'+esc(id)+'"')+action('confirm-makeup','Confirm booking','btn primary',candidates.length?'':'disabled'),true);
+ modal('Arrange a make-up','<div class="between mb-16"><div><h3>'+studentById(m.studentId).name+'</h3><p class="small muted">'+remaining+' min remaining · Use by '+dateLabel(m.expiry)+'</p></div>'+(ui.role==='admin'?action('extend-makeup','Extend deadline','inline-link','data-id="'+id+'"'):'')+'</div>'+context+makeupPreferencesSummary(m)+'<p class="small muted mb-16">Confirm the arrangement with the parent before booking.</p><div class="segmented mb-16">'+action('makeup-mode','One lesson',mode==='single'?'active':'','data-mode="single"')+action('makeup-mode','30-minute extensions',mode==='split'?'active':'','data-mode="split"')+'</div>'+filters+'<div class="form-stack" style="gap:9px">'+candidates.map((s,i)=>'<label class="check-option"><input type="'+(mode==='split'?'checkbox':'radio')+'" name="makeup-slot" value="'+i+'"><span class="grow"><strong class="small">'+dateLabel(s.date,{weekday:'short'})+' · '+time(s.start)+'–'+time(s.start+s.duration)+'</strong><span class="row-meta" style="display:block">'+tutorName(s.tutor)+(mode==='split'?' · Extends the existing lesson':' · '+s.duration+' minutes')+'</span></span></label>').join('')+(candidates.length?'':'<p class="small muted">'+unavailable+'</p>')+'</div>'+(mode==='split'?'<div class="notice blue mt-16">Both half-hour extensions belong to the same missed lesson and use one reschedule.</div>':''),action('close-modal','Cancel','btn')+(ui.role==='admin'?action('contact-makeup-parent','Contact parent','btn','data-id="'+esc(id)+'"'):'')+action('confirm-makeup','Confirm booking','btn primary',candidates.length?'':'disabled'),true);
 }
 
 function captureBankReview() {
@@ -951,13 +989,23 @@ function matchComparison(r,bankId){
  return '<div class="stack-sm"><span class="billing-status '+(difference?'red':'matched')+'">'+(difference?money(Math.abs(difference))+(difference>0?' short':' extra'):'Amounts match')+'</span><p class="small">Bank credited '+dateLabel(b.date)+'</p><p class="small muted">HQ month: '+dateLabel(b.date,{day:undefined,month:'long',year:'numeric'})+(adjustment?' · '+adjustment:'')+'</p></div>';
 }
 function enrolDialog(){
- const a=state.assessment,credit=assessmentCredit(a,TODAY);
- modal(t('Enrol Mia Cheung','為 Mia Cheung 報名'),'<div class="form-stack">'+field(t('Parent / guardian','家長／監護人'),'<input id="enrol-parent" value="Mrs Cheung" aria-label="'+t('Parent name','家長姓名')+'">')+field(t('Contact number','聯絡電話'),'<input id="enrol-phone" inputmode="tel" value="9000 0000" aria-label="'+t('Contact number','聯絡電話')+'">')+'<div class="field-row">'+field(t('First lesson','首次上課日期'),'<input id="enrol-date" type="date" value="2026-09-30" aria-label="'+t('First lesson date','首次上課日期')+'">')+field(t('Lesson time','上課時間'),'<select id="enrol-time" aria-label="'+t('First lesson time','首次上課時間')+'"><option value="1020">17:00–18:00</option><option value="960">16:00–17:00</option></select>')+'</div>'+field(t('Tuition arrangement','學費安排'),'<select id="enrol-plan" aria-label="'+t('Tuition arrangement','學費安排')+'"><option value="intro">'+t('1 introductory lesson + Oct–Nov block','1 堂單堂課程 + 10 至 11 月課程')+'</option><option value="block">'+t('Oct–Nov block only','只報讀 10 至 11 月課程')+'</option></select>')+'<div class="notice blue">'+t('Assessment on '+dateLabel(a.assessmentDate)+'. Enrolment today qualifies for a '+money(credit)+' deduction.','評估日期為 '+dateLabel(a.assessmentDate)+'，今天報名可扣減 '+money(credit)+'。')+'</div><p class="small muted">'+t('The sample introductory lesson is HK$250. Confirm the centre’s actual introductory rate.','示範中的單堂學費為 HK$250，實際金額以中心確認為準。')+'</p></div>',action('close-modal','Cancel','btn')+action('confirm-enrol',t('Create enrolment & invoice','確認報名及建立繳費通知'),'btn primary'));
+ const existing=(state.enrolmentApplications||[]).find(a=>a.studentId==='mia'&&['submitted','awaiting-payment','active'].includes(a.status));
+ if(existing){
+  const waiting=existing.status==='submitted',active=existing.status==='active';
+  const message=active?t('Enrolment active','已正式入學'):waiting?t('Application awaiting staff review','報名申請待中心審核'):t('First invoice issued. Enrolment activates after payment approval.','已發出首次繳費通知，中心確認付款後才會正式啟用學籍。');
+  modal(t('Mia Cheung · enrolment','Mia Cheung · 報名'),'<p>'+message+'</p><dl class="detail-grid"><div><dt>'+t('First lesson','首次上課日期')+'</dt><dd>'+dateLabel(existing.firstLessonDate)+' · '+time(existing.start)+'</dd></div><div><dt>'+t('Parent','家長')+'</dt><dd>'+esc(existing.parent)+'</dd></div></dl>',action('close-modal','Close','btn')+(waiting&&ui.role==='admin'?action('review-enrol','Approve application & issue invoice','btn primary','data-id="'+existing.id+'"'):existing.invoiceId?action('view-invoice',t('View invoice','查看繳費通知'),'btn primary','data-id="'+existing.invoiceId+'"'):''));
+  return;
+ }
+ const credit=assessmentCredit(state.assessment,TODAY);
+ modal(t('Enrol Mia Cheung','為 Mia Cheung 報名'),'<div class="form-stack">'+field(t('Parent / guardian','家長／監護人'),'<input id="enrol-parent" value="Mrs Cheung" aria-label="'+t('Parent name','家長姓名')+'">')+field(t('Contact number','聯絡電話'),'<input id="enrol-phone" inputmode="tel" value="9000 0000" aria-label="'+t('Contact number','聯絡電話')+'">')+'<div class="field-row">'+field(t('First lesson','首次上課日期'),'<input id="enrol-date" type="date" min="'+TODAY+'" value="2026-10-07" aria-label="'+t('First lesson date','首次上課日期')+'">')+field(t('Lesson time','上課時間'),'<select id="enrol-time" aria-label="'+t('First lesson time','首次上課時間')+'"><option value="1020">17:00–18:00</option><option value="960">16:00–17:00</option></select>')+'</div><p class="small">'+t('Four teaching weeks per cycle. First payment: '+money(2000-credit)+'.','每期四個教學週。首次學費：'+money(2000-credit)+'。')+'</p><p class="small muted">'+t('Staff review the application before issuing an invoice. Enrolment activates after payment approval.','中心審核報名申請後會發出繳費通知，核對付款後才會正式啟用學籍。')+'</p></div>',action('close-modal','Cancel','btn')+action('confirm-enrol',t('Submit application','提交報名申請'),'btn primary'));
 }
+
 function downloadText(filename,content,type='text/csv'){
  const url=URL.createObjectURL(new Blob([content],{type}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function handleAction(a,id,button){
+ if(billingWorkflowUI.isSaving())return;
+ if(a==='copy-payment-detail'){navigator.clipboard.writeText(button.dataset.copyValue).then(()=>toast('已複製。')).catch(()=>toast('未能複製，請長按選取付款資料。',false,true));return;}
  if(a.startsWith('regular-')&&regularScheduleUI.handleAction(a,id,button))return;
  if(a==='change-regular-schedule'){if(ui.role==='admin')regularScheduleUI.open(id);return;}
  if(a==='receipt-revision'){receiptDialog(id,button.dataset.revision);return;}
@@ -1028,9 +1076,9 @@ function handleAction(a,id,button){
   const expiry=$('#makeup-expiry').value,reason=$('#makeup-reason').value.trim();
   if(change(()=>{const m=state.makeups.find(m=>m.id===id);if(!m||!expiry||expiry<m.expiry||!reason)throw new Error('Enter a valid later deadline and a reason.');m.expiry=expiry;m.reason=reason;record(state,'Extended make-up deadline for '+studentById(m.studentId).name+' to '+dateLabel(expiry));},'Deadline updated'))openMakeup(id);
  }else if(a==='confirm-makeup'){
-  if(ui.role!=='admin'){toast('補堂由客服聯絡你確認，家長不能自行預約。');return;}
+  if(!canArrangeScheduleMakeup(state.makeups.find(m=>m.id===ui.makeupId))){toast('補堂由客服聯絡你確認，家長不能自行預約。');return;}
   const slots=$$('input[name="makeup-slot"]:checked').map(el=>ui.makeupCandidates[Number(el.value)]);
-  if(change(()=>{if(!slots.length)throw new Error('Choose a replacement time.');bookMakeup(state,ui.makeupId,slots);},'Make-up booked. The parent’s lesson list is updated.'))closeModal();
+  if(change(()=>{if(!slots.length)throw new Error('Choose a replacement time.');if(ui.role==='teacher'&&slots.some(s=>s.tutor!==centre.managerId))throw new Error('Choose a time on your own schedule.');bookMakeup(state,ui.makeupId,slots);},'Make-up booked. The parent’s lesson list is updated.'))closeModal();
  }else if(a==='request-leave'){
   const b=state.bookings.find(b=>b.id===id);if(ui.role!=='parent'||!b||b.studentId!==ui.familyStudent||!activeBooking(b)||b.attendance==='present'||b.date<TODAY)return;
   modal('申請請假','<p class="strong mb-16">'+dateLabel(b.date,{weekday:'long'})+' · '+time(b.start)+'–'+time(b.start+b.duration)+'</p>'+field('原因（選填）','<textarea id="absence-reason" rows="3" maxlength="1000" placeholder="請填寫未能上課的原因。"></textarea>')+'<p class="small muted mt-16">提交後請假即確認，原有課堂將取消出席。補堂由客服另行聯絡安排。</p>',action('close-modal','Cancel','btn')+action('send-leave-request','確認請假','btn primary','data-id="'+id+'"'));
@@ -1080,15 +1128,26 @@ function handleAction(a,id,button){
   ui.role='admin';ui.page='students';ui.studentsTab='Students';ui.directoryStudent=id;ui.profileHistoryTab='Student information';const c=collection('students');c.query=studentById(id).number;c.page=1;c.level=c.tutor=c.day=c.status='all';render();
  }else if(a==='view-student-folder'){closeModal();ui.role='teacher';ui.moveId=null;ui.page='classroom';ui.selectedStudent=id;ui.standaloneFolder=true;collection('folder-work').page=1;render();}
  else if(a==='assessment-details'){
-  const assessment=state.assessment;modal('Mia Cheung · assessment','<div class="timeline"><div class="timeline-item"><span class="timeline-mark done">'+icon('check','sm')+'</span><div><h4>Assessment booked & paid</h4><p>'+dateLabel(assessment.assessmentDate)+' · HK$200</p></div></div><div class="timeline-item"><span class="timeline-mark done">'+icon('file','sm')+'</span><div><h4>Report ready</h4><p>'+esc(assessment.report)+'</p></div></div><div class="timeline-item"><span class="timeline-mark '+(assessment.enrolled?'done':'')+'">'+icon('users','sm')+'</span><div><h4>'+(assessment.enrolled?'Enrolled':'Discuss programme & enrol')+'</h4><p>Assessment deduction available until 3 October.</p></div></div></div>',action('close-modal','Close','btn')+(assessment.enrolled?'':action('enrol-mia','Enrol student','btn primary')));
+  const assessment=state.assessment;modal('Mia Cheung · assessment','<div class="timeline"><div class="timeline-item"><span class="timeline-mark done">'+icon('check','sm')+'</span><div><h4>Assessment booked & paid</h4><p>'+dateLabel(assessment.assessmentDate)+' · HK$200</p></div></div><div class="timeline-item"><span class="timeline-mark done">'+icon('file','sm')+'</span><div><h4>Report ready</h4><p>'+esc(assessment.report)+'</p></div></div><div class="timeline-item"><span class="timeline-mark '+(assessment.enrolled?'done':'')+'">'+icon('users','sm')+'</span><div><h4>'+(assessment.enrolled?'Enrolled':'Discuss programme & enrol')+'</h4><p>Assessment deduction available until 3 October.</p></div></div></div>',action('close-modal','Close','btn')+action('book-paid-assessment','Book paid assessment','btn')+(assessment.enrolled?'':action('enrol-mia','Enrolment application','btn primary')));
  }else if(a==='enrol-mia')enrolDialog();
  else if(a==='confirm-enrol'){
-  const parent=$('#enrol-parent').value.trim(),phone=$('#enrol-phone').value.trim(),date=$('#enrol-date').value,start=Number($('#enrol-time').value),plan=$('#enrol-plan').value;
-  if(change(()=>{if(!parent||!phone)throw new Error('Add the parent’s name and contact number.');if(state.assessment.enrolled)throw new Error('Mia is already enrolled.');if(plan==='block'&&(date<'2026-10-01'||date>'2026-11-30'))throw new Error('For block-only enrolment, choose a first lesson in October or November.');const b={id:uid('lesson'),studentId:'mia',date,start,duration:60,tutor:centre.managerId,status:'scheduled',attendance:'unmarked',note:'New student'};const error=validateSlot(state,b);if(error)throw new Error(error);const credit=assessmentCredit(state.assessment,TODAY);state.assessment.enrolled=true;state.assessment.parent=parent;state.assessment.phone=phone;state.assessment.status='enrolled';state.bookings.push(b);state.invoices.push({id:'INV-1029',studentId:'mia',chargeType:'first-tuition',amount:2000+(plan==='intro'?250:0)-credit,period:plan==='intro'?'Introductory lesson + Oct–Nov 2026':'Oct–Nov 2026',issued:TODAY,due:'2026-10-20',description:(plan==='intro'?'1 introductory lesson (HK$250) + ':'')+'8-lesson block'+(credit?' − HK$200 assessment deduction':''),receiptId:null,proof:false});record(state,'Enrolled Mia Cheung with '+money(credit)+' assessment deduction');},'Enrolment and first invoice created.'))closeModal();
- }else if(a==='billing-tab'){ui.billingTab=button.dataset.value;render();}
+  const parent=$('#enrol-parent').value.trim(),phone=$('#enrol-phone').value.trim(),firstLessonDate=$('#enrol-date').value,start=Number($('#enrol-time').value);
+  if(saveBillingChange(()=>submitEnrolmentApplication(state,{studentId:'mia',parent,phone,firstLessonDate,start,tutor:centre.managerId}))){closeModal();toast(t('Application submitted for staff review.','已提交報名申請，待中心審核。'));}
+ }else if(a==='review-enrol'){
+  if(ui.role!=='admin')return;
+  const credit=assessmentCredit(state.assessment,TODAY);
+  if(saveBillingChange(()=>reviewEnrolmentApplication(state,id,{amount:2000-credit,regularAmount:2000}))){closeModal();toast('Application approved. First tuition invoice issued.');}
+ }else if(a==='book-paid-assessment'){
+  if(ui.role!=='admin')return;
+  modal('Book paid assessment · Mia Cheung','<div class="form-stack">'+field('Assessment date','<input type="date" id="assessment-booking-date" min="'+TODAY+'" value="2026-10-07">')+'<p>Assessment fee · HK$200</p></div>',action('close-modal','Cancel','btn')+action('confirm-paid-assessment','Book & issue invoice','btn primary'));
+ }else if(a==='confirm-paid-assessment'){
+  if(ui.role!=='admin')return;
+  const assessmentDate=$('#assessment-booking-date').value;
+  if(saveBillingChange(()=>{if(assessmentDate<TODAY)throw new Error('Choose today or a future assessment date.');const result=createAssessmentInvoice(state,{studentId:'mia',assessmentDate,amount:200});state.assessmentBookings??=[];if(!state.assessmentBookings.some(b=>b.invoiceId===result.invoice.id))state.assessmentBookings.push({studentId:'mia',date:assessmentDate,invoiceId:result.invoice.id,status:'booked'});})) {closeModal();toast('Assessment booked. Invoice issued.');}
+ }
  else if(a==='report-exceptions'){billingWorkflowUI.openAudit();bankCheckUI.reset();render();bankCheckUI.openReviewQueue();}
  else if(a==='view-invoice'){
-  const i=state.invoices.find(i=>i.id===id);modal(t('Invoice '+id,'繳費通知 '+id),'<div class="receipt-paper"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><p class="small muted mt-16">'+t(centre.name)+'</p><dl class="detail-grid"><div><dt>' + t('Student','學生') + '</dt><dd>'+studentById(i.studentId).name+'</dd></div><div><dt>' + t('Tuition period','學費期數') + '</dt><dd>'+content(i.period)+'</dd></div><div><dt>' + t('Issued','發出日期') + '</dt><dd>'+dateLabel(i.issued)+'</dd></div><div><dt>' + t('Payment due','繳費限期') + '</dt><dd>'+dateLabel(i.due)+'</dd></div></dl><p class="small">'+esc(content(i.description))+'</p><div class="receipt-total"><span>' + t('Total','總額') + '</span><span>'+money(i.amount)+'</span></div></div>',action('close-modal','Close','btn')+(i.proof?action('view-proof','Payment proof','btn','data-id="'+id+'"'):'')+(i.receiptId?action('view-receipt',paymentDocumentLabel(i.receiptId),'btn primary','data-id="'+i.receiptId+'"'):action('submit-proof',i.proof?'Replace proof':'Add payment proof','btn primary','data-id="'+id+'"')));
+  const i=state.invoices.find(i=>i.id===id);modal(t('Invoice '+id,'繳費通知 '+id),'<div class="receipt-paper"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><p class="small muted mt-16">'+t(centre.name)+'</p><dl class="detail-grid"><div><dt>' + t('Student','學生') + '</dt><dd>'+studentById(i.studentId).name+'</dd></div><div><dt>' + t('Tuition period','學費期數') + '</dt><dd>'+content(i.period)+'</dd></div><div><dt>' + t('Issued','發出日期') + '</dt><dd>'+dateLabel(i.issued)+'</dd></div><div><dt>' + t('Payment due','繳費限期') + '</dt><dd>'+dateLabel(i.due)+'</dd></div></dl><p class="small">'+esc(content(i.description))+'</p><div class="receipt-total"><span>' + t('Total','總額') + '</span><span>'+money(i.amount)+'</span></div></div>',action('close-modal','Close','btn')+(i.proof?action('view-proof','Payment proof','btn','data-id="'+id+'"'):'')+(i.receiptId?action('view-receipt',paymentDocumentLabel(i.receiptId),'btn primary','data-id="'+i.receiptId+'"'):billingStage(state,i)==='review'?'':action('submit-proof',i.proofDisposition==='returned'?t('Replace proof','重新提交付款證明'):t('Add payment proof','上載付款證明'),'btn primary','data-id="'+id+'"')));
  }else if(a==='submit-proof')proofUI.openSubmit(id);
  else if(a==='view-proof')openProof(id);
  else if(a==='view-receipt')receiptDialog(id);
@@ -1128,6 +1187,7 @@ function handleAction(a,id,button){
 
 }
 document.addEventListener('change',e=>{
+ if(billingWorkflowUI.isSaving())return;
  if(ui.role==='teacher'&&teacherProgressUI.onChange(e))return;
  if(regularScheduleUI.onChange(e))return;
  if(billingWorkflowUI.onChange(e)||conversationUI.onChange(e)||proofUI.onChange(e)||bankCheckUI.onChange(e))return;
@@ -1192,7 +1252,7 @@ function showScheduleDragHint(direction,duration){
 }
 function pageDraggedWeek(direction){
  const drag=scheduleDrag;
- if(!drag||ui.role!=='admin'||ui.page!=='schedule'||ui.scheduleView!=='week'||ui.scheduleTutor!==drag.tutor||!drag.scroll.isConnected||document.hidden||performance.now()-drag.lastOver>600||scheduleDragEdge(drag.x,drag.y)!==direction)return false;
+ if(!drag||!(ui.role==='admin'||ui.role==='teacher'&&drag.kind==='makeup')||ui.page!=='schedule'||ui.scheduleView!=='week'||(ui.role==='teacher'?centre.managerId:ui.scheduleTutor)!==drag.tutor||!drag.scroll.isConnected||document.hidden||performance.now()-drag.lastOver>600||scheduleDragEdge(drag.x,drag.y)!==direction)return false;
  const scroll=drag.scroll,top=scroll.scrollTop,left=scroll.scrollLeft;
  const visible=$('.timetable:not(.drag-source-table)',scroll);if(!visible)return false;
  // Retain the native drag source and its ancestors until drop/dragend. Replacing
@@ -1228,20 +1288,28 @@ function finishScheduleDrag(refresh=true){
  }
 }
 document.addEventListener('dragstart',e=>{
- const chip=e.target.closest('.booking-chip[draggable=true]');
+ const chip=e.target.closest('.booking-chip[draggable=true], .makeup-strip[draggable=true]');
  if(!chip||!['admin','teacher'].includes(ui.role)||ui.page!=='schedule'||!e.dataTransfer)return;
- const booking=state.bookings.find(b=>b.id===chip.dataset.id);if(!booking||!activeBooking(booking)||ui.role==='teacher'&&!canParkScheduleBooking(booking))return;
+ const makeup=chip.dataset.makeupId?state.makeups.find(m=>m.id===chip.dataset.makeupId):null;
+ const booking=makeup?null:state.bookings.find(b=>b.id===chip.dataset.id);
+ if(chip.dataset.makeupId?!canArrangeScheduleMakeup(makeup):!booking||!activeBooking(booking)||ui.role==='teacher'&&!canParkScheduleBooking(booking))return;
  finishScheduleDrag(false);closeScheduleColourMenu();
- const scroll=chip.closest('.calendar-scroll'),origin=chip.closest('.timetable');if(!scroll||!origin)return;
- scheduleDrag={id:booking.id,tutor:booking.tutor,scroll,origin,lastOver:performance.now(),x:e.clientX,y:e.clientY,rowHeights:Object.fromEntries($$('.timetable-time',origin).map(row=>[row.dataset.hour,row.getBoundingClientRect().height]))};
- e.dataTransfer.setData('text/plain',booking.id);e.dataTransfer.effectAllowed='move';
+ const scroll=makeup?$('.calendar-scroll'):chip.closest('.calendar-scroll'),origin=makeup?$('.timetable',scroll):chip.closest('.timetable');if(!scroll||!origin)return;
+ scheduleDrag={id:makeup?.id||booking.id,kind:makeup?'makeup':'booking',tutor:makeup?(ui.role==='teacher'?centre.managerId:ui.scheduleTutor):booking.tutor,scroll,origin,lastOver:performance.now(),x:e.clientX,y:e.clientY,rowHeights:Object.fromEntries($$('.timetable-time',origin).map(row=>[row.dataset.hour,row.getBoundingClientRect().height]))};
+ e.dataTransfer.setData('text/plain',scheduleDrag.id);e.dataTransfer.effectAllowed='move';
  scroll.classList.add('lesson-dragging');
  if(canParkScheduleBooking(booking))$$('.schedule-leave-dropzone').forEach(bin=>bin.classList.add('is-dragging'));
  scheduleEdgePager.start();
 });
 document.addEventListener('dragenter',e=>{
+ const slot=e.target.closest('.timetable:not(.drag-source-table) [data-slot]');
+ if(slot&&scheduleDrag&&ui.page==='schedule'&&(ui.role==='admin'||scheduleDrag.kind==='makeup'&&canArrangeScheduleMakeup(state.makeups.find(m=>m.id===scheduleDrag.id)))){
+  e.preventDefault();slot.classList.add('drag-over');
+  if(e.dataTransfer)e.dataTransfer.dropEffect='move';
+  return;
+ }
  const bin=e.target.closest('[data-leave-dropzone]');
- if(!bin||!scheduleDrag||ui.page!=='schedule'||!canParkScheduleBooking(state.bookings.find(b=>b.id===scheduleDrag.id)))return;
+ if(!bin||!scheduleDrag||scheduleDrag.kind==='makeup'||ui.page!=='schedule'||!canParkScheduleBooking(state.bookings.find(b=>b.id===scheduleDrag.id)))return;
  e.preventDefault();scheduleEdgePager.pause();bin.classList.add('drag-over');
  if(e.dataTransfer)e.dataTransfer.dropEffect='move';
 });
@@ -1250,9 +1318,10 @@ document.addEventListener('dragover',e=>{
  if(!['admin','teacher'].includes(ui.role)||ui.page!=='schedule'){finishScheduleDrag();return;}
  Object.assign(scheduleDrag,{x:e.clientX,y:e.clientY,lastOver:performance.now()});
  const bin=e.target.closest('[data-leave-dropzone]'),booking=state.bookings.find(b=>b.id===scheduleDrag.id);
- const park=bin&&canParkScheduleBooking(booking);
- const direction=!bin&&ui.role==='admin'?scheduleDragEdge(e.clientX,e.clientY):0;scheduleEdgePager.update(direction);
- const slot=ui.role==='admin'&&!bin?e.target.closest('.timetable:not(.drag-source-table) [data-slot]'):null;
+ const park=scheduleDrag.kind!=='makeup'&&bin&&canParkScheduleBooking(booking);
+ const canDrop=ui.role==='admin'||scheduleDrag.kind==='makeup'&&canArrangeScheduleMakeup(state.makeups.find(m=>m.id===scheduleDrag.id));
+ const direction=!bin&&canDrop?scheduleDragEdge(e.clientX,e.clientY):0;scheduleEdgePager.update(direction);
+ const slot=canDrop&&!bin?e.target.closest('.timetable:not(.drag-source-table) [data-slot]'):null;
  $$('.calendar-cell.drag-over, .schedule-leave-dropzone.drag-over').forEach(cell=>{if(cell!==slot&&cell!==bin)cell.classList.remove('drag-over');});
  if(slot||direction||park){e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='move';(park?bin:slot)?.classList.add('drag-over');}
  else if(e.dataTransfer)e.dataTransfer.dropEffect='none';
@@ -1266,10 +1335,11 @@ document.addEventListener('dragleave',e=>{
 });
 document.addEventListener('drop',e=>{
  if(!scheduleDrag)return;
- const id=scheduleDrag.id,bin=e.target.closest('[data-leave-dropzone]'),slot=e.target.closest('.timetable:not(.drag-source-table) [data-slot]');
+ const id=scheduleDrag.id,kind=scheduleDrag.kind,bin=e.target.closest('[data-leave-dropzone]'),slot=e.target.closest('.timetable:not(.drag-source-table) [data-slot]');
  const destination=slot?{date:slot.dataset.date,start:Number(slot.dataset.start),tutor:slot.dataset.tutor}:null;
  e.preventDefault();finishScheduleDrag();
  if(ui.page!=='schedule')return;
+ if(kind==='makeup'){if(destination&&!bin)arrangeMakeupOnCalendar(id,destination);return;}
  if(bin){parkScheduleBooking(id);return;}
  if(destination&&ui.role==='admin'&&state.bookings.some(b=>b.id===id&&activeBooking(b)))moveTo(id,destination);
 });
@@ -1283,7 +1353,7 @@ postProposalStatus('mc-proposal:ready');
 if(document.modelContext?.registerTool){
  const lifecycle=new AbortController();
  const register=tool=>{try{Promise.resolve(document.modelContext.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};
- register({name:'navigate_demo',title:'Open a MathConcept demo view',description:'Switch the visible demo role and screen. Does not modify lesson or financial records.',inputSchema:{type:'object',properties:{role:{type:'string',enum:['admin','teacher','parent','student']},page:{type:'string'}},required:['role'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(!NAV[input?.role])throw new Error('Unknown demo role.');const target=input.page||NAV[input.role][0][0];if(!NAV[input.role].some(([page])=>page===target))throw new Error('Unknown screen for this role.');closeModal();ui.role=input.role;ui.page=target;ui.moveId=null;ui.assignmentId=null;ui.standaloneFolder=false;render();return{role:ui.role,page:ui.page};}});
+ register({name:'navigate_demo',title:'Open a MathConcept demo view',description:'Switch the visible demo role and screen. Does not modify lesson or financial records.',inputSchema:{type:'object',properties:{role:{type:'string',enum:['admin','teacher','parent','student']},page:{type:'string'}},required:['role'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(billingWorkflowUI.isSaving())throw new Error('Wait for the payment to finish saving.');if(!NAV[input?.role])throw new Error('Unknown demo role.');const target=input.page||NAV[input.role][0][0];if(!NAV[input.role].some(([page])=>page===target))throw new Error('Unknown screen for this role.');closeModal();ui.role=input.role;ui.page=target;ui.moveId=null;ui.assignmentId=null;ui.standaloneFolder=false;render();return{role:ui.role,page:ui.page};}});
  register({name:'read_demo_summary',title:'Read the current demo summary',description:'Read a compact summary of the visible role, pending make-up requests and receipt matching. Browser-local demonstration data.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute(){return{role:ui.role,page:ui.page,worksheet:currentAssignment()?{status:currentAssignment().status,studentStrokes:currentAssignment().strokes.length,teacherStrokes:currentAssignment().feedback.length,working:currentAssignment().working,submissions:currentAssignment().submissions?.length||0}:null,pendingRequests:state.makeups.filter(m=>m.minutes>m.used).length,makeups:state.makeups.map(m=>({student:studentById(m.studentId).name,remainingMinutes:m.minutes-m.used,expiry:m.expiry,period:m.period})),centre:{enrolled:enrolledStudents(state).length,invoices:state.invoices.length,conversations:state.messages.length},attendance:state.bookings.filter(b=>b.date===TODAY&&b.attendance==='present').map(b=>({studentId:b.studentId,bookingId:b.id})),receipts:state.receipts.slice(0,10).map(r=>({id:r.id,issued:r.issuedDate,...(({status,adjustment,month})=>({status,adjustment,bankMonth:month}))(reconciliation(state,r))}))};}});
  addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
 }

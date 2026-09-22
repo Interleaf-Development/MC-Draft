@@ -1,9 +1,10 @@
+import { renderPaymentPdf } from './billing-pdf-preview.js';
 import { centre, money } from './model.js';
-import { billingStage, invoiceReceipt, queryBillingInvoices, confirmInvoicePayment, returnInvoiceProof, remindInvoiceParent, setBillingAutoSent } from './billing-workflow.js';
+import { billingStage, invoiceReceipt, queryBillingInvoices, confirmInvoicePayment, returnInvoiceProof, remindInvoiceParent } from './billing-workflow.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const button = (action, label, attrs = '', className = 'btn') => `<button type="button" class="${className}" data-action="billingflow-${action}" ${attrs}>${label}</button>`;
-const stages = [['parent', 'Waiting for parent payment'], ['review', 'Waiting for centre review'], ['issued', 'Receipt issued'], ['audit', 'Final audit']];
+const stages = [['parent', '待家長付款'], ['review', '待中心核對'], ['issued', '已發收據'], ['audit', 'Final audit']];
 const charges = [['all', 'All charge types'], ['assessment', 'Assessment'], ['first-tuition', 'First tuition'], ['recurring', 'Recurring tuition']];
 const proofTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf']);
 const dataPayload = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
@@ -22,8 +23,9 @@ const dateText = value => {
 const monthText = value => /^\d{4}-\d{2}$/.test(value) ? new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(value + '-01T12:00:00Z')) : value;
 
 /** The host saves mutations transactionally and owns the underlying list and modal. */
-export function createBillingWorkflowUI({ getState, getViewer, save, render, modal, closeModal, toast, openReceipt, renderAudit, renderReport }) {
-  let stage = 'review', query = '', chargeType = 'all', month = '', page = 1, draft = null, searchTimer;
+export function createBillingWorkflowUI({ getState, getViewer, save, render, modal, closeModal, toast, openReceipt, renderAudit, renderReport, onSavingChange = () => {}, waitForSave = () => new Promise(resolve => setTimeout(resolve, 650)) }) {
+  let stage = 'review', query = '', chargeType = 'all', month = '', page = 1, draft = null, searchTimer, saving = false, cancelPdf = null;
+  const disabledControls = new Map();
   const canUse = () => getViewer().role === 'admin';
   const requireAdmin = () => { if (!canUse()) throw new Error('Billing is available in the Admin view.'); };
   const findNode = selector => globalThis.document?.querySelector(selector);
@@ -86,8 +88,8 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
     if (stage === 'audit') return `<div class="billing-workspace billingflow-workspace">${navigation}${renderAudit?.() || ''}${renderReport ? `<div class="billing-secondary-actions">${button('report', 'Billing report', '', 'btn ghost small')}</div>` : ''}</div>`;
     const archive = stage === 'archive';
     const toolbar = `<div class="billing-toolbar billingflow-toolbar"><input id="billingflow-search" type="search" value="${esc(query)}" placeholder="Name, student number or invoice" aria-label="Search by name, student number or invoice"><select id="billingflow-charge" aria-label="Charge type">${charges.map(([id, label]) => `<option value="${id}"${chargeType === id ? ' selected' : ''}>${label}</option>`).join('')}</select><select id="billingflow-month" aria-label="Billing month"><option value=""${month ? '' : ' selected'}>All billing months</option>${result.months.map(value => `<option value="${esc(value)}"${month === value ? ' selected' : ''}>${esc(monthText(value))}</option>`).join('')}</select>${button(archive ? 'back' : 'archive', archive ? 'Back to billing' : `Archive (${result.counts.archive})`, '', 'btn ghost small')}</div>`;
-    const auto = archive ? '<h2 class="billingflow-archive-title">Archive</h2>' : `<div class="billingflow-auto"><label class="billingflow-switch" for="billingflow-auto-sent"><input id="billingflow-auto-sent" type="checkbox" role="switch"${getState().billingSettings?.autoSent === false ? '' : ' checked'} aria-describedby="billingflow-auto-help"><span>Auto-sent</span></label><p id="billingflow-auto-help">New proofs passing demo checks automatically issue and send a receipt in this demo. Turn off for centre review.</p></div>`;
-    return `<div class="billing-workspace billingflow-workspace">${navigation}${toolbar}${auto}${renderQueue(result)}</div>`;
+    const archiveHeading = archive ? '<h2 class="billingflow-archive-title">Archive</h2>' : '';
+    return `<div class="billing-workspace billingflow-workspace">${navigation}${toolbar}${archiveHeading}${renderQueue(result)}</div>`;
   }
   function reviewRow(id) {
     requireAdmin();
@@ -96,15 +98,37 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
     return queryBillingInvoices({ ...state, invoices: [invoice] }, { stage: 'review' }).items[0];
   }
   const detail = (label, value) => `<div><dt>${label}</dt><dd>${esc(value || 'Not recorded')}</dd></div>`;
+  function documentPanel(kind, title, body) {
+    const zoom = draft.zoom[kind];
+    const controls = button('zoom', '−', `data-document="${kind}" data-step="-25" aria-label="Zoom out ${title.toLowerCase()}"${zoom === 100 ? ' disabled' : ''}`, 'billingflow-zoom-button')
+      + button('zoom', `${zoom}%`, `data-document="${kind}" data-step="reset" aria-label="Reset ${title.toLowerCase()} zoom" id="billingflow-${kind}-zoom"`, 'billingflow-zoom-button billingflow-zoom-value')
+      + button('zoom', '+', `data-document="${kind}" data-step="25" aria-label="Zoom in ${title.toLowerCase()}"${zoom === 200 ? ' disabled' : ''}`, 'billingflow-zoom-button');
+    return `<section class="billingflow-${kind}"><header class="billingflow-document-toolbar"><h3>${title}</h3><div class="billingflow-zoom" role="group" aria-label="${title} zoom">${controls}</div></header><div class="billingflow-document-scroll" tabindex="0" role="region" aria-label="${title} document"><div class="billingflow-document-content" id="billingflow-${kind}-document" style="zoom:${zoom / 100};width:${zoom}%">${body}</div></div></section>`;
+  }
+  function changeZoom(control) {
+    const kind = control?.dataset.document;
+    if (!draft || !['invoice', 'proof'].includes(kind)) throw new Error('Open a payment document to zoom.');
+    const step = control.dataset.step;
+    if (!['-25', '25', 'reset'].includes(step)) throw new Error('Choose a valid zoom level.');
+    draft.zoom[kind] = step === 'reset' ? 100 : Math.max(100, Math.min(200, draft.zoom[kind] + Number(step)));
+    const zoom = draft.zoom[kind], content = findNode(`#billingflow-${kind}-document`);
+    if (content) { content.style.zoom = zoom / 100; content.style.width = `${zoom}%`; }
+    const value = findNode(`#billingflow-${kind}-zoom`);
+    if (value) value.textContent = `${zoom}%`;
+    for (const [direction, disabled] of [['-25', zoom === 100], ['25', zoom === 200]]) {
+      const control = findNode(`[data-action="billingflow-zoom"][data-document="${kind}"][data-step="${direction}"]`);
+      if (control) control.disabled = disabled;
+    }
+  }
   function invoicePreview(row) {
     const { invoice, student } = row;
-    return `<section class="billingflow-invoice"><h3>Invoice</h3><div class="billingflow-invoice-paper"><p class="billingflow-document-brand">${esc(centre.name)}</p><div class="billingflow-document-title"><strong>${esc(invoice.id)}</strong><span>${esc(row.chargeLabel)}</span></div><dl class="billingflow-details">${detail('Student', student.name)}${student.number ? detail('Student number', student.number) : ''}${detail(row.chargeType === 'assessment' ? 'Assessment date' : 'Tuition period', row.periodLabel)}${detail('Issued', dateText(invoice.issued))}${detail('Payment deadline', dateText(invoice.due))}</dl><div class="billingflow-invoice-total"><span>Amount due</span><strong>${money(invoice.amount)}</strong></div></div></section>`;
+    return documentPanel('invoice', 'Invoice', `<div class="billingflow-invoice-paper"><p class="billingflow-document-brand">${esc(centre.name)}</p><div class="billingflow-document-title"><strong>${esc(invoice.id)}</strong><span>${esc(row.chargeLabel)}</span></div><dl class="billingflow-details">${detail('Student', student.name)}${student.number ? detail('Student number', student.number) : ''}${detail(row.chargeType === 'assessment' ? 'Assessment date' : 'Tuition period', row.periodLabel)}${detail('Issued', dateText(invoice.issued))}${detail('Payment deadline', dateText(invoice.due))}</dl><div class="billingflow-invoice-total"><span>Amount due</span><strong>${money(invoice.amount)}</strong></div></div>`);
   }
   function proofPreview(row) {
     const { invoice } = row, review = invoice.proofReview || {}, file = review.file, extracted = review.extracted || {};
     let evidence;
     if (safeFile(file)) {
-      evidence = `<div class="billingflow-proof-file">${file.mimeType.startsWith('image/') ? `<img src="${esc(file.dataUrl)}" alt="Uploaded payment proof" class="billingflow-proof-image">` : `<object data="${esc(file.dataUrl)}" type="application/pdf" class="billingflow-proof-pdf" aria-label="Uploaded payment proof PDF"><p>PDF preview is unavailable in this browser.</p><a href="${esc(file.dataUrl)}" download="${esc(file.name || 'payment-proof.pdf')}">Download PDF</a></object>`}<p class="billingflow-file-name">${esc(file.name || 'Payment proof')}</p></div>`;
+      evidence = `<div class="billingflow-proof-file">${file.mimeType.startsWith('image/') ? `<img src="${esc(file.dataUrl)}" alt="Uploaded payment proof" class="billingflow-proof-image">` : `<div class="billingflow-proof-pdf" id="billingflow-pdf-preview" role="region" aria-label="Uploaded payment proof PDF"><p class="billingflow-pdf-status" role="status">Opening PDF…</p></div>`}<p class="billingflow-file-name">${esc(file.name || 'Payment proof')}</p></div>`;
     } else if (file) {
       evidence = '<p class="billingflow-proof-unavailable">The saved proof could not be displayed. Ask the parent to upload it again.</p>';
     } else {
@@ -113,32 +137,111 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
     const details = `<dl class="billingflow-details billingflow-proof-details">${detail('Uploaded', dateText(row.proofSubmittedAt))}${detail('Name on paying account', invoice.proofPayer || extracted.payer)}${detail('Transaction date', invoice.claimedPaymentDate ? dateText(invoice.claimedPaymentDate) : null)}${detail('Reference', invoice.proofReference)}</dl>`;
     const reasons = review.reasons?.length ? `<ul class="billingflow-proof-reasons">${review.reasons.map(reason => `<li>${esc(reason)}</li>`).join('')}</ul>` : '';
     const checks = review.checks?.length ? `<details class="billing-help billingflow-checks"><summary>Demo check details</summary><p>These checks are simulated. No AI read the uploaded file.</p><ul>${review.checks.map(check => `<li><span>${esc(check.label)}</span><strong>${esc({ pass: 'Passed', fail: 'Failed', uncertain: 'Needs review' }[check.status] || 'Needs review')}</strong></li>`).join('')}</ul></details>` : '';
-    return `<section class="billingflow-proof"><h3>Payment proof</h3>${evidence}${details}${reasons}${checks}</section>`;
+    return documentPanel('proof', 'Payment proof', `${evidence}${details}${reasons}${checks}`);
   }
   function renderReview() {
+    cancelPdf?.(); cancelPdf = null;
     const row = reviewRow(draft?.invoiceId);
     if (!row) throw new Error('Invoice not found.');
     const reason = draft.returning ? `<div class="field billingflow-return-field"><label for="billingflow-return-reason">Reason for resubmission</label><textarea id="billingflow-return-reason" rows="3" maxlength="500" required placeholder="Tell the parent what needs to be replaced.">${esc(draft.reason)}</textarea></div>` : '';
-    const footer = button('close', 'Cancel', '', 'btn ghost') + button('return', 'Return proof for resubmission', `data-id="${esc(row.invoice.id)}"`) + button('confirm', 'Confirm payment and issue receipt', `data-id="${esc(row.invoice.id)}"`, 'btn primary');
-    modal('Review payment', `<div class="billingflow-review" data-billingflow-review="${esc(row.invoice.id)}"><div class="billingflow-review-columns">${invoicePreview(row)}${proofPreview(row)}</div>${reason}</div>`, footer, true);
+    const footer = button('close', 'Cancel', '', 'btn ghost') + button('return', 'Return proof for resubmission', `data-id="${esc(row.invoice.id)}"`) + button('confirm', '確認並發出收據', `data-id="${esc(row.invoice.id)}"`, 'btn primary');
+    const recoveryDemo = `<details class="billingflow-save-demo"><summary>Demo save outcome</summary><label for="billingflow-save-outcome">Next submission</label><select id="billingflow-save-outcome">${[['success', 'Success'], ['failed', 'Save fails'], ['uncertain', 'Confirmation interrupted']].map(([value, label]) => `<option value="${value}"${draft.saveOutcome === value ? ' selected' : ''}>${label}</option>`).join('')}</select></details>`;
+    modal('Review payment', `<div class="billingflow-review" data-billingflow-review="${esc(row.invoice.id)}"><div class="billingflow-review-columns">${invoicePreview(row)}${proofPreview(row)}</div>${reason}<p id="billingflow-save-status" class="billingflow-save-status" role="status" hidden></p><div id="billingflow-recovery"></div>${recoveryDemo}</div>`, footer, true);
     findNode('.modal')?.classList.add('billingflow-review-modal');
+    const file = row.invoice.proofReview?.file, pdfTarget = findNode('#billingflow-pdf-preview');
+    if (pdfTarget && file?.mimeType === 'application/pdf' && safeFile(file)) cancelPdf = renderPaymentPdf(pdfTarget, file.dataUrl);
   }
   function openReview(id) {
     reviewRow(id);
     clearTimeout(searchTimer);
-    draft = { invoiceId: id, returning: false, reason: '' };
+    draft = { invoiceId: id, returning: false, reason: '', zoom: { invoice: 100, proof: 100 }, saveOutcome: 'success', uncertain: false };
     renderReview();
   }
   function activeReview(id) {
     if (!draft || draft.invoiceId !== id) throw new Error('Open this payment again before reviewing it.');
     return reviewRow(id);
   }
-  function openAudit() { requireAdmin(); clearTimeout(searchTimer); stage = 'audit'; render(); }
+  function openAudit() { requireAdmin(); if (saving) return false; clearTimeout(searchTimer); stage = 'audit'; render(); return true; }
+  function setSaving(value) {
+    saving = value;
+    findNode('.modal')?.setAttribute?.('aria-busy', String(value));
+    const status = findNode('#billingflow-save-status');
+    if (status) { status.hidden = !value; status.textContent = value ? 'Saving… Keep this window open.' : ''; }
+    if (value) {
+      for (const control of globalThis.document?.querySelectorAll?.('.billingflow-review-modal button, .billingflow-review-modal input, .billingflow-review-modal textarea, .billingflow-review-modal select') || []) {
+        disabledControls.set(control, control.disabled); control.disabled = true;
+      }
+    } else {
+      for (const [control, wasDisabled] of disabledControls) control.disabled = wasDisabled;
+      disabledControls.clear();
+    }
+    onSavingChange(value);
+  }
+  function finishReview(kind) {
+    cancelPdf?.(); cancelPdf = null;
+    draft = null;
+    closeModal();
+    render();
+    toast(kind === 'confirm' ? 'Payment confirmed. Receipt issued in this demo.' : 'Proof returned for resubmission in this demo. No message was sent.');
+  }
+  function showRecovery(kind) {
+    draft.uncertain = true; draft.pendingKind = kind;
+    const target = findNode('#billingflow-recovery');
+    if (target) target.innerHTML = button('recover', 'Check saved result', '', 'btn small');
+    for (const action of ['confirm', 'return']) {
+      const control = findNode(`[data-action="billingflow-${action}"]`);
+      if (control) control.disabled = true;
+    }
+    showError('The save result was not confirmed. Check the saved result before trying again.');
+  }
+  function recoverReview() {
+    if (!draft?.uncertain) throw new Error('There is no interrupted submission to check.');
+    const invoice = getState().invoices.find(item => item.id === draft.invoiceId);
+    if (!invoice) throw new Error('Invoice not found.');
+    const completed = draft.pendingKind === 'confirm' ? Boolean(invoiceReceipt(getState(), invoice)) : invoice.proofDisposition === 'returned';
+    if (completed) { finishReview(draft.pendingKind); return; }
+    draft.uncertain = false; draft.saveOutcome = 'success';
+    renderReview();
+    showError('No completed save was found. Please try the submission again.');
+  }
+  async function saveReview(kind, id) {
+    const submission = draft, outcome = draft.saveOutcome;
+    const area = findNode('#form-error');
+    if (area) { area.textContent = ''; area.classList.remove?.('visible'); }
+    setSaving(true);
+    let result = false, error = null, attempted = false;
+    try {
+      await waitForSave();
+      requireAdmin();
+      if (draft !== submission) throw new Error('Open this payment again before reviewing it.');
+      if (outcome === 'failed') throw new Error('The demo save failed. Your review remains open. Try again.');
+      attempted = true;
+      result = await save(() => {
+        requireAdmin();
+        if (kind === 'confirm') confirmInvoicePayment(getState(), id);
+        else returnInvoiceProof(getState(), id, { reason: submission.reason });
+      });
+    } catch (failure) { error = failure; }
+    finally { setSaving(false); }
+    if (draft !== submission) return;
+    draft.saveOutcome = 'success';
+    const outcomeControl = findNode('#billingflow-save-outcome');
+    if (outcomeControl) outcomeControl.value = 'success';
+    if (error) { if (attempted) showRecovery(kind); else showError(error); return; }
+    if (result !== true && result !== false || result === true && outcome === 'uncertain') { showRecovery(kind); return; }
+    if (result !== true) {
+      if (!findNode('#form-error')?.textContent) showError('Changes could not be saved. Try again.');
+      return;
+    }
+    finishReview(kind);
+  }
   function handleAction(action, id, control) {
     if (!action.startsWith('billingflow-')) return false;
     safely(() => {
       requireAdmin();
       const name = action.slice(12);
+      if (saving) return;
+      if (draft?.uncertain && !['recover', 'close', 'zoom'].includes(name)) throw new Error('Check the saved result before submitting again.');
       if (name === 'stage') {
         if (!stages.some(([value]) => value === id)) throw new Error('Choose a valid billing stage.');
         clearTimeout(searchTimer); stage = id; page = 1; refresh();
@@ -148,7 +251,9 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
         if (!Number.isInteger(next) || next < 1) throw new Error('Choose a valid invoice page.');
         page = next; refresh(null, null, control?.dataset.direction);
       } else if (name === 'review') openReview(id);
-      else if (name === 'close') { draft = null; closeModal(); }
+      else if (name === 'close') { cancelPdf?.(); cancelPdf = null; draft = null; closeModal(); }
+      else if (name === 'zoom') changeZoom(control);
+      else if (name === 'recover') recoverReview();
       else if (name === 'receipt') {
         const state = getState(), invoice = state.invoices.find(item => item.id === id), receipt = invoiceReceipt(state, invoice);
         if (!receipt) throw new Error('Receipt not found.');
@@ -156,13 +261,13 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
       } else if (name === 'remind') saved(() => { requireAdmin(); remindInvoiceParent(getState(), id); }, () => toast('Demo reminder recorded. No message was sent.'));
       else if (name === 'confirm') {
         activeReview(id);
-        saved(() => { requireAdmin(); confirmInvoicePayment(getState(), id); }, () => { draft = null; closeModal(); toast('Payment confirmed. Receipt issued in this demo.'); });
+        void saveReview('confirm', id);
       } else if (name === 'return') {
         activeReview(id);
         if (!draft.returning) { draft.returning = true; renderReview(); findNode('#billingflow-return-reason')?.focus(); return; }
         draft.reason = findNode('#billingflow-return-reason')?.value ?? draft.reason;
         if (!draft.reason.trim()) throw new Error('Enter a reason for the parent to resubmit their proof.');
-        saved(() => { requireAdmin(); returnInvoiceProof(getState(), id, { reason: draft.reason }); }, () => { draft = null; closeModal(); toast('Proof returned for resubmission in this demo. No message was sent.'); });
+        void saveReview('return', id);
       } else if (name === 'report' && renderReport) renderReport();
       else throw new Error('Unknown billing action.');
     });
@@ -170,6 +275,7 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
   }
   function onInput(event) {
     const target = event.target;
+    if (saving) return target.id?.startsWith('billingflow-') || false;
     if (target.id === 'billingflow-return-reason') { if (canUse() && draft) draft.reason = target.value; return true; }
     if (target.id !== 'billingflow-search') return false;
     if (!canUse()) return true;
@@ -181,12 +287,13 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
   }
   function onChange(event) {
     const target = event.target;
-    if (!['billingflow-charge', 'billingflow-month', 'billingflow-auto-sent'].includes(target.id)) return false;
+    if (!['billingflow-charge', 'billingflow-month', 'billingflow-save-outcome'].includes(target.id)) return false;
     safely(() => {
       requireAdmin();
-      if (target.id === 'billingflow-auto-sent') {
-        saved(() => { requireAdmin(); setBillingAutoSent(getState(), target.checked); });
-        target.checked = getState().billingSettings?.autoSent !== false;
+      if (saving) return;
+      if (target.id === 'billingflow-save-outcome') {
+        if (!draft || !['success', 'failed', 'uncertain'].includes(target.value)) throw new Error('Choose a valid demo save outcome.');
+        draft.saveOutcome = target.value;
         return;
       }
       if (target.id === 'billingflow-charge') {
@@ -200,6 +307,6 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
     });
     return true;
   }
-  function reset() { clearTimeout(searchTimer); stage = 'review'; query = ''; chargeType = 'all'; month = ''; page = 1; draft = null; }
-  return { render: renderWorkspace, handleAction, onInput, onChange, reset, openAudit };
+  function reset() { if (saving) return false; clearTimeout(searchTimer); stage = 'review'; query = ''; chargeType = 'all'; month = ''; page = 1; cancelPdf?.(); cancelPdf = null; draft = null; return true; }
+  return { render: renderWorkspace, handleAction, onInput, onChange, reset, openAudit, isSaving: () => saving, canClose: () => !saving, onModalClosed: () => { if (!saving) { cancelPdf?.(); cancelPdf = null; draft = null; } } };
 }

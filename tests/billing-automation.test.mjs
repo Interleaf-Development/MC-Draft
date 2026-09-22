@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { seed, seedCentreVolume, clone, reconciliation, matchReceipt, reportingTotals } from '../dist/model.js';
 import { PROOF_SCENARIOS, normalizeBillingAutomation, previewPaymentProof, submitPaymentProof, analyzeStatement, importBankStatement, demoStatementRows, paymentChannel } from '../dist/billing-automation.js';
 
+import { confirmInvoicePayment } from '../dist/billing-workflow.js';
+
 const setup = () => normalizeBillingAutomation(seed());
 const proof = overrides => ({ scenario: 'pass', reference: 'FPS 910277', paymentDate: '2026-09-30', ...overrides });
 function singleReceipt(options) {
@@ -10,7 +12,7 @@ function singleReceipt(options) {
   state.invoices = [state.invoices.find(invoice => invoice.id === 'INV-1024')];
   state.receipts = [];
   state.bankTransactions = [];
-  if (options !== false) submitPaymentProof(state, 'INV-1024', proof(options));
+  if (options !== false) { submitPaymentProof(state, 'INV-1024', proof(options)); confirmInvoicePayment(state, 'INV-1024'); }
   return state;
 }
 const deposit = overrides => ({ id: 'BANK-TEST', date: '2026-09-30', amount: 2000, reference: 'FPS 910277', payer: 'Elaine Chan', direction: 'credit', ...overrides });
@@ -29,15 +31,17 @@ test('normalization adds only missing demo metadata and never issues a legacy re
   assert.deepEqual(state, before);
 });
 
-test('passing proof preview is pure; submission issues one receipt without a bank link', () => {
+test('passing proof preview is pure; staff approval is required before issuing a receipt', () => {
   const state = setup(), before = clone(state), preview = previewPaymentProof(state, 'INV-1024', proof());
   assert.equal(preview.mode, 'demo');
   assert.equal(preview.status, 'passed');
   assert.deepEqual(state, before);
   const result = submitPaymentProof(state, 'INV-1024', proof());
-  assert.equal(result.createdReceipt, true);
-  assert.equal(result.receipt.bankId, null);
-  assert.equal(result.receipt.issuedDate, '2026-09-30');
+  assert.equal(result.createdReceipt, false);
+  assert.equal(result.receipt, null);
+  const approved = confirmInvoicePayment(state, 'INV-1024');
+  assert.equal(approved.receipt.bankId, null);
+  assert.equal(approved.receipt.issuedDate, '2026-09-30');
   assert.ok(result.review.checks.every(check => check.status === 'pass'));
   const issued = clone(state);
   assert.equal(submitPaymentProof(state, 'INV-1024', proof()).createdReceipt, false);
@@ -157,6 +161,7 @@ test('malformed rows or conflicting transaction IDs fail before any import mutat
 test('demo statement shows same-day, date-back, date-forward, amount difference, ambiguity and unmatched credit', () => {
   const state = normalizeBillingAutomation(seedCentreVolume(seed()));
   submitPaymentProof(state, 'INV-1024', proof());
+  confirmInvoicePayment(state, 'INV-1024');
   const dates = state.receipts.map(receipt => [receipt.id, receipt.issuedDate]);
   const rows = demoStatementRows(state), batch = importBankStatement(state, { name: 'Fictional statement', rows });
   const result = id => batch.receiptResults.find(item => item.receiptId === id);
@@ -198,8 +203,10 @@ test('payer name and method persist independently of bank confirmation and affec
   assert.equal(result.invoice.proofPayer, 'William Chan');
   assert.equal(result.invoice.paymentMethod, 'bank-transfer');
   assert.equal(result.review.extracted.payer, 'William Chan');
-  assert.equal(result.receipt.documentType, 'receipt');
-  assert.equal(result.receipt.bankId, null);
+  assert.equal(result.receipt, null);
+  const approved = confirmInvoicePayment(state, 'INV-1024');
+  assert.equal(approved.receipt.documentType, 'receipt');
+  assert.equal(approved.receipt.bankId, null);
   assert.equal(state.receipts.length, 1);
   assert.notEqual(previewPaymentProof(state, 'INV-1024', { ...options, payerName: 'Someone Else' }).fingerprint, result.review.fingerprint);
   assert.notEqual(previewPaymentProof(state, 'INV-1024', { ...options, paymentMethod: 'payme' }).fingerprint, result.review.fingerprint);
