@@ -117,7 +117,8 @@ test('first install caches the complete local module and stylesheet graph for of
       await checkModule(new URL(match[1], origin + path).pathname);
     }
   }
-  await checkModule('/app.js'); await checkModule('/pwa.js'); await checkModule('/branch-config.js');
+  await checkModule('/app.js'); await checkModule('/pwa.js'); await checkModule('/branch-config.js'); await checkModule('/proposal/app.js');
+  for (const path of ['/proposal/styles.css', '/proposal/assets/mathconcept-logo.png']) assert.ok(cached.has(origin + path), 'Proposal asset: ' + path);
   const html = await readFile(resolve(dist, 'index.html'), 'utf8');
   for (const match of html.matchAll(/href="(\/[^"?]+\.css)"/g)) assert.ok(cached.has(origin + match[1]), 'Offline stylesheet: ' + match[1]);
   for (const path of [...Array.from({ length: 18 }, (_, index) => '/brand/Asset%20' + (index + 1) + '.svg'), '/conversation-wallpaper.svg']) assert.ok(cached.has(origin + path));
@@ -164,4 +165,15 @@ test('activation removes only outdated MathConcept caches', async () => {
   await worker.lifecycle('install'); await worker.lifecycle('activate');
   assert.ok(!worker.stores.has('mathconcept-static-old')); assert.ok(worker.stores.has('other-app-data'));
   assert.ok([...worker.stores.keys()].some(key => key.startsWith('mathconcept-static-')));
+});
+
+
+test('proposal navigation never falls back to an operational app shell', async () => {
+  const worker = harness(); await worker.lifecycle('install');
+  worker.network(async () => { throw new Error('Offline'); });
+  for (const path of ['/proposal', '/proposal/', '/proposal/index.html', '/proposal/?chapter=teacher']) {
+    assert.equal(await worker.fetch(path, { mode: 'navigate' }), undefined, path);
+  }
+  assert.match(await (await worker.fetch('/proposal/app.js')).text(), /initDemos/);
+  assert.match(await (await worker.fetch('/', { mode: 'navigate' })).text(), /id="app"/);
 });

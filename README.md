@@ -11,6 +11,10 @@ Both branches use the same application, styles and workflow code. `dist/branch-c
 
 Teacher view is available through the role switch or `?role=teacher` at either admin URL. Each branch has its own saved browser demo state and Reset affects only that branch. Tsuen Wan keeps its existing storage key and saved edits. Hang Hau starts with separate fictional data, using the same illustrative 700-student workflows and policies.
 
+## Project proposal
+
+The interactive project proposal is at **[/proposal/](https://mc-draft-rho.vercel.app/proposal/)** on the same Vercel site. Edit `dist/proposal/` for future proposal changes; it is a standalone document with its own scripts and styles. It contains 12 chapters, reading/presentation modes and sample interactive workflows. Its examples reset on reload and do not change the operational demo's saved data.
+
 ## Run locally
 
 Requires Node.js 18 or newer. No package installation, database, credentials or backend are needed.

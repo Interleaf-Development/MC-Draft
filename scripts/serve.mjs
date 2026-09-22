@@ -7,7 +7,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
     const path = decodeURIComponent(url.pathname);
-    if (['/parent', '/student', '/hh', '/hh/parent', '/hh/student'].includes(path)) { res.writeHead(308, { Location: path + '/' + url.search }); res.end(); return; }
+    if (['/parent', '/student', '/hh', '/hh/parent', '/hh/student', '/proposal'].includes(path)) { res.writeHead(308, { Location: path + '/' + url.search }); res.end(); return; }
     let file = resolve(root, '.' + (path === '/' ? '/index.html' : path));
     if (file !== root && !file.startsWith(root + sep)) { res.writeHead(403); res.end(); return; }
     if ((await stat(file)).isDirectory()) file = resolve(file, 'index.html');
