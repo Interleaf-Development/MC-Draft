@@ -293,12 +293,35 @@ test('role changes reuse a ready frame and an early selection is delivered when 
   assert.equal(navigation.page, 'payments');
   h.message(frame.contentWindow, { type: 'mc-proposal:state', role: 'parent', page: 'payments' });
   assert.equal(frame.style.width, '390px');
+  assert.equal(h.host('billing').querySelector('.demo-device-shell').getAttribute('data-device'), 'phone');
   h.choose('billing', 'billing');
   assert.equal(h.frame('billing'), frame);
   navigation = messages(frame, 'mc-proposal:navigate').at(-1).data;
   assert.equal(navigation.role, 'admin');
   assert.equal(navigation.page, 'billing');
   assert.equal(frame.style.width, '1440px');
+  assert.equal(h.host('billing').querySelector('.demo-device-shell').getAttribute('data-device'), null);
+  assert.equal(frame.style.left, '', 'Returning to desktop clears the phone screen inset');
+});
+
+test('phone and tablet mockups keep the complete app viewport while fitting narrow proposal columns', () => {
+  const h = harness('#student'); h.init(); h.warm();
+  for (const [id,role,width,height] of [['student','student',1024,1366],['parent','parent',390,844]]) {
+    const frame=h.frame(id),stage=h.host(id).querySelector('.demo-viewport');
+    const shell=h.host(id).querySelector('.demo-device-shell');
+    h.ready(id,role);
+    for (const columnWidth of [320,720,1200]) {
+      stage.clientWidth=columnWidth;h.emit('resize');
+      assert.equal(h.frame(id),frame, 'Resizing keeps the running app and its input');
+      assert.equal(frame.style.width,width+'px');
+      assert.equal(frame.style.height,height+'px');
+      assert.equal(frame.style.transform,'none', 'The hardware and complete screen scale together');
+      const scale=Number(shell.style.transform.match(/scale\((.+)\)/)[1]);
+      assert.ok(parseFloat(shell.style.width)*scale<columnWidth, 'The entire device fits with space for its edge');
+      assert.ok(parseFloat(stage.style.height)>parseFloat(shell.style.height)*scale, 'The full device height is visible');
+      assert.ok(parseFloat(frame.style.top)>0 && parseFloat(frame.style.left)>0, 'Hardware stays outside the app viewport');
+    }
+  }
 });
 
 test('switching branches replaces only that scene and ignores messages from its removed frame', () => {

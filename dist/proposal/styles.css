@@ -152,6 +152,85 @@ p { color: var(--muted); }
 .live-demo-game .demo-viewport { min-height: 0; background: #edf1ee; }
 .demo-viewport { position: relative; display: flex; justify-content: center; min-height: 240px; overflow: hidden; background: #f2f2f2; }
 .actual-demo-frame { position: absolute; top: 0; left: 50%; display: block; flex-shrink: 0; border: 0; translate: -50% 0; transform-origin: top center; background: #f4f6f9; }
+/* Device hardware surrounds the full app viewport; it never covers app controls. */
+.demo-viewport[data-device] { background: #f1f2f3; }
+.demo-device-shell { display: contents; }
+.demo-device-shell[data-device] {
+  position: absolute;
+  left: 50%;
+  display: block;
+  box-sizing: border-box;
+  border: 1px solid #666b72;
+  border-radius: 42px;
+  background: #202226;
+  box-shadow: inset 0 0 0 2px #090a0c, inset 0 0 0 3px #3f4248, 0 18px 32px -18px #17212d66, 0 4px 10px #17212d1a;
+  translate: -50% 0;
+  transform-origin: top center;
+}
+.demo-device-shell[data-device]::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid #969ba133;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.demo-device-shell[data-device] > .actual-demo-frame { translate: none; transform: none; transform-origin: top left; }
+.demo-device-shell:not([data-device]) > .demo-device-camera,
+.demo-device-shell:not([data-device]) > .demo-device-side-buttons { display: none; }
+.demo-device-shell[data-device="tablet"] { border-radius: 38px; }
+.demo-device-shell[data-device="tablet"] > .actual-demo-frame { border-radius: 19px; }
+.demo-device-shell[data-device="phone"] > .actual-demo-frame { border-radius: 30px; }
+.demo-device-camera,
+.demo-device-camera::after,
+.demo-device-side-buttons,
+.demo-device-side-buttons::before,
+.demo-device-side-buttons::after,
+.demo-device-shell::after { position: absolute; pointer-events: none; }
+.demo-device-camera {
+  top: 8px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border: 1px solid #08090b;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #264058 0, #101a28 35%, #080a0d 70%);
+  translate: -50% 0;
+}
+.demo-device-shell[data-device="phone"] .demo-device-camera {
+  top: 13px;
+  width: 44px;
+  height: 5px;
+  border: 0;
+  border-radius: 4px;
+  background: #090a0c;
+  box-shadow: inset 0 1px 1px #000, 0 1px 0 #ffffff0d;
+}
+.demo-device-shell[data-device="phone"] .demo-device-camera::after {
+  content: '';
+  top: -1px;
+  right: -16px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #264058 0, #101a28 35%, #080a0d 70%);
+}
+.demo-device-side-buttons,
+.demo-device-side-buttons::before,
+.demo-device-side-buttons::after,
+.demo-device-shell::after {
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #858a91, #35383e);
+}
+.demo-device-side-buttons { top: 86px; left: -3px; height: 22px; }
+.demo-device-side-buttons::before { content: ''; top: 38px; left: 0; height: 38px; }
+.demo-device-side-buttons::after { content: ''; top: 86px; left: 0; height: 38px; }
+.demo-device-shell[data-device="phone"]::after { content: ''; top: 146px; right: -3px; height: 58px; }
+.demo-device-shell[data-device="tablet"] .demo-device-side-buttons { top: 84px; right: -3px; left: auto; height: 43px; }
+.demo-device-shell[data-device="tablet"] .demo-device-side-buttons::before { top: 55px; height: 43px; }
+.demo-device-shell[data-device="tablet"] .demo-device-side-buttons::after { content: none; }
+.demo-device-shell[data-device="tablet"]::after { content: ''; top: -3px; right: 74px; width: 52px; height: 3px; background: linear-gradient(#858a91, #35383e); }
 .demo-loading { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #f6f6f6; }
 .demo-loading { color: var(--muted); font-size: 12px; }
 .demo-loading button { padding: 8px 13px; border: 1px solid #bbb; border-radius: 3px; background: #fff; font-size: 12px; }
@@ -272,7 +351,7 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   @page { margin: 15mm 14mm; }
   :root { color: #000; background: #fff; }
   body { font-size: 10pt; line-height: 1.5; }
-  .sidebar, .topbar, .presentation-footer, .document-footer, .demo-wrap, .demo-caption, .actual-demo-frame, .demo-loading, .document-links, .button-row, .skip, #toast, dialog, .rollout-interactive { display: none !important; }
+  .sidebar, .topbar, .presentation-footer, .document-footer, .demo-wrap, .demo-caption, .demo-device-shell, .actual-demo-frame, .demo-loading, .document-links, .button-row, .skip, #toast, dialog, .rollout-interactive { display: none !important; }
   .rollout-print { display: block; }
   .demo-wrap:has(#demo-rollout) { display: block !important; }
   .page-shell { margin: 0; }

@@ -34,6 +34,8 @@ const scenes = {
   franchise: ['tw','hh']
 };
 const dimensions = {admin:[1440,1000],teacher:[1440,1000],student:[1024,1366],parent:[390,844],game:[960,540]};
+// Hardware surrounds the full app viewport; it never overlays app controls.
+const devices = {student:{kind:'tablet',left:20,right:20,top:24,bottom:24},parent:{kind:'phone',left:10,right:10,top:30,bottom:20}};
 const selection = new Map();
 const frames = new Map();
 let active = null, initialised = false, notify = () => {};
@@ -74,7 +76,24 @@ function shell(id) {
 }
 function sizeFrame(entry = active) {
   if (!entry || !entry.stage.clientWidth) return;
-  const {frame,stage,view} = entry;
+  const {frame,stage,view,deviceShell} = entry;
+  const device=devices[view.role];
+  if(device) {
+    const [width,height]=dimensions[view.role];
+    const outerWidth=width+device.left+device.right,outerHeight=height+device.top+device.bottom;
+    const gutter=Math.min(24,Math.max(8,stage.clientWidth*.025));
+    const scale=Math.min(1,Math.max(1,stage.clientWidth-2*gutter)/outerWidth,900/height);
+    stage.setAttribute('data-device',device.kind);
+    deviceShell.setAttribute('data-device',device.kind);
+    stage.style.height=Math.ceil(outerHeight*scale+2*gutter)+'px';
+    Object.assign(deviceShell.style,{width:outerWidth+'px',height:outerHeight+'px',top:gutter+'px',transform:`scale(${scale})`});
+    Object.assign(frame.style,{width:width+'px',height:height+'px',left:device.left+'px',top:device.top+'px',transform:'none'});
+    return;
+  }
+  stage.removeAttribute('data-device');
+  deviceShell.removeAttribute('data-device');
+  Object.assign(deviceShell.style,{width:'',height:'',top:'',transform:''});
+  Object.assign(frame.style,{left:'',top:''});
   if(view.role==='game') {
     // Keep the race in landscape, scaling the whole view on narrow screens.
     const [minimumWidth,minimumHeight]=dimensions.game;
@@ -130,16 +149,25 @@ function mount(id, key) {
   selection.set(id,chosen);
   host.innerHTML=shell(id);
   const box=host.querySelector('.live-demo'),stage=box.querySelector('.demo-viewport');
+  const deviceShell=document.createElement('div');
+  deviceShell.className='demo-device-shell';
+  for(const className of ['demo-device-camera','demo-device-side-buttons']) {
+    const detail=document.createElement('span');
+    detail.className=className;
+    detail.setAttribute('aria-hidden','true');
+    deviceShell.append(detail);
+  }
   const frame=document.createElement('iframe');
   frame.className='actual-demo-frame';
   frame.title=t(`MathConcept demo — ${view.label}`,`MathConcept 示範 — ${view.label}`);
   frame.setAttribute('allow','fullscreen');
   frame.loading='eager';
-  const entry={id,box,stage,frame,view,ready:false,pendingView:null,saving:false};
+  const entry={id,box,stage,frame,deviceShell,view,ready:false,pendingView:null,saving:false};
   frames.set(id,entry);
   syncSavingFrames();
   frame.src=sourceURL(view);
-  stage.append(frame);
+  deviceShell.append(frame);
+  stage.append(deviceShell);
   sizeFrame(entry);
   entry.observer=new ResizeObserver(()=>sizeFrame(entry));
   entry.observer.observe(stage);
