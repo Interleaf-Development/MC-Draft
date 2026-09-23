@@ -1,3 +1,4 @@
+import { parseDemoState, serializeDemoState } from '../dist/demo-state-storage.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -20,10 +21,10 @@ const startup = app.slice(app.indexOf('const STORAGE ='), app.indexOf('const ui 
 const persist = app.slice(app.indexOf('function persist()'), app.indexOf('function change('));
 function open(config, saved) {
   return vm.runInNewContext(startup + persist + '\n({get:()=>state,save:value=>{state=value;persist();}})', {
-    centreConfig: config,
+    parseDemoState, serializeDemoState, centreConfig: config,
     localStorage: { getItem: key => saved.get(key) || null, setItem: (key, value) => saved.set(key, value) },
     seed: () => ({ version: 4, marker: 'fresh ' + config.id }),
-    seedCentreVolume() {}, seedTeacherSchedules() {}, seedBusyAfternoons() {}, normalizeParentLeave() {}, normalizeStaffLeave() {}, normalizeConversations() {}, normalizeBillingAutomation() {}, normalizeBillingWorkflow() {}, normalizeP6Progress() {}, normalizeTwnSchedule() {}, runTuitionBilling() {},
+    seedCentreVolume() {}, seedTeacherSchedules() {}, seedBusyAfternoons() {}, normalizeParentLeave() {}, normalizeStaffLeave() {}, normalizeConversations() {}, normalizeBillingAutomation() {}, normalizeBillingWorkflow() {}, normalizeP6Progress() {}, normalizeTwnSchedule() {}, normalizeDemoSchedule() {}, runTuitionBilling() {},
     toast() { throw new Error('Unexpected storage error'); }
   });
 }

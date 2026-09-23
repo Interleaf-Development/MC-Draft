@@ -1,5 +1,6 @@
 import { TODAY, WEEK, tutors, allStudents as students, activeBooking, validateSlot, uid, clone, record, centre, resolveRegularScheduleRule } from './model.js';
 import { FIXTURE_LESSON_SOURCE } from './billing-fixture-lessons.js';
+import { DEMO_SCHEDULE_SOURCE, DEMO_SCHEDULE_END, createDemoLesson, isUntouchedDemoLesson } from './demo-schedule.js';
 
 const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const monthNumbers = new Map(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((name, index) => [name.toLowerCase(), index + 1]));
@@ -185,6 +186,18 @@ function bookingException(booking) {
 function futureUnlinkedBookings(state, input, period) {
   return state.bookings.filter(booking => booking.studentId === input.studentId && booking.date >= TODAY && booking.date <= period.end && booking.date >= period.start && activeBooking(booking) && !bookingException(booking));
 }
+function untouchedDemoIds(state) {
+  const bookingIds = new Set(state.bookings.map(booking => booking.id)), linked = new Set();
+  function visit(value) {
+    if (typeof value === 'string') { if (bookingIds.has(value)) linked.add(value); return; }
+    if (value && typeof value === 'object') for (const item of Object.values(value)) visit(item);
+  }
+  // Check receipts, leave, check-in records and history, including references
+  // from other bookings. A generated ID alone never makes a saved record disposable.
+  for (const [name, value] of Object.entries(state)) if (name !== 'bookings') visit(value);
+  for (const booking of state.bookings) for (const [name, value] of Object.entries(booking)) if (name !== 'id') visit(value);
+  return new Set(state.bookings.filter(booking => isUntouchedDemoLesson(booking) && !linked.has(booking.id)).map(booking => booking.id));
+}
 function untouchedFixture(booking) {
   if (booking.note || booking.attendance !== 'unmarked' || booking.duration !== 60 || !WEEK.includes(booking.date)) return false;
   if (booking.id === 'afternoon-v1-' + booking.date + '-' + booking.tutor + '-' + booking.start + '-' + booking.studentId || booking.id === 'schedule-v1-' + booking.studentId || booking.id === 'sunday-v1-' + booking.studentId) return true;
@@ -245,8 +258,9 @@ export function previewRegularScheduleChange(state, requested) {
   // receipt's range; a rule matching only today's override is still a change.
   if (!temporary && latestRule?.endDate) sameRule = false;
   if (sameRule) proposed = beforeLessons.map(fields);
+  const demoIds = untouchedDemoIds(state);
   const candidates = futureUnlinkedBookings(state, input, period).filter(booking => !temporary || inRange(booking));
-  const classified = candidates.filter(booking => belongsToPlan(booking, beforeLessons, oldRule) || untouchedFixture(booking));
+  const classified = candidates.filter(booking => belongsToPlan(booking, beforeLessons, oldRule) || untouchedFixture(booking) || demoIds.has(booking.id));
   const editable = classified.filter(booking => !preserved.some(lesson => lesson.bookingId === booking.id)), ignoredIds = editable.map(booking => booking.id);
   for (const booking of candidates.filter(item => !classified.includes(item))) conflicts.push(blocking('unclassified-booking', 'This student has a separate lesson on ' + booking.date + ' outside the receipt’s regular timetable. Review that booking before changing the regular schedule.', booking.date));
   const trial = { ...state, bookings: state.bookings.filter(booking => !ignoredIds.includes(booking.id)) };
@@ -260,14 +274,24 @@ export function previewRegularScheduleChange(state, requested) {
   }
   if (!sameRule) {
     const laterPaid = getSchedulePeriods(state, input.studentId).find(other => other.id !== input.invoiceId && other.end >= input.effectiveDate && (!temporary || other.start <= input.endDate));
-    const laterBooking = !temporary && state.bookings.find(booking => booking.studentId === input.studentId && booking.date > period.end && activeBooking(booking) && !bookingException(booking));
+    const laterBooking = !temporary && state.bookings.find(booking => booking.studentId === input.studentId && booking.date > period.end && !demoIds.has(booking.id) && (booking.source === DEMO_SCHEDULE_SOURCE || activeBooking(booking) && !bookingException(booking)));
     if (laterPaid || laterBooking) conflicts.push(blocking('future-period', temporary ? 'This date range overlaps another future paid period. Review that period together before applying this change.' : 'This student has another future paid period or regular lesson after ' + period.end + '. Review that period together before applying a permanent change.', laterPaid?.start || laterBooking.date));
+  }
+  // The repeated demo months are not a second paid period. Continue a permanent
+  // rule through that sample horizon, without adding those dates to this receipt.
+  const continuationIds = !temporary && !sameRule ? state.bookings.filter(booking => booking.studentId === input.studentId && booking.date > period.end && demoIds.has(booking.id)).map(booking => booking.id) : [];
+  const continuationLessons = continuationIds.length ? datesForRule(state, { start: addDays(period.end, 1), end: DEMO_SCHEDULE_END }, newRule) : [];
+  const continuationTrial = { ...trial, bookings: trial.bookings.filter(booking => !continuationIds.includes(booking.id)) };
+  for (const lesson of continuationLessons) {
+    const error = validateSlot(continuationTrial, { ...lesson, studentId: input.studentId });
+    if (error) conflicts.push(blocking('schedule', error, lesson.date));
+    continuationTrial.bookings.push({ ...lesson, studentId: input.studentId, status: 'scheduled' });
   }
   const beforeKeys = new Set(beforeLessons.map(key)), afterKeys = new Set(proposed.map(key));
   const resumeLesson = temporary ? beforeLessons.find(lesson => lesson.date > input.endDate && !bookingException(state.bookings.find(booking => booking.id === lesson.bookingId))) : null;
   const resumeDate = temporary ? resumeLesson?.date || addDays(input.endDate, 1) : null;
   const resumeRule = temporary ? getRegularSchedule(state, input.studentId, resumeDate) : null;
-  const preview = { input, temporary, resumeDate, resumeRule, resumeLessonDate: resumeLesson?.date || null, invoiceId: invoice.id, receiptId: periodEntry.receiptId, period, oldRule, newRule, beforeLessons, proposedLessons: proposed, beforeCount: beforeLessons.length, proposedCount: proposed.length, delta: proposed.length - beforeLessons.length, makeUpLessonCount: plan.makeUpLessonCount, beforeTotalCount: beforeLessons.length + plan.makeUpLessonCount, proposedTotalCount: proposed.length + plan.makeUpLessonCount, removedLessons: beforeLessons.filter(lesson => !afterKeys.has(key(lesson))), addedLessons: proposed.filter(lesson => !beforeKeys.has(key(lesson))), preservedLessons: preserved, editableBookingIds: ignoredIds, conflicts, unchanged: sameRule, fingerprint: fingerprint(state, input) };
+  const preview = { input, temporary, resumeDate, resumeRule, resumeLessonDate: resumeLesson?.date || null, invoiceId: invoice.id, receiptId: periodEntry.receiptId, period, oldRule, newRule, beforeLessons, proposedLessons: proposed, beforeCount: beforeLessons.length, proposedCount: proposed.length, delta: proposed.length - beforeLessons.length, makeUpLessonCount: plan.makeUpLessonCount, beforeTotalCount: beforeLessons.length + plan.makeUpLessonCount, proposedTotalCount: proposed.length + plan.makeUpLessonCount, removedLessons: beforeLessons.filter(lesson => !afterKeys.has(key(lesson))), addedLessons: proposed.filter(lesson => !beforeKeys.has(key(lesson))), preservedLessons: preserved, editableBookingIds: ignoredIds, continuationIds, continuationLessons, conflicts, unchanged: sameRule, fingerprint: fingerprint(state, input) };
   preview.excludedDateCandidates = preview.delta > 0 ? declineCandidates(preview) : [];
   return preview;
 }
@@ -306,6 +330,14 @@ export function applyRegularScheduleChange(state, input, decisions = {}) {
     if (!existing) { trial.bookings.push(booking); created.push(booking.id); }
     lesson.bookingId = booking.id;
   }
+  trial.bookings = trial.bookings.filter(booking => !preview.continuationIds.includes(booking.id));
+  for (const lesson of preview.continuationLessons) {
+    const booking = createDemoLesson({ ...lesson, studentId: preview.input.studentId });
+    const error = closureOn(trial, lesson.date) ? 'The centre is closed on this date.' : validateSlot(trial, booking);
+    if (error) throw new Error(lesson.date + ': ' + error);
+    if (trial.bookings.some(item => item.id === booking.id)) throw new Error('The timetable changed. Preview the change again before confirming.');
+    trial.bookings.push(booking);
+  }
   const shortfall = preview.delta < 0 && decisions.shortfall === 'credit' ? -preview.delta : 0;
   const makeUpLessonCount = preview.makeUpLessonCount + shortfall;
   const lessonCount = accepted.length + makeUpLessonCount;
@@ -328,6 +360,7 @@ export function applyRegularScheduleChange(state, input, decisions = {}) {
   invoice.lessonPlan = { lessonCount, lessonDates: clone(accepted), makeUpLessonCount };
   invoice.lessonCount = lessonCount; invoice.description = revision.description;
   const change = { id: changeId, studentId: preview.input.studentId, invoiceId: invoice.id, receiptId: receipt.id, revisionId: revision.id, createdAt: generatedAt, effectiveDate: preview.input.effectiveDate, ...temporaryDetails, oldRule: clone(preview.oldRule), newRule: clone(preview.newRule), beforeCount: preview.beforeCount, proposedCount: preview.proposedCount, finalCount: accepted.length, lessonCount, delta: preview.delta, excludedDates, decisions: revision.decisions, reason, createdBookingIds: created, ...(makeup ? { makeupId: makeup.id } : {}) };
+  if (preview.continuationIds.length) change.demoContinuation = { through: DEMO_SCHEDULE_END, lessonDates: clone(preview.continuationLessons) };
   trial.regularScheduleChanges = [...(trial.regularScheduleChanges || []), change];
   trial.regularSchedules = { ...trial.regularSchedules, [preview.input.studentId]: { ...preview.newRule, invoiceId: invoice.id, changeId, previousRule: clone(state.regularSchedules?.[preview.input.studentId] || preview.oldRule) } };
   trial.audit ??= [];

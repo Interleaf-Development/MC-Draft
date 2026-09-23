@@ -1,3 +1,4 @@
+import { serializeDemoState } from '../dist/demo-state-storage.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -76,7 +77,7 @@ test('real billing save rolls back receipt creation if browser persistence fails
   const state = setup(); setBillingAutoSent(state, false); submitPaymentProof(state, 'INV-1024', options);
   const before = clone(state), error = { textContent: '', classList: { add() {} } };
   let fail = true, renders = 0, persisted;
-  const context = { state, clone, STORAGE: 'test', previousState: null, t: s => s, $: () => error, toast() {}, render() { renders++; }, localStorage: { setItem(key, value) { if (fail) throw new Error('quota'); persisted = JSON.parse(value); } }, confirmInvoicePayment };
+  const context = { serializeDemoState, state, clone, STORAGE: 'test', previousState: null, t: s => s, $: () => error, toast() {}, render() { renders++; }, localStorage: { setItem(key, value) { if (fail) throw new Error('quota'); persisted = JSON.parse(value); } }, confirmInvoicePayment };
   const host = vm.runInNewContext(save + '\n({save:()=>saveBillingChange(()=>confirmInvoicePayment(state,"INV-1024")),get:()=>state})', context);
   assert.equal(host.save(), false);
   assert.deepEqual(host.get(), before);

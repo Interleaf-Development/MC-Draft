@@ -70,28 +70,21 @@ function selectedView(key) {
 }
 function shell(id) {
   const chosen = selection.get(id)||scenes[id][0];
-  return `<div class="live-demo${id==='game'?' live-demo-game':''}" data-live-demo="${id}"><div class="live-demo-toolbar"><div class="live-demo-views" role="group" aria-label="${t('Demo views','示範畫面')}">${scenes[id].map(key=>`<button type="button" data-demo-view="${key}" aria-pressed="${chosen===key}">${views[key].label}</button>`).join('')}</div><div class="demo-window-actions">${id==='game'?`<a class="demo-full-game" href="/game1/" target="_blank" rel="noopener">${t('Open full game ↗','獨立開啟遊戲 ↗')}</a>`:''}<button type="button" class="demo-expand" data-demo-expand aria-expanded="false">${t('Expand ↗','放大 ↗')}</button></div></div><div class="demo-viewport"><div class="demo-loading" role="status">${t('Loading demo…','正在載入示範畫面…')}</div></div></div>`;
+  return `<div class="live-demo${id==='game'?' live-demo-game':''}" data-live-demo="${id}"><div class="live-demo-toolbar"><div class="live-demo-views" role="group" aria-label="${t('Demo views','示範畫面')}">${scenes[id].map(key=>`<button type="button" data-demo-view="${key}" aria-pressed="${chosen===key}">${views[key].label}</button>`).join('')}</div>${id==='game'?`<a class="demo-full-game" href="/game1/" target="_blank" rel="noopener">${t('Open full game ↗','獨立開啟遊戲 ↗')}</a>`:''}</div><div class="demo-viewport"><div class="demo-loading" role="status">${t('Loading demo…','正在載入示範畫面…')}</div></div></div>`;
 }
 function sizeFrame(entry = active) {
   if (!entry || !entry.stage.clientWidth) return;
-  const {frame,stage,box,view} = entry;
-  const expanded=box.classList.contains('is-expanded');
+  const {frame,stage,view} = entry;
   if(view.role==='game') {
     // Keep the race in landscape, scaling the whole view on narrow screens.
     const [minimumWidth,minimumHeight]=dimensions.game;
     const width=Math.max(minimumWidth,stage.clientWidth);
     const height=width*minimumHeight/minimumWidth;
-    if(expanded)stage.style.height='';
-    const scale=Math.min(1,stage.clientWidth/width,expanded?stage.clientHeight/height:1);
-    if(!expanded)stage.style.height=Math.ceil(height*scale)+'px';
+    const scale=Math.min(1,stage.clientWidth/width);
+    stage.style.height=Math.ceil(height*scale)+'px';
     frame.style.width=width+'px';
     frame.style.height=height+'px';
     frame.style.transform=`scale(${scale})`;
-  } else if (expanded) {
-    stage.style.height='';
-    frame.style.width=stage.clientWidth+'px';
-    frame.style.height=stage.clientHeight+'px';
-    frame.style.transform='none';
   } else {
     const [width,height] = dimensions[view.role]||dimensions.admin;
     const scale = Math.min(1,stage.clientWidth/width,900/height);
@@ -128,7 +121,6 @@ function mount(id, key) {
   const existing=frames.get(id);
   if (existing && (existing.view.branch||'tw')===(view.branch||'tw')) return existing;
   if (existing) {
-    if(existing.box.classList.contains('is-expanded'))expand(false);
     if(active===existing)setActive(null);
     existing.observer?.disconnect();
     existing.visibilityObserver?.disconnect();
@@ -155,8 +147,8 @@ function mount(id, key) {
     entry.visibilityObserver=new IntersectionObserver(records=>{
       const visible=records.some(record=>record.isIntersecting);
       entry.visible=visible;
-      if(visible && !document.hidden && !document.body.classList.contains('demo-expanded'))setActive(entry);
-      else if(!visible && active===entry && !box.classList.contains('is-expanded'))setActive(null);
+      if(visible && !document.hidden)setActive(entry);
+      else if(!visible && active===entry)setActive(null);
     },{threshold:0});
     entry.visibilityObserver.observe(stage);
   }
@@ -171,7 +163,6 @@ function choose(id,key) {
   if (!scenes[id]?.includes(key)) return;
   if (demoNavigationBlocked()) return;
   const view=selectedView(key);
-  const expanded=frames.get(id)?.box.classList.contains('is-expanded');
   selection.set(id,key);
   const entry=mount(id,key);
   setActive(entry);
@@ -179,32 +170,14 @@ function choose(id,key) {
   entry.frame.title=t(`MathConcept demo — ${view.label}`,`MathConcept 示範 — ${view.label}`);
   if(entry.ready)navigateFrame(entry,view);else entry.pendingView=view;
   syncControls(entry);sizeFrame(entry);
-  if(expanded&&!entry.box.classList.contains('is-expanded'))expand(true);
 }
 function navigateFrame(entry,view) {
   if(view.role==='game')return;
   if(demoIsSaving()){entry.pendingView=view;return;}
   send(entry,'mc-proposal:navigate',{role:view.role,page:view.page,...(view.studentId?{studentId:view.studentId}:{})});
 }
-function expand(value) {
-  if (!active) return;
-  const entry=active;
-  const enabled=value??!entry.box.classList.contains('is-expanded');
-  if (!enabled && demoNavigationBlocked()) return;
-  entry.box.classList.toggle('is-expanded',enabled);
-  document.body.classList.toggle('demo-expanded',enabled);
-  entry.box.setAttribute('role',enabled?'dialog':'region');
-  entry.box.setAttribute('aria-label',enabled?t('Expanded MathConcept demo','已放大的 MathConcept 示範'):t('MathConcept demo','MathConcept 示範'));
-  if (enabled) entry.box.setAttribute('aria-modal','true'); else entry.box.removeAttribute('aria-modal');
-  const button=entry.box.querySelector('[data-demo-expand]');
-  button.textContent=enabled?t('Close expanded view ×','關閉放大畫面 ×'):t('Expand ↗','放大 ↗');
-  button.setAttribute('aria-expanded',String(enabled));
-  for (const element of document.querySelectorAll('.sidebar,.topbar,.presentation-footer')) element.inert=enabled;
-  requestAnimationFrame(()=>sizeFrame(entry));
-  button.focus({preventScroll:true});
-}
 export function activateDemo(id) {
-  if (!initialised || demoIsSaving() || document.body.classList.contains('demo-expanded')) return;
+  if (!initialised || demoIsSaving()) return;
   const scene=id==='system'?'operations':id;
   const entry=scenes[scene]?mount(scene):null;
   setActive(entry);
@@ -222,10 +195,6 @@ export function initDemos(options = {}) {
       if (demoNavigationBlocked()) return;
       const entry=frames.get(box.dataset.liveDemo);
       if(entry){entry.ready=false;entry.frame.src=sourceURL(entry.view);}
-    }
-    if (event.target.closest('[data-demo-expand]')&&box) {
-      if(demoIsSaving()&&active?.id!==box.dataset.liveDemo){demoNavigationBlocked();return;}
-      setActive(mount(box.dataset.liveDemo));expand();
     }
   });
   window.addEventListener('message',event=>{
@@ -264,9 +233,6 @@ export function initDemos(options = {}) {
     if(!demoIsSaving())return;
     event.preventDefault();
     event.returnValue='';
-  });
-  window.addEventListener('keydown',event=>{
-    if(event.key==='Escape'&&active?.box.classList.contains('is-expanded')){event.preventDefault();expand(false);}
   });
   // Start the requested scene first, then warm the rest without replacing it.
   const chapter=location.hash.slice(1);

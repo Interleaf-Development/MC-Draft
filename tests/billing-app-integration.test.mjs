@@ -1,3 +1,4 @@
+import { serializeDemoState } from '../dist/demo-state-storage.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -21,7 +22,7 @@ function harness() {
   const error = { textContent: '', classList: { add() {} } }, events = { closed: 0, rendered: 0, toast: [], copied: [], saved: null };
   let saving = false, fail = false;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
-  const scope = { ...model, ...billing, createAssessmentInvoice, submitEnrolmentApplication, reviewEnrolmentApplication, state, ui, esc,
+  const scope = { serializeDemoState, ...model, ...billing, createAssessmentInvoice, submitEnrolmentApplication, reviewEnrolmentApplication, state, ui, esc,
     previousState: null, STORAGE: 'test', billingWorkflowUI: { isSaving: () => saving },
     navigator: { clipboard: { writeText: value => { events.copied.push(value); return Promise.resolve(); } } },
     localStorage: { setItem: (key, value) => { if (fail) throw new Error('quota'); events.saved = JSON.parse(value); } },

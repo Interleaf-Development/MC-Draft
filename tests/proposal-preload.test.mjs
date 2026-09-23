@@ -383,25 +383,6 @@ test('saving accepts only boolean messages from current same-origin frames and p
   assert.notEqual(h.frame('franchise'), franchise);
 });
 
-test('expanded demos cannot close by button or Escape during saving and can close after recovery', () => {
-  const h = harness('#billing'); h.init(); h.warm(); h.activate('billing'); h.ready('billing', 'admin', 'billing');
-  const frame = h.frame('billing');
-  const expand = h.host('billing').querySelector('[data-demo-expand]');
-  h.emit('click', { target: expand });
-  assert.equal(h.document.body.classList.contains('demo-expanded'), true);
-  h.message(frame.contentWindow, { type: 'mc-proposal:saving', saving: true });
-  h.emit('click', { target: expand });
-  let prevented = false;
-  h.emit('keydown', { key: 'Escape', preventDefault() { prevented = true; } });
-  assert.equal(prevented, true);
-  assert.equal(h.document.body.classList.contains('demo-expanded'), true);
-  assert.equal(h.notices.length, 2);
-  h.message(frame.contentWindow, { type: 'mc-proposal:saving', saving: false });
-  h.emit('click', { target: expand });
-  assert.equal(h.document.body.classList.contains('demo-expanded'), false);
-  assert.equal(h.frame('billing'), frame);
-});
-
 test('a view requested before another frame starts saving stays queued until all saving finishes', () => {
   const h = harness('#billing'); h.init(); h.warm(); h.activate('billing'); h.ready('billing', 'admin', 'billing');
   h.choose('operations', 'parentLessons');
@@ -486,13 +467,12 @@ test('a hidden document never starts an embedded game and a narrow frame preserv
   assert.equal(game.style.height, '540px');
   assert.equal(game.style.transform, 'scale(0.375)');
   assert.equal(stage.style.height, '203px');
-  stage.clientWidth = 900;
-  stage.clientHeight = 400;
-  h.emit('click', { target: h.host('game').querySelector('[data-demo-expand]') });
-  assert.equal(game.style.width, '960px');
-  assert.equal(game.style.height, '540px');
-  assert.equal(game.style.transform, `scale(${400/540})`);
-  assert.equal(stage.style.height, '');
+  stage.clientWidth = 1200;
+  h.emit('resize');
+  assert.equal(game.style.width, '1200px');
+  assert.equal(game.style.height, '675px');
+  assert.equal(game.style.transform, 'scale(1)');
+  assert.equal(stage.style.height, '675px');
 });
 
 test('scrolling within the student chapter keeps the visible game active rather than resetting to its binder', () => {

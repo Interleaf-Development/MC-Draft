@@ -25,6 +25,8 @@ import { createTeacherProgressUI } from './teacher-progress-ui.js';
 import { canStudentOpenAssignment, canStudentEditAssignment, releasePreparedAssignment } from './student-work.js';
 import { renderStudentBinder } from './student-binder-ui.js';
 import { normalizeTwnSchedule } from './twn-schedule.js';
+import { normalizeDemoSchedule } from './demo-schedule.js';
+import { parseDemoState, serializeDemoState } from './demo-state-storage.js';
 const demoContext = createDemoContext({url:new URL(location.href),getLocalStorage:()=>window.localStorage,getSessionStorage:()=>window.sessionStorage});
 let proposalIsActive = !demoContext.isPreloading;
 // Keep all existing save paths behind one adapter. In proposal mode this uses
@@ -32,10 +34,10 @@ let proposalIsActive = !demoContext.isPreloading;
 const localStorage = demoContext.storage;
 const STORAGE = centreConfig.storageKey;
 let state;
-try { const saved = JSON.parse(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
-seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);runTuitionBilling(state);
+try { const saved = parseDemoState(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
+seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);normalizeDemoSchedule(state);runTuitionBilling(state);
 const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:centre.managerId, scheduleBookingId:null, scheduleRemarkDrafts:{}, date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Payments', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, paperZoom: 1, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:centre.managerId };
-if(demoContext.isProposal)try{const saved=JSON.stringify(state);if(localStorage.getItem(STORAGE)!==saved)localStorage.setItem(STORAGE,saved);}catch{}
+if(demoContext.isProposal)try{const saved=serializeDemoState(state);if(localStorage.getItem(STORAGE)!==saved)localStorage.setItem(STORAGE,saved);}catch{}
 const t = (en, zh) => zh ?? billingText(staffText(en));
 const content = value => staffContent(value);
 const getStudentProfile = (data,id) => staffProfile(data,getStoredStudentProfile(data,id));
@@ -106,7 +108,7 @@ const toast = (message, undo = false, error = false) => {
   el.innerHTML = icon(error ? 'info' : 'check') + '<span>' + esc(t(message)) + '</span>' + (undo ? action('undo-state', 'Undo', '') : '');
   $('#notifications').append(el); setTimeout(() => el.remove(), undo ? 10000 : 5000);
 };
-function persist() { try { localStorage.setItem(STORAGE, JSON.stringify(state)); } catch { toast('Browser storage is full. Changes will last for this session.', false, true); } }
+function persist() { try { localStorage.setItem(STORAGE, serializeDemoState(state)); } catch { toast('Browser storage is full. Changes will last for this session.', false, true); } }
 function change(fn, message = '', undo = false) {
   const before = clone(state);
   try { fn(); previousState = undo ? before : null; persist(); render(); if (message) toast(message, undo); return true; }
@@ -117,7 +119,7 @@ function saveBillingChange(fn) {
  const before = clone(state);
  try {
   fn();
-  try { localStorage.setItem(STORAGE, JSON.stringify(state)); }
+  try { localStorage.setItem(STORAGE, serializeDemoState(state)); }
   catch { throw new Error(t('Could not save this change. Please try again.', '未能儲存這項更改，請重試。')); }
  } catch (err) {
   state = before;
@@ -191,10 +193,10 @@ function refreshProposalState(force=false) {
  ui.proposalRefreshPending=false;
  try {
   const saved=localStorage.getItem(STORAGE);
-  if(!saved||saved===JSON.stringify(state))return false;
-  const next=JSON.parse(saved);if(next?.version!==4)return false;
+  if(!saved||saved===serializeDemoState(state))return false;
+  const next=parseDemoState(saved);if(next?.version!==4)return false;
   state=next;previousState=null;
-  seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);runTuitionBilling(state);
+  seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);normalizeDemoSchedule(state);runTuitionBilling(state);
   conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();
   ui.matchDraft=null;ui.profileDrafts={};ui.scheduleRemarkDrafts={};ui.picker=null;
   followProposalStudent();
@@ -206,7 +208,7 @@ function activateProposalFrame() {
  if(!demoContext.isProposal)return;
  proposalIsActive=true;
  let changed=false;
- try {const saved=localStorage.getItem(STORAGE);changed=!!saved&&saved!==JSON.stringify(state)&&JSON.parse(saved)?.version===4;}catch{}
+ try {const saved=localStorage.getItem(STORAGE);changed=!!saved&&saved!==serializeDemoState(state)&&parseDemoState(saved)?.version===4;}catch{}
  // A retained frame may have an old edit open while another scene saved data.
  // Re-enter that scene from its latest saved records before it can write again.
  if(changed){
@@ -894,7 +896,7 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>'+t('This is a front-end prototype. Tsuen Wan timetable names and lesson slots come from the supplied schedules; payment and other workflow examples are sample data. Changes stay in this browser. No messages, payments or reports are sent to an external service.','這是介面示範。荃灣的學生姓名及課堂時段來自提供的時間表；付款及其他流程使用示範資料。修改只儲存在此瀏覽器，不會向外傳送訊息、付款或報告。')+'</p><p class="mt-16 muted">'+t('The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.','示範課堂日期為 2026 年 9 月 30 日。銀行交易樣本包含跨月例子，可試用入賬日期調整及對賬流程。')+'</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>'+t('Restore the demo schedules and sample workflows. Your demo edits and handwriting in this browser will be cleared.','還原示範時間表及流程資料。你在此瀏覽器的示範修改及手寫內容將被清除。')+'</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);runTuitionBilling(state);conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent=null;ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Payments',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);normalizeDemoSchedule(state);runTuitionBilling(state);conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent=null;ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Payments',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeupPreferences(id,justConfirmed=false){

@@ -1,3 +1,4 @@
+import { parseDemoState, serializeDemoState } from '../dist/demo-state-storage.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -155,9 +156,9 @@ test('app refresh defers during dialogs and worksheet editing, then loads the la
   const noOp = () => {};
   const resettable = { reset: noOp };
   const scope = {
-    demoContext: { isProposal: true }, state: { version: 4, marker: 'old' }, ui, previousState: {},
+    parseDemoState, serializeDemoState, demoContext: { isProposal: true }, state: { version: 4, marker: 'old' }, ui, previousState: {},
     localStorage: { getItem: () => saved }, STORAGE: key, $: () => overlay,
-    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp, runTuitionBilling: noOp,
+    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp, normalizeDemoSchedule: noOp, runTuitionBilling: noOp,
     conversationUI: resettable, bankCheckUI: resettable, billingWorkflowUI: resettable, regularScheduleUI: resettable, teacherProgressUI: resettable,
     followProposalStudent() { follows++; }
   };
@@ -190,11 +191,11 @@ async function proposalFrameHarness(state, ui = {}) {
   const overlay = { children: [] };
   const noOp = () => {};
   const scope = {
-    demoContext: { isProposal: true }, proposalIsActive: false,
+    parseDemoState, serializeDemoState, demoContext: { isProposal: true }, proposalIsActive: false,
     students: model.allStudents, state, previousState: {},
     ui: { role: 'student', page: 'work', selectedStudent: 'chloe', familyStudent: 'chloe', ...ui },
     localStorage: { getItem: () => saved }, STORAGE: key, $: () => overlay,
-    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp, runTuitionBilling: noOp,
+    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp, normalizeDemoSchedule: noOp, runTuitionBilling: noOp,
     conversationUI: { reset: noOp }, bankCheckUI: { reset: noOp }, billingWorkflowUI: { reset: noOp }, regularScheduleUI: { reset: noOp }, teacherProgressUI: { reset: noOp, selectStudent: noOp },
     persist() { counts.saves++; saved = JSON.stringify(scope.state); },
     closeModal() { counts.closes++; overlay.children = []; },
