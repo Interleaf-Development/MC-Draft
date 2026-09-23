@@ -4,7 +4,7 @@ export const DEMO_PAGES = Object.freeze({
   admin: Object.freeze(['schedule', 'students', 'billing', 'messages']),
   teacher: Object.freeze(['progress', 'classroom', 'schedule', 'notes', 'messages']),
   parent: Object.freeze(['overview', 'lessons', 'handbook', 'homework', 'payments', 'messages']),
-  student: Object.freeze(['work', 'past', 'future'])
+  student: Object.freeze(['work', 'past', 'future', 'stamps'])
 });
 
 // Storage is resolved lazily so a proposal never even accesses localStorage.

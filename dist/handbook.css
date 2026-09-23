@@ -1,0 +1,142 @@
+/* A parent's handbook is for reading, replying and finding centre arrangements. */
+.parent-handbook { min-width: 0; }
+.handbook-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
+.handbook-heading h1 { width: 100%; font-size: 23px; letter-spacing: 0; }
+.handbook-heading [data-change="family-student"] { width: auto; max-width: 100%; min-height: 42px; padding-left: 0; background: transparent; border: 0; color: #66717d; }
+.handbook-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid #dfdfdb; gap: 10px; margin-bottom: 20px; }
+.handbook-tabs button { min-height: 48px; padding: 8px 0 12px; border-bottom: 2px solid transparent; font-size: 14px; white-space: nowrap; color: #6c727a; }
+.handbook-tabs button.active { color: #a63138; border-color: #a63138; font-weight: 650; }
+.handbook-report-list { display: grid; gap: 20px; }
+.handbook-empty { padding: 28px 20px; border: 1px solid var(--line); border-radius: 15px; background: white; }
+.handbook-empty h2 { font-size: 17px; margin-bottom: 10px; }
+.handbook-empty p { font-size: 14px; color: #788293; line-height: 1.7; }
+.lesson-report { background: white; border: 1px solid #e3e6e8; border-radius: 16px; padding: 20px; overflow: hidden; }
+.lesson-report-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding-bottom: 16px; }
+.lesson-report-header h2 { font-size: 17px; line-height: 1.4; letter-spacing: 0; }
+.lesson-report-header p { margin-top: 6px; color: #76808b; font-size: 13px; }
+.lesson-report-tools { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.report-publish-state { font-size: 12px; color: #7c766a; white-space: nowrap; }
+.report-ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; margin: 0 0 18px; padding: 2px 0 12px; border-bottom: 1px solid #eaebe8; }
+.report-ratings > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 39px; }
+.report-ratings dt { font-size: 13px; color: #64707a; }
+.report-ratings dd { font-size: 15px; font-weight: 650; margin: 0; color: #3e535b; }
+.lesson-report h3 { font-size: 13px; color: #64707a; font-weight: 550; letter-spacing: 0; margin-bottom: 8px; }
+.report-topics ul { list-style: none; padding: 0; margin: 0; }
+.report-topics li { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 7px 0; font-size: 15px; overflow-wrap: anywhere; }
+.report-topics li strong { min-width: 20px; text-align: center; font-weight: 600; color: #3e535b; }
+.report-message, .report-homework { margin-top: 18px; }
+.report-message p, .report-homework p, .report-performance { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; font-size: 14px; }
+.report-homework { padding: 13px 15px; border-radius: 9px; background: #f8f7f1; }
+.report-homework h3 { margin-bottom: 4px; }
+.report-acknowledgement { border-top: 1px solid #eaebe8; padding-top: 16px; margin-top: 20px; }
+.report-acknowledgement .field { margin-bottom: 12px; }
+.report-acknowledgement .field > label { font-size: 13px; font-weight: 500; color: #64707a; }
+.report-acknowledgement textarea { font-size: 14px; background: #fdfdfc; resize: vertical; }
+.report-ack-button { width: 100%; color: #8f4248; border-color: #e1cccc; background: #fffaf9; }
+.report-acknowledged { margin-top: 18px; border-top: 1px solid #eaebe8; padding-top: 14px; font-size: 12px; color: #688071; }
+.report-acknowledged p { display: grid; gap: 7px; margin-top: 12px; font-size: 14px; color: var(--ink); line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.report-acknowledged p strong { color: #64707a; font-size: 13px; font-weight: 500; }
+.report-awaiting-read { margin-top: 16px; font-size: 12px; color: #858274; }
+.handbook-calendar, .handbook-information > section, .handbook-weather { background: white; border: 1px solid #e3e6e8; border-radius: 15px; padding: 18px; }
+.handbook-month-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+.handbook-month-heading h2 { font-size: 17px; letter-spacing: 0; }
+.handbook-month-heading .icon-btn { flex: 0 0 40px; }
+.handbook-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px 2px; text-align: center; font-variant-numeric: tabular-nums; }
+.handbook-calendar-weekday { font-size: 12px; color: #8b8e90; padding-bottom: 7px; }
+.handbook-calendar-day { position: relative; display: flex; align-items: center; justify-content: center; aspect-ratio: 1; font-size: 14px; min-height: 35px; border-radius: 50%; }
+.handbook-calendar-day.holiday-public { background: #fae4e4; color: #a83d41; font-weight: 650; }
+.handbook-calendar-day.holiday-centre { background: #fff0d7; color: #8e622d; font-weight: 650; }
+.handbook-calendar-day i { position: absolute; bottom: 3px; width: 3px; height: 3px; background: currentColor; border-radius: 50%; }
+.handbook-calendar-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 13px; margin-top: 20px; font-size: 11px; color: #777f86; }
+.handbook-calendar-legend span { display: flex; align-items: center; gap: 5px; }
+.handbook-calendar-legend i { width: 8px; height: 8px; border-radius: 50%; }
+.handbook-calendar-legend .holiday-public { background: #d7696c; }
+.handbook-calendar-legend .holiday-centre { background: #d8a04e; }
+.handbook-closure-list { display: grid; gap: 12px; border-top: 1px solid #eaebe8; margin-top: 18px; padding-top: 18px; font-size: 13px; }
+.handbook-closure-list > div { display: flex; justify-content: space-between; gap: 10px; }
+.handbook-closure-kind.public { color: #a83d41; }.handbook-closure-kind.centre { color: #8e622d; }
+.handbook-closure-list > p { color: #788293; }
+.handbook-source { margin-top: 20px; font-size: 11px; color: #89919a; line-height: 1.65; }
+.handbook-information { display: grid; gap: 16px; }
+.handbook-centre-contact { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.handbook-centre-contact h2 { font-size: 16px; }.handbook-centre-contact p { color: #788293; font-size: 13px; margin-top: 5px; }
+.handbook-centre-contact .btn { flex-shrink: 0; }
+.handbook-parent-notices > h2 { font-size: 17px; margin-bottom: 6px; }
+.handbook-parent-notices details { border-bottom: 1px solid #eaebe8; }.handbook-parent-notices details:last-child { border-bottom: 0; }
+.handbook-information summary { cursor: pointer; padding: 14px 0; line-height: 1.6; font-size: 14px; font-weight: 550; }
+.handbook-information details p { color: #65717c; font-size: 13px; line-height: 1.85; white-space: pre-wrap; padding-bottom: 13px; }
+.handbook-weather > summary { padding: 0; }.handbook-weather[open] > summary { padding-bottom: 14px; }
+.handbook-weather-row { display: flex; align-items: flex-start; gap: 13px; padding: 14px 0; border-top: 1px solid #eaebe8; }
+.handbook-weather-row > strong { flex: 0 0 45px; font-size: 18px; font-weight: 700; line-height: 1.5; color: #515e68; overflow-wrap: anywhere; }
+.handbook-weather-row h4 { font-size: 13px; font-weight: 600; margin-bottom: 5px; }.handbook-weather-row p { padding-bottom: 0 !important; }
+.handbook-weather-note { border-top: 1px solid #eaebe8; padding-top: 14px; padding-bottom: 0 !important; }
+
+/* The teacher follows the fields of the paper handbook without duplicating them. */
+.lesson-report-form { display: grid; gap: 18px; }
+.report-student-name { font-size: 16px; font-weight: 650; }.report-student-name > span { margin-left: 10px; color: #788293; font-size: 12px; font-weight: 400; }
+.report-form-section { padding: 0; margin: 0; border: 0; min-width: 0; }
+.report-form-section > legend { padding: 0; margin-bottom: 12px; font-size: 14px; font-weight: 650; }
+.report-rating-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; }
+.report-rating-inputs > .field { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.report-rating-inputs > .field > label { margin: 0; font-size: 13px; font-weight: 500; }
+.report-rating-inputs select { width: 65px; flex-shrink: 0; }
+.report-topic-labels, .report-topic-input { display: grid; grid-template-columns: minmax(0, 1fr) 65px; gap: 10px; margin-top: 8px; }
+.report-topic-labels { color: #788293; font-size: 12px; margin: 0 0 6px; }
+.report-topic-input input, .report-topic-input select { width: 100%; min-width: 0; border: 1px solid #dfe4e9; border-radius: 7px; padding: 10px 11px; background: #fff; }
+.report-topic-input input { font-size: 14px; }.report-topic-input select { padding-right: 4px; }
+.report-stamp-option { border-top: 1px solid #e6e9ed; padding-top: 16px; }
+.report-stamp-check { display: flex; align-items: center; gap: 10px; font-size: 14px; min-height: 40px; cursor: pointer; }
+.report-stamp-check input { width: 17px; height: 17px; accent-color: #b48532; }
+.report-stamp-mini { display: inline-flex; width: 28px; height: 28px; margin-left: auto; color: #d2a345; }
+.report-stamp-reason { display: none; margin-top: 12px; }.report-stamp-option:has(#report-award-stamp:checked) .report-stamp-reason { display: block; }
+.award-stamp-preview { margin: 0 auto; width: 92px; color: #d2a345; }
+.report-stamp-mini svg, .award-stamp-preview svg, .stamp-cover-star svg, .stamp-ink svg { display: block; width: 100%; height: auto; }
+
+/* The stamp book is separate from the worksheet, keeping the writing space intact. */
+.student-stamps { color: #4a5140; }
+.binder-stamp-link { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 8px 12px; border: 1px solid #dcc997; border-radius: 9px; background: #fff6d9; color: #917332; font-size: 14px; white-space: nowrap; }
+.binder-stamp-link .icon { width: 18px; height: 18px; }
+.stamp-page-nav { margin: 4px 0 26px; }
+.stamp-back { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; padding: 0; color: #69705e; font-size: 15px; }
+.stamp-back .icon { width: 17px; }
+.stamp-collection-heading { display: flex; justify-content: space-between; align-items: center; gap: 25px; padding: 0 17px; margin-bottom: 18px; }
+.stamp-collection-heading h1 { font-size: 29px; font-weight: 750; letter-spacing: 1px; }
+.stamp-collection-heading p { font-size: 16px; color: #7b7c67; margin-top: 12px; }.stamp-collection-heading p strong { font-size: 24px; color: #9d7227; }
+.stamp-cover-star { display: block; width: 90px; color: #cfaa50; transform: rotate(9deg); flex-shrink: 0; }
+.stamp-latest { display: flex; align-items: center; gap: 15px; margin: 0 14px 24px; padding: 14px 17px; border-left: 3px solid #d4b368; background: #fcf8ea; border-radius: 2px 10px 10px 2px; }
+.stamp-latest > span { font-size: 23px; color: #bf9946; }.stamp-latest p { font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }.stamp-latest strong { display: block; font-size: 12px; font-weight: 550; color: #8b826d; margin-bottom: 3px; }
+.stamp-sheet { padding: 26px; background: #fffdf4; border: 1px solid #e4dbc0; border-radius: 18px; box-shadow: 0 6px 0 #e8dfc9, 0 12px 20px #7764450c; margin: 0 0 28px; }
+.stamp-sheet-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+.stamp-sheet-heading h2 { font-size: 16px; font-weight: 550; color: #8c8067; letter-spacing: 0; }.stamp-sheet-heading > span { font-size: 13px; color: #9a917d; font-variant-numeric: tabular-nums; }
+.stamp-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 11px; }
+.stamp-cell { position: relative; width: 100%; aspect-ratio: 1.25; min-width: 0; border: 1px dashed #e3decb; border-radius: 12px; background: #faf8ed; display: flex; align-items: center; justify-content: center; color: #c7c5b5; font-variant-numeric: tabular-nums; }
+.stamp-cell.is-empty .stamp-number { font-size: 22px; font-weight: 550; color: #c3c4b2; }
+.stamp-cell.earned { border-style: solid; border-color: currentColor; background: #fcf4d8; transition: transform .15s, box-shadow .15s; }
+.stamp-cell.earned:hover { transform: translateY(-3px); box-shadow: 0 4px 8px #6d61401a; }
+.stamp-ink { width: 66%; max-width: 78px; display: inline-flex; transform: rotate(-9deg); }
+.stamp-cell:nth-child(3n) .stamp-ink { transform: rotate(10deg); }.stamp-cell:nth-child(4n) .stamp-ink { transform: rotate(1deg); }
+.stamp-cell.earned .stamp-number { position: absolute; bottom: 5px; right: 8px; font-size: 10px; opacity: .8; }
+.stamp-cell.stamp-ochre { color: #c69b3e; background: #fcf4d8; border-color: #e7d395; }
+.stamp-cell.stamp-coral { color: #cc8270; background: #fae9df; border-color: #eac5b4; }
+.stamp-cell.stamp-sage { color: #7e9a6a; background: #edf1df; border-color: #c9d6b7; }
+.stamp-cell.stamp-blue { color: #729ba7; background: #e8f1f1; border-color: #bfd6dc; }
+.stamp-cell.stamp-lavender { color: #9b89ae; background: #f0eaf5; border-color: #d5c8e2; }
+.stamp-empty-star { position: absolute; right: 6px; bottom: 4px; font-size: 15px; color: #c8c3a4; }
+.stamp-milestones { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 11px; margin-top: 23px; padding-top: 17px; border-top: 1px solid #e9e3cf; }
+.stamp-milestone { display: flex; align-items: center; justify-content: center; flex-direction: column; color: #c3bda8; gap: 2px; }.stamp-milestone > span { font-size: 27px; line-height: 1.3; }.stamp-milestone small { font-size: 11px; }.stamp-milestone.reached { color: #b58b37; }
+.stamp-detail { display: flex; align-items: center; flex-direction: column; text-align: center; padding: 16px 12px 22px; }
+.stamp-detail-star { display: grid; place-items: center; width: 105px; height: 105px; border-radius: 28px; border: 1px solid #e7d395; background: #fcf4d8; color: #bd963b; margin-bottom: 23px; transform: rotate(-5deg); }
+.stamp-detail-star .icon { width: 69px; height: 69px; fill: #d9b252; stroke-width: 1.2; }
+.stamp-detail h3 { max-width: 360px; font-size: 21px; line-height: 1.6; letter-spacing: 0; overflow-wrap: anywhere; }
+.stamp-detail p { font-size: 14px; line-height: 1.7; }
+@media (max-width: 600px) {
+  .binder-student:has(.binder-stamp-link) { flex-wrap: wrap; justify-content: flex-end; }.binder-stamp-link { padding: 7px 9px; font-size: 12px; }
+  .lesson-report { padding: 17px; }.report-ratings { column-gap: 14px; }.report-ratings dt { font-size: 12px; }
+  .handbook-calendar { padding: 15px; }.handbook-calendar-day { min-height: 32px; }
+  .report-rating-inputs { column-gap: 13px; }.report-rating-inputs select { width: 58px; padding-right: 3px; }
+  .stamp-page-nav { margin-bottom: 17px; }.stamp-collection-heading { padding: 0 6px; gap: 10px; }.stamp-collection-heading h1 { font-size: 24px; }.stamp-collection-heading p { font-size: 14px; margin-top: 8px; }.stamp-cover-star { width: 71px; }
+  .stamp-latest { margin: 0 3px 18px; padding: 11px 13px; }.stamp-latest p { font-size: 13px; }
+  .stamp-sheet { padding: 18px 13px; border-radius: 14px; }.stamp-grid { gap: 7px; }.stamp-cell { border-radius: 9px; aspect-ratio: 1; }.stamp-cell.is-empty .stamp-number { font-size: 17px; }.stamp-cell.earned .stamp-number { bottom: 3px; right: 5px; font-size: 9px; }
+  .stamp-sheet-heading { gap: 10px; margin-bottom: 17px; }.stamp-sheet-heading h2 { font-size: 13px; }.stamp-sheet-heading > span { font-size: 12px; }.stamp-empty-star { font-size: 12px; right: 3px; bottom: 1px; }
+}
+@media (prefers-reduced-motion: reduce) { .stamp-cell.earned { transition: none; } }

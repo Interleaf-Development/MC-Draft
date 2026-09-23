@@ -158,7 +158,7 @@ test('app refresh defers during dialogs and worksheet editing, then loads the la
   const scope = {
     parseDemoState, serializeDemoState, demoContext: { isProposal: true }, state: { version: 4, marker: 'old' }, ui, previousState: {},
     localStorage: { getItem: () => saved }, STORAGE: key, $: () => overlay,
-    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp, normalizeDemoSchedule: noOp, runTuitionBilling: noOp,
+    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp, normalizeDemoSchedule: noOp, normalizeHandbook: noOp, runTuitionBilling: noOp,
     conversationUI: resettable, bankCheckUI: resettable, billingWorkflowUI: resettable, regularScheduleUI: resettable, teacherProgressUI: resettable,
     followProposalStudent() { follows++; }
   };
@@ -195,7 +195,7 @@ async function proposalFrameHarness(state, ui = {}) {
     students: model.allStudents, state, previousState: {},
     ui: { role: 'student', page: 'work', selectedStudent: 'chloe', familyStudent: 'chloe', ...ui },
     localStorage: { getItem: () => saved }, STORAGE: key, $: () => overlay,
-    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp, normalizeDemoSchedule: noOp, runTuitionBilling: noOp,
+    seedCentreVolume: noOp, seedTeacherSchedules: noOp, seedBusyAfternoons: noOp, normalizeParentLeave: noOp, normalizeStaffLeave: noOp, normalizeConversations: noOp, normalizeBillingAutomation: noOp, normalizeBillingWorkflow: noOp, normalizeP6Progress: noOp, normalizeTwnSchedule: noOp, normalizeDemoSchedule: noOp, normalizeHandbook: noOp, runTuitionBilling: noOp,
     conversationUI: { reset: noOp }, bankCheckUI: { reset: noOp }, billingWorkflowUI: { reset: noOp }, regularScheduleUI: { reset: noOp }, teacherProgressUI: { reset: noOp, selectStudent: noOp },
     persist() { counts.saves++; saved = JSON.stringify(scope.state); },
     closeModal() { counts.closes++; overlay.children = []; },

@@ -10,12 +10,13 @@ const views = {
   teacher: {label:t('Progress chart','學習進度表'), role:'teacher', page:'progress'},
   classroom: {label:t('My classroom','我的課堂'), role:'teacher', page:'classroom'},
   teacherSchedule: {label:t('My schedule','我的時間表'), role:'teacher', page:'schedule'},
-  notes: {label:t('Lesson records','課堂紀錄'), role:'teacher', page:'notes'},
+  notes: {label:t('Reports & stamps','課堂報告及印章'), role:'teacher', page:'notes'},
   student: {label:t('Student binder','學生學習冊'), role:'student', page:'work'},
+  studentStamps: {label:t('My stamps','我的印章'), role:'student', page:'stamps'},
   game: {label:t('Maths kart','數學飛車'), role:'game', page:'race'},
   parent: {label:t('Parent home','家長主頁'), role:'parent', page:'overview', initialStudentId:'twn-c64262b4d67d'},
   parentCalendar: {label:t('Lessons','課堂安排'), role:'parent', page:'lessons'},
-  parentReports: {label:t('Lesson reports','課堂報告'), role:'parent', page:'handbook'},
+  parentReports: {label:t('Digital handbook','電子手冊'), role:'parent', page:'handbook'},
   parentHomework: {label:t('Homework','功課'), role:'parent', page:'homework'},
   parentBilling: {label:t('Payments','繳費及收據'), role:'parent', page:'payments'},
   parentMessages: {label:t('Centre messages','與中心溝通'), role:'parent', page:'messages'},
@@ -25,7 +26,7 @@ const views = {
   hh: {label:t('Hang Hau','坑口'), role:'admin', page:'schedule', branch:'hh'}
 };
 const scenes = {
-  student: ['student'],
+  student: ['student','studentStamps'],
   game: ['game'],
   teacher: ['teacher','classroom','teacherSchedule','notes'],
   operations: ['schedule','parentLessons','messages','students'],

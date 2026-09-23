@@ -1,6 +1,6 @@
 // Bump this version when changing the offline asset set or cache policy.
 const CACHE_PREFIX = 'mathconcept-static-';
-const CACHE_NAME = CACHE_PREFIX + 'v73-proposal-device-frames';
+const CACHE_NAME = CACHE_PREFIX + 'v74-digital-handbook';
 const shells = { '/index.html': '/', '/parent/index.html': '/parent/', '/student/index.html': '/student/', '/hh/index.html': '/hh/', '/hh/parent/index.html': '/hh/parent/', '/hh/student/index.html': '/hh/student/' };
 function shellPath(path) {
   if (path === '/' || path === '/index.html') return '/index.html';
@@ -12,7 +12,7 @@ const PRECACHE = [
   '/game1/engine.js', '/game1/renderer.js', '/game1/game.js', '/game1/styles.css',
   '/proposal/app.js', '/proposal/content.js', '/proposal/content.zh-HK.js', '/proposal/locale.js', '/proposal/demos.js', '/proposal/styles.css', '/proposal/assets/mathconcept-logo.png',
   ...Object.keys(shells), '/entry-points.js', '/branch-config.js', '/demo-context.js',
-  '/student-work.js', '/student-binder-ui.js', '/student-binder.css', '/student-focus.css', '/p6-curriculum.js', '/p3-curriculum.js', '/progress-records.js', '/primary-lower-records.js', '/primary-upper-records.js', '/secondary-kindergarten-records.js', '/teacher-progress.js', '/teacher-progress-ui.js', '/teacher-progress.css',
+  '/handbook.js', '/handbook-ui.js', '/handbook.css', '/student-work.js', '/student-binder-ui.js', '/student-binder.css', '/student-focus.css', '/p6-curriculum.js', '/p3-curriculum.js', '/progress-records.js', '/primary-lower-records.js', '/primary-upper-records.js', '/secondary-kindergarten-records.js', '/teacher-progress.js', '/teacher-progress-ui.js', '/teacher-progress.css',
   '/app.js', '/model.js', '/twn-roster.js', '/twn-schedule.js', '/demo-schedule.js', '/demo-state-storage.js', '/twn-availability.js', '/checkin.js', '/student-profile.js', '/family-locale.js', '/staff-locale.js', '/billing-locale.js', '/schedule-drag.js',
   '/conversations.js', '/conversations-ui.js', '/chat-seed-locale.js',
   '/billing-workflow.js', '/billing-cycles.js', '/billing-pdf-preview.js', '/vendor/pdfjs/pdf.min.js', '/vendor/pdfjs/pdf.worker.min.js', '/billing-workflow-ui.js', '/billing-workflow.css', '/billing-automation.js', '/billing-proof-ui.js', '/bank-check-ui.js', '/receipts-ui.js', '/receipt-document.js', '/invoice-document.js', '/billing-fixture-lessons.js', '/billing-documents.css', '/payment-proof-sample.js', '/payment-proof-sample.css', '/regular-schedule.js', '/regular-schedule-ui.js', '/statement-csv.js',

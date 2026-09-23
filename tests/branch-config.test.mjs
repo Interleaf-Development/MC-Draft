@@ -24,7 +24,7 @@ function open(config, saved) {
     parseDemoState, serializeDemoState, centreConfig: config,
     localStorage: { getItem: key => saved.get(key) || null, setItem: (key, value) => saved.set(key, value) },
     seed: () => ({ version: 4, marker: 'fresh ' + config.id }),
-    seedCentreVolume() {}, seedTeacherSchedules() {}, seedBusyAfternoons() {}, normalizeParentLeave() {}, normalizeStaffLeave() {}, normalizeConversations() {}, normalizeBillingAutomation() {}, normalizeBillingWorkflow() {}, normalizeP6Progress() {}, normalizeTwnSchedule() {}, normalizeDemoSchedule() {}, runTuitionBilling() {},
+    seedCentreVolume() {}, seedTeacherSchedules() {}, seedBusyAfternoons() {}, normalizeParentLeave() {}, normalizeStaffLeave() {}, normalizeConversations() {}, normalizeBillingAutomation() {}, normalizeBillingWorkflow() {}, normalizeP6Progress() {}, normalizeTwnSchedule() {}, normalizeDemoSchedule() {}, normalizeHandbook() {}, runTuitionBilling() {},
     toast() { throw new Error('Unexpected storage error'); }
   });
 }

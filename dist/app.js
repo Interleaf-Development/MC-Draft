@@ -27,6 +27,8 @@ import { renderStudentBinder } from './student-binder-ui.js';
 import { normalizeTwnSchedule } from './twn-schedule.js';
 import { normalizeDemoSchedule } from './demo-schedule.js';
 import { parseDemoState, serializeDemoState } from './demo-state-storage.js';
+import { normalizeHandbook, saveLessonReport, acknowledgeReport, awardStudentStamp, getStudentStamps } from './handbook.js';
+import { renderParentHandbook, renderLessonReport, renderLessonReportForm, renderStudentStamps, renderStampAwardForm } from './handbook-ui.js';
 const demoContext = createDemoContext({url:new URL(location.href),getLocalStorage:()=>window.localStorage,getSessionStorage:()=>window.sessionStorage});
 let proposalIsActive = !demoContext.isPreloading;
 // Keep all existing save paths behind one adapter. In proposal mode this uses
@@ -35,7 +37,7 @@ const localStorage = demoContext.storage;
 const STORAGE = centreConfig.storageKey;
 let state;
 try { const saved = parseDemoState(localStorage.getItem(STORAGE)); state = saved?.version === 4 ? saved : seed(); } catch { state = seed(); }
-seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);normalizeDemoSchedule(state);runTuitionBilling(state);
+seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);normalizeDemoSchedule(state);normalizeHandbook(state);runTuitionBilling(state);
 const ui = { role: 'admin', page: 'schedule', scheduleView: 'week', scheduleTutor:centre.managerId, scheduleBookingId:null, scheduleRemarkDrafts:{}, date: TODAY, weekOffset: 0, selectedStudent: 'chloe', familyStudent: 'chloe', folderTab: 'All work', billingTab: 'Payments', studentsTab: 'Students', libraryFilter: 'All topics', search: '', thread: 'thread-chloe', moveId: null, assignmentId: null, pen: 'pen', ink: '#35475f', expanded: false, paperZoom: 1, reportMonth: '2026-09', classDate:TODAY, classStart:960, classTutor:centre.managerId };
 if(demoContext.isProposal)try{const saved=serializeDemoState(state);if(localStorage.getItem(STORAGE)!==saved)localStorage.setItem(STORAGE,saved);}catch{}
 const t = (en, zh) => zh ?? billingText(staffText(en));
@@ -148,8 +150,8 @@ function modal(title, body, footer = '', wide = false) {
 const NAV = {
  admin: [['schedule','calendar','Schedule'],['students','users','Students'],['billing','wallet','Billing & reconciliation'],['messages','message','Conversations']],
  teacher: [['progress','book','Progress chart'],['classroom','users','My classroom'],['schedule','calendar','My schedule'],['notes','file','Lesson records'],['messages','message','Conversations']],
- parent: [['overview','home','Overview'],['lessons','calendar','Lessons'],['handbook','file','課堂報告'],['homework','book','功課'],['payments','wallet','Payments'],['messages','message','Messages']],
- student: [['work','edit','現在做'],['past','folder','做好了'],['future','lock','稍後做']]
+ parent: [['overview','home','Overview'],['lessons','calendar','Lessons'],['handbook','file','電子手冊'],['homework','book','功課'],['payments','wallet','Payments'],['messages','message','Messages']],
+ student: [['work','edit','現在做'],['past','folder','做好了'],['future','lock','稍後做'],['stamps','star','我的印章']]
 };
 const requestedNavigation = demoNavigationFromUrl(new URL(location.href), students.map(student=>student.id));
 const requestedRole = requestedNavigation.role;
@@ -196,7 +198,7 @@ function refreshProposalState(force=false) {
   if(!saved||saved===serializeDemoState(state))return false;
   const next=parseDemoState(saved);if(next?.version!==4)return false;
   state=next;previousState=null;
-  seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);normalizeDemoSchedule(state);runTuitionBilling(state);
+  seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);normalizeDemoSchedule(state);normalizeHandbook(state);runTuitionBilling(state);
   conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();
   ui.matchDraft=null;ui.profileDrafts={};ui.scheduleRemarkDrafts={};ui.picker=null;
   followProposalStudent();
@@ -290,6 +292,7 @@ function page() {
   if (ui.role === 'parent' && ui.page === 'homework') return parentHomework();
   if (ui.role === 'parent' && ui.page === 'payments') return parentPayments();
   if (ui.role === 'student' && ['work','past','future'].includes(ui.page)) return studentWork();
+  if (ui.role === 'student' && ui.page === 'stamps') return renderStudentStamps({state,student:studentById(ui.familyStudent),studentPicker:childSwitch(),icon,action,dateLabel,tutorName});
   if (ui.page === 'worksheet') return worksheetPage();
   return heading('MathConcept') + empty('Your workspace');
 }
@@ -714,13 +717,12 @@ function libraryPage(){
  '<div class="filters"><div class="search grow">'+icon('search')+'<input id="library-search" aria-label="搜尋工作紙" placeholder="搜尋課題、工作紙或年級" value="'+esc(ui.search)+'">'+action('search-library',icon('arrow','sm'),'icon-btn','aria-label="搜尋工作紙"')+'</div><select class="btn" data-change="library-filter" aria-label="按課題篩選">'+['All topics','Fractions','Division','Word problems','Number sense','Decimals'].map(t=>'<option value="'+t+'"'+(t===ui.libraryFilter?' selected':'')+'>'+staffText(t)+'</option>').join('')+'</select></div><div class="library-grid">'+list.map(w=>'<article class="library-card"><div class="library-preview"><div class="mini-paper"><div class="mini-title">'+w.code+'</div><div class="mini-math">'+(w.topic==='Fractions'?'½ = ²⁄₄':w.topic==='Division'?'84 ÷ 4':w.topic==='Decimals'?'0.5 + 0.2':'12 + 8')+'</div><div class="mini-line"></div><div class="mini-line"></div><div class="mini-line"></div></div></div><div class="library-details"><p class="eyebrow">'+t(w.topic)+' · '+t(w.level)+'</p><h3>'+t(w.title,w.titleZh)+'</h3><p class="small muted">'+w.code+' · '+w.pages+' 頁 · 約 '+w.minutes+' 分鐘</p><div class="bottom">'+action('preview-worksheet','Preview','inline-link','data-id="'+w.id+'"')+action('assign-worksheet',icon('plus','sm')+' 派發','btn small','data-id="'+w.id+'"')+'</div></div></article>').join('')+'</div>'+(list.length?'':empty('No worksheets found','Try another topic or search.'));
 }
 function noteCard(n){
- const display = field => n.id==='note-chloe-sep16' ? content(n[field]) : n[field];
- return '<article class="panel note-card"><div class="between"><p class="note-date">'+dateLabel(n.date,{weekday:'long'})+'</p>'+tag(n.published?'Shared with parent':'Draft',n.published?'green':'amber')+'</div><h3>'+esc(display('topics'))+'</h3><div class="mt-8">'+'<span class="badge blue">'+esc(n.id==='note-chloe-sep16'?t(n.performance):n.performance)+'</span>'+'</div><p class="note-comment">'+esc(display('comment'))+'</p>'+(n.homework?'<div class="homework-strip">'+icon('book','sm')+' <strong>'+t('Homework')+'</strong> · '+esc(display('homework'))+'</div>':'')+'</article>';
+ return renderLessonReport(n,{audience:ui.role==='parent'?'parent':'teacher',canEdit:!n.tutor||n.tutor===centre.managerId,action,dateLabel,tutorName,content});
 }
 
 function notesPage(){
- const list=state.lessonNotes.filter(n=>n.studentId===ui.selectedStudent).slice().reverse(),recordPage=collectionPage('lesson-records',list,10);
- return heading('Lesson records',action('write-note',icon('plus')+' 新增紀錄','btn primary','data-id="'+ui.selectedStudent+'"'))+'<div class="filters">'+action('choose-record-student',icon('search')+' '+studentById(ui.selectedStudent).name+' · '+studentById(ui.selectedStudent).number,'btn')+'</div><div class="two-columns"><div class="stack">'+(list.length?recordPage.items.map(noteCard).join('')+pager('lesson-records',recordPage,true):empty('No lesson records yet','Add the first lesson summary.'))+'</div><aside class="helper-art"><div><h3>電子學習手冊</h3><p>已發佈的課堂摘要會顯示在家長的學習手冊。</p></div>'+art(10)+'</aside></div>';
+ const list=state.lessonNotes.filter(n=>n.studentId===ui.selectedStudent).slice().sort((a,b)=>b.date.localeCompare(a.date)),recordPage=collectionPage('lesson-records',list,10),stamps=getStudentStamps(state,ui.selectedStudent);
+ return heading('Lesson records',action('write-note',icon('plus')+' 新增課堂報告','btn primary','data-id="'+ui.selectedStudent+'"'))+'<div class="filters">'+action('choose-record-student',icon('search')+' '+esc(studentById(ui.selectedStudent).name)+' · '+esc(studentById(ui.selectedStudent).number||''),'btn')+'</div><div class="two-columns"><div class="stack">'+(list.length?recordPage.items.map(noteCard).join('')+pager('lesson-records',recordPage,true):empty('No lesson records yet','Add the first lesson summary.'))+'</div><aside class="panel panel-body handbook-teacher-stamps"><h3>學生印章</h3><p class="mt-16">已收集 '+stamps.length+' 個印章</p>'+action('award-stamp',icon('star')+' 送出印章','btn mt-16','data-id="'+ui.selectedStudent+'"')+'<p class="small muted mt-16">印章會出現在學生的集印冊。課堂報告發布後，家長可在電子手冊查閱及回覆。</p></aside></div>';
 }
 function assessmentOverview(){
  const a=state.assessment;
@@ -756,7 +758,7 @@ function parentLessonGroups(studentId){
 function parentOverview(){
  if(ui.familyStudent==='mia'&&!state.assessment.enrolled)return assessmentOverview();
  const groups=parentLessonGroups(ui.familyStudent);
- const shortcuts=[['lessons','calendar','上課時間'],['handbook','file','課堂報告'],['homework','book','功課']];
+ const shortcuts=[['lessons','calendar','上課時間'],['handbook','file','電子手冊'],['homework','book','功課']];
  return heading('家長主頁')+'<nav class="parent-quick-actions" aria-label="常用功能">'+shortcuts.map(([page,ic,label])=>action('navigate',icon(ic)+'<span>'+t(label)+'</span>','parent-quick-action','data-page="'+page+'"')).join('')+'</nav><section class="parent-upcoming" aria-labelledby="parent-week-title"><div class="parent-week-heading"><h2 id="parent-week-title">未來 7 天的課堂</h2>'+childSwitch()+'</div>'+(groups.length?'<div class="parent-lesson-days">'+groups.map(group=>'<article class="parent-day-card"><h3><time datetime="'+group.date+'">'+dateLabel(group.date,{weekday:'short'})+(group.date===TODAY?'（今天）':'')+'</time></h3><div>'+group.lessons.map(b=>{return '<div class="parent-home-lesson"><span class="parent-lesson-copy"><strong>'+time(b.start)+'–'+time(b.start+b.duration)+'</strong><span class="parent-lesson-meta">數學 · '+esc(tutorName(b.tutor))+(b.sourceId||b.caseId?'<span class="parent-lesson-status">補堂</span>':'')+'</span>'+(b.attendance==='present'?'<span class="parent-attendance">'+icon('check','sm')+'已登記出席</span>':'')+'</span></div>';}).join('')+'</div></article>').join('')+'</div>':'<p class="parent-no-lessons">未來 7 天暫無已安排的課堂。</p>')+'</section>';
 }
 function parentHomework(){
@@ -773,9 +775,8 @@ function parentLessons(){
 }
 
 function parentHandbook(){
- const list=state.lessonNotes.filter(n=>n.studentId===ui.familyStudent&&n.published).slice().reverse();
  const completed=state.assignments.filter(a=>a.studentId===ui.familyStudent&&['completed','corrections'].includes(a.status));
- return heading('學習手冊',childSwitch())+'<div class="family-grid"><div class="stack">'+(list.length?list.map(noteCard).join(''):'<div class="panel">'+empty('暫無課堂紀錄','老師會在課後分享學習近況。',15)+'</div>')+'</div><section class="panel"><div class="panel-head"><h3>已批改功課</h3></div>'+(completed.length?completed.map(a=>assignmentRow(a,true)).join(''):empty('暫無已批改功課','老師批改後，功課會顯示於這裏。'))+'</section></div>';
+ return renderParentHandbook({state,student:studentById(ui.familyStudent),tab:ui.handbookTab||'reports',month:ui.handbookMonth||TODAY.slice(0,7),childSwitch:childSwitch(),icon,action,dateLabel,tutorName,content,completedWork:completed.map(a=>assignmentRow(a,true)).join('')});
 }
 
 function parentPaymentDetails(invoice){
@@ -896,7 +897,7 @@ document.addEventListener('click', e => {
   else if (a==='demo-controls') modal('Demo controls','<div class="form-stack">'+['admin','teacher','parent','student'].map(r=>action('role',r[0].toUpperCase()+r.slice(1),'btn'+(ui.role===r?' soft':''),'data-role="'+r+'"')).join('')+'</div>',action('reset-demo','Reset demo','btn')+action('demo-info','About this demo','btn'));
   else if (a==='demo-info') modal('About this demo','<p>'+t('This is a front-end prototype. Tsuen Wan timetable names and lesson slots come from the supplied schedules; payment and other workflow examples are sample data. Changes stay in this browser. No messages, payments or reports are sent to an external service.','這是介面示範。荃灣的學生姓名及課堂時段來自提供的時間表；付款及其他流程使用示範資料。修改只儲存在此瀏覽器，不會向外傳送訊息、付款或報告。')+'</p><p class="mt-16 muted">'+t('The demo lesson date is 30 September 2026. Sample bank transactions include month-end examples so you can try date-forward and date-back reconciliation.','示範課堂日期為 2026 年 9 月 30 日。銀行交易樣本包含跨月例子，可試用入賬日期調整及對賬流程。')+'</p>',action('close-modal','Continue','btn primary'));
   else if (a==='reset-demo') modal('Reset the demo?','<p>'+t('Restore the demo schedules and sample workflows. Your demo edits and handwriting in this browser will be cleared.','還原示範時間表及流程資料。你在此瀏覽器的示範修改及手寫內容將被清除。')+'</p>',action('close-modal','Keep my changes','btn')+action('confirm-reset','Reset demo','btn primary'));
-  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);normalizeDemoSchedule(state);runTuitionBilling(state);conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent=null;ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Payments',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
+  else if (a==='confirm-reset') {state=seed();seedCentreVolume(state);seedTeacherSchedules(state);seedBusyAfternoons(state);normalizeParentLeave(state);normalizeStaffLeave(state);normalizeConversations(state);normalizeBillingAutomation(state);normalizeBillingWorkflow(state);normalizeP6Progress(state);normalizeTwnSchedule(state);normalizeDemoSchedule(state);normalizeHandbook(state);runTuitionBilling(state);conversationUI.reset();bankCheckUI.reset();billingWorkflowUI.reset();regularScheduleUI.reset();teacherProgressUI.reset();ui.matchDraft=null;ui.collections={};ui.profileDrafts={};ui.scheduleBookingId=null;ui.scheduleRemarkDrafts={};ui.directoryStudent=null;ui.profileHistoryTab='Student information';ui.studentFiltersOpen=false;ui.picker=null;ui.standaloneFolder=false;ui.scheduleTutor=centre.managerId;previousState=null;persist();closeModal();Object.assign(ui,{assignmentId:null,selectedStudent:'chloe',familyStudent:'chloe',classDate:TODAY,classStart:960,classTutor:centre.managerId,moveId:null,weekOffset:0,date:TODAY,thread:'thread-chloe',billingTab:'Payments',folderTab:'All work',studentsTab:'Students',search:'',showOriginal:false,readonly:false,workNotes:false,expanded:false,pen:'pen'});ui.page=NAV[ui.role][0][0];render();toast('Demo restored.');}
   else handleAction(a,id,button);
 });
 function openMakeupPreferences(id,justConfirmed=false){
@@ -1127,11 +1128,39 @@ function handleAction(a,id,button){
   const assignment=state.assignments.find(a=>a.id===id),note=$('#work-feedback')?.value||assignment.note;
   change(()=>{assignment.note=note;assignment.status=a==='complete-work'?'completed':'corrections';},a==='complete-work'?'Work marked complete.':'Corrections returned to the student.');
  }else if(a==='write-note'){
-  const existing=state.lessonNotes.find(n=>n.studentId===id&&n.date===ui.classDate),student=studentById(id);
-  modal('課堂紀錄 · '+student.name,'<div class="form-stack">'+field('Topics covered','<input id="note-topics" value="'+esc(existing?.topics||content(student.focus))+'">')+field('Performance','<input id="note-performance" list="performance-options" value="'+esc(existing?.performance||'逐步掌握')+'"><datalist id="performance-options"><option value="表現自信">表現自信</option><option value="逐步掌握">逐步掌握</option><option value="需要協助">需要協助</option></datalist>')+field('Parent-facing summary','<textarea id="note-comment" placeholder="本課有哪些進展？下一課會學習甚麼？">'+esc(existing?.comment||'')+'</textarea>')+field('Homework','<input id="note-homework" value="'+esc(existing?.homework||'完成「比較分數大小」第 1 至 2 題。')+'">')+'</div>',action('save-note-draft','Save draft','btn','data-id="'+id+'"')+action('publish-note','Share with parent','btn primary','data-id="'+id+'"'));
+  if(ui.role!=='teacher'||!students.some(student=>student.id===id))return;
+  const existing=button?.dataset.noteId?state.lessonNotes.find(n=>n.id===button.dataset.noteId&&n.studentId===id):state.lessonNotes.find(n=>n.studentId===id&&n.date===ui.classDate&&(!n.tutor||n.tutor===centre.managerId));
+  if(existing?.tutor&&existing.tutor!==centre.managerId)return;
+  ui.lessonNoteEditingId=existing?.id||null;ui.lessonNoteStudent=id;
+  modal('課堂報告 · '+esc(studentById(id).name),renderLessonReportForm({note:existing,student:studentById(id),date:ui.classDate,tutorId:centre.managerId,tutors:tutors.filter(tutor=>tutor.id===centre.managerId),action}),action('save-note-draft','儲存草稿','btn','data-id="'+id+'"')+action('publish-note','發布給家長','btn primary','data-id="'+id+'"'),true);
  }else if(a==='save-note-draft'||a==='publish-note'){
-  const note={studentId:id,date:ui.classDate,topics:$('#note-topics').value.trim(),performance:$('#note-performance').value.trim(),comment:$('#note-comment').value.trim(),homework:$('#note-homework').value.trim(),published:a==='publish-note'};
-  if(change(()=>{if(!note.topics||!note.comment)throw new Error('Add the topics and a lesson summary.');const existing=state.lessonNotes.find(n=>n.studentId===id&&n.date===note.date);if(existing)Object.assign(existing,note);else state.lessonNotes.push({id:uid('note'),...note});},a==='publish-note'?'Shared in the parent’s handbook.':'Draft saved.'))closeModal();
+  const form=$('#lesson-report-form');if(ui.role!=='teacher'||ui.lessonNoteStudent!==id||!form||!form.reportValidity())return;
+  const note={id:ui.lessonNoteEditingId||undefined,studentId:id,date:$('#report-date').value,topicRows:[0,1,2].map(index=>({title:$('#report-topic-'+index).value.trim(),rating:$('#report-topic-rating-'+index).value})),ratings:Object.fromEntries(['punctual','homework','diligence','selfLearning'].map(key=>[key,$('#report-rating-'+key).value])),comment:$('#note-comment').value.trim(),homework:$('#note-homework').value.trim(),awardStamp:!!$('#report-award-stamp')?.checked,stampReason:$('#report-stamp-reason')?.value.trim()||''};
+  if(saveBillingChange(()=>saveLessonReport(state,note,{tutorId:centre.managerId,publish:a==='publish-note'}))){closeModal();toast(a==='publish-note'?'課堂報告已發布給家長。':'草稿已儲存，家長尚未看到這些更改。');}
+ }else if(a==='handbook-tab'){
+  if(ui.role!=='parent'||!['reports','calendar','info'].includes(button.dataset.tab))return;
+  ui.handbookTab=button.dataset.tab;render();
+ }else if(a==='handbook-month'){
+  if(ui.role!=='parent'||![-1,1].includes(Number(button.dataset.delta)))return;
+  const date=new Date((ui.handbookMonth||TODAY.slice(0,7))+'-01T12:00:00Z');date.setUTCMonth(date.getUTCMonth()+Number(button.dataset.delta));
+  const month=date.toISOString().slice(0,7);if(month<'2026-09'||month>'2027-12')return;
+  ui.handbookMonth=month;render();
+ }else if(a==='acknowledge-report'){
+  if(ui.role!=='parent')return;
+  const reply=$('#report-reply-'+id)?.value.trim()||'';
+  if(saveBillingChange(()=>acknowledgeReport(state,{reportId:id,studentId:ui.familyStudent,reply})))toast(reply?'已確認閱讀並回覆老師。':'已確認閱讀。');
+ }else if(a==='award-stamp'){
+  if(ui.role!=='teacher'||!students.some(student=>student.id===id))return;
+  ui.stampStudent=id;
+  modal('送出印章 · '+esc(studentById(id).name),renderStampAwardForm({student:studentById(id)}),action('close-modal','取消','btn')+action('confirm-award-stamp','送出印章','btn primary','data-id="'+id+'"'));
+ }else if(a==='confirm-award-stamp'){
+  if(ui.role!=='teacher'||ui.stampStudent!==id||!$('#stamp-reason'))return;
+  const reason=$('#stamp-reason').value.trim();
+  if(saveBillingChange(()=>awardStudentStamp(state,{studentId:id,tutorId:centre.managerId,reason}))){closeModal();toast('印章已放進學生的集印冊。');}
+ }else if(a==='stamp-detail'){
+  if(ui.role!=='student')return;
+  const stamp=getStudentStamps(state,ui.familyStudent).find(item=>item.id===id);if(!stamp)return;
+  modal('這個印章的故事','<div class="stamp-detail"><span class="stamp-detail-star" aria-hidden="true">'+icon('star')+'</span><h3>'+esc(stamp.reason)+'</h3><p class="muted mt-16">'+esc(tutorName(stamp.tutor))+' 老師 · '+dateLabel(stamp.date)+'</p></div>',action('close-modal','繼續集印','btn primary'));
  }else if(a==='students-tab'){ui.studentsTab=button.dataset.value;ui.search='';render();}
  else if(a==='student-profile'){
   ui.role='admin';ui.page='students';ui.studentsTab='Students';ui.directoryStudent=id;ui.profileHistoryTab='Student information';const c=collection('students');c.query=studentById(id).number;c.page=1;c.level=c.tutor=c.day=c.status='all';render();
@@ -1221,7 +1250,7 @@ document.addEventListener('change',e=>{
  else if(target.id==='work-feedback'&&currentAssignment()&&ui.role==='teacher'){currentAssignment().note=target.value;persist();}
 });
 document.addEventListener('keydown',e=>{if(conversationUI.onKeyDown(e))return;if(e.target.matches('[data-action=teacher-tab]')&&['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const index=tutors.findIndex(t=>t.id===ui.scheduleTutor);ui.scheduleTutor=tutors[e.key==='Home'?0:e.key==='End'?tutors.length-1:(index+(e.key==='ArrowRight'?1:-1)+tutors.length)%tutors.length].id;render();$('#teacher-tab-'+ui.scheduleTutor).focus();return;}if(ui.role==='admin'&&ui.moveId&&e.target.matches('[data-slot]')&&['Enter',' '].includes(e.key)){e.preventDefault();moveTo(ui.moveId,{date:e.target.dataset.date,start:Number(e.target.dataset.start),tutor:e.target.dataset.tutor});return;}if(e.key==='Enter'&&e.target.dataset.listQuery){e.preventDefault();clearTimeout(searchTimer);applyListSearch(e.target.dataset.listQuery,e.target);}else if(e.key==='Enter'&&e.target.id==='library-search')$('[data-action="search-library"]').click();else if(e.key==='Enter'&&e.target.id==='student-search')$('[data-action="search-students"]').click();});
-document.addEventListener('submit',e=>{if(e.target.id==='student-profile-form'){e.preventDefault();handleAction('save-profile-edit',e.target.dataset.studentId);}});
+document.addEventListener('submit',e=>{if(['lesson-report-form','stamp-award-form'].includes(e.target.id))e.preventDefault();if(e.target.id==='student-profile-form'){e.preventDefault();handleAction('save-profile-edit',e.target.dataset.studentId);}});
 let searchTimer;
 document.addEventListener('input',e=>{
  if(ui.role==='teacher'&&teacherProgressUI.onInput(e))return;
