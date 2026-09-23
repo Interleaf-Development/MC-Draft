@@ -1,4 +1,5 @@
-import { t } from './locale.js';
+// Demo controls stay in Hong Kong Traditional Chinese in both proposal languages.
+const t = (_en, zh) => zh;
 
 // These frames load the operational demo itself: no duplicate application UI.
 const views = {
@@ -22,7 +23,6 @@ const scenes = {
   student: ['student'],
   game: ['game'],
   teacher: ['teacher','classroom','teacherSchedule','notes'],
-  library: ['teacher','classroom'],
   operations: ['schedule','parentLessons','messages','students'],
   billing: ['billing','parentPayments'],
   franchise: ['tw','hh']
@@ -48,10 +48,10 @@ function syncSavingFrames() {
 }
 
 function sourceURL(view) {
-  if(view.role==='game')return '/game1/?proposal=1&proposalPreload=1';
+  if(view.role==='game')return '/game1/?proposal=1&proposalPreload=1&lang=zh-HK';
   const base = view.branch === 'hh' ? '/hh/' : '/';
   const path = ['parent','student'].includes(view.role) ? base+view.role+'/' : base;
-  const params = new URLSearchParams({proposal:'1',proposalPreload:'1',role:view.role,page:view.page});
+  const params = new URLSearchParams({proposal:'1',proposalPreload:'1',lang:'zh-HK',role:view.role,page:view.page});
   if(view.studentId)params.set('studentId',view.studentId);
   return path+'?'+params;
 }
@@ -235,7 +235,7 @@ const phases=[
 ];
 function renderRollout() {
   const item=phases[phase];
-  $('#demo-rollout').innerHTML=`<div class="rollout-interactive"><div class="phase-track" role="group" aria-label="${t('Delivery phases','交付階段')}">${phases.map((p,i)=>`<button type="button" class="${phase===i?'active':''}" data-phase="${i}" aria-pressed="${phase===i}"><span>${String(i+1).padStart(2,'0')}</span><strong>${p.label}</strong></button>`).join('')}</div><div class="phase-content"><div><h3>${item.title}</h3><p>${item.body}</p></div><ul>${item.items.map(text=>`<li>${text}</li>`).join('')}</ul><div class="phase-gate"><span>${t('Completion requirement','完成條件')}</span><strong>${item.gate}</strong></div></div></div><div class="feature-table-wrap rollout-print"><table class="feature-table"><thead><tr><th scope="col">${t('Phase','階段')}</th><th scope="col">${t('Activities','工作內容')}</th><th scope="col">${t('Completion requirement','完成條件')}</th></tr></thead><tbody>${phases.map((item,i)=>`<tr><th scope="row">${i+1}. ${item.label}</th><td><p>${item.body}</p><ul class="plain-list">${item.items.map(text=>`<li>${text}</li>`).join('')}</ul></td><td>${item.gate}</td></tr>`).join('')}</tbody></table></div>`;
+  $('#demo-rollout').innerHTML=`<div class="rollout-interactive"><div class="phase-track" role="group" aria-label="${t('Delivery phases','交付階段')}">${phases.map((p,i)=>`<button type="button" class="${phase===i?'active':''}" data-phase="${i}" aria-pressed="${phase===i}"><span>${i+1}.</span><strong>${p.label}</strong></button>`).join('')}</div><div class="phase-content"><div><h3>${item.title}</h3><p>${item.body}</p></div><ul>${item.items.map(text=>`<li>${text}</li>`).join('')}</ul><div class="phase-gate"><span>${t('Completion requirement','完成條件')}</span><strong>${item.gate}</strong></div></div></div><div class="feature-table-wrap rollout-print"><table class="feature-table"><thead><tr><th scope="col">${t('Phase','階段')}</th><th scope="col">${t('Activities','工作內容')}</th><th scope="col">${t('Completion requirement','完成條件')}</th></tr></thead><tbody>${phases.map((item,i)=>`<tr><th scope="row">${i+1}. ${item.label}</th><td><p>${item.body}</p><ul class="plain-list">${item.items.map(text=>`<li>${text}</li>`).join('')}</ul></td><td>${item.gate}</td></tr>`).join('')}</tbody></table></div>`;
 }
 export function initDemos(options = {}) {
   if (typeof options.notify === 'function') notify=options.notify;

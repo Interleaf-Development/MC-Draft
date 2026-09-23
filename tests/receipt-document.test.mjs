@@ -35,13 +35,13 @@ test('legacy unamended receipt retains its description, proof date and single pa
   const state = fixture(), before = clone(state);
   const html = renderReceiptDocument(state, 'R-101');
   assert.match(html, /<dd>R-101<\/dd>/);
-  assert.match(html, /Regular programme · 8 lessons/);
-  assert.match(html, /<dt>Receipt date<\/dt><dd>24 Sept 2026<\/dd>/);
-  assert.match(html, /<dt>Payment proof received<\/dt><dd>23 Sept 2026<\/dd>/);
-  assert.match(html, /<dt>Bank credit date<\/dt><dd>25 Sept 2026<\/dd>/);
+  assert.match(html, /常規課程 · 8 堂/);
+  assert.match(html, /<dt>收據日期<\/dt><dd>2026年9月24日<\/dd>/);
+  assert.match(html, /<dt>收到付款證明日期<\/dt><dd>2026年9月23日<\/dd>/);
+  assert.match(html, /<dt>銀行入賬日期<\/dt><dd>2026年9月25日<\/dd>/);
   assert.equal(html.match(/HK\$2,000/g).length, 1);
-  assert.match(html, /Demonstration receipt · no actual payment/);
-  assert.doesNotMatch(html, /Amended receipt|receipt-revision-history|receipt-lesson-list/);
+  assert.match(html, /示範收據 · 不涉及實際付款/);
+  assert.doesNotMatch(html, /修訂收據|receipt-revision-history|receipt-lesson-list/);
   assert.deepEqual(state, before);
   assert.equal(renderReceiptDocument(state, 'missing'), '');
 });
@@ -49,12 +49,12 @@ test('legacy unamended receipt retains its description, proof date and single pa
 test('active receipt amendment displays original receipt date and actual revision date separately', () => {
   const state = amendedFixture(), before = clone(state);
   const html = renderReceiptDocument(state, 'R-101');
-  assert.match(html, /Amended receipt/);
+  assert.match(html, /修訂收據/);
   assert.match(html, /<dd>R-101-A1<\/dd>/);
-  assert.match(html, /<dt>Receipt date<\/dt><dd>24 Sept 2026<\/dd>/);
-  assert.match(html, /Amended 30 Sept 2026/);
-  assert.match(html, /Lesson entitlement · 9 lessons/);
-  assert.match(html, /1 Oct 2026/);
+  assert.match(html, /<dt>收據日期<\/dt><dd>2026年9月24日<\/dd>/);
+  assert.match(html, /修訂日期 2026年9月30日/);
+  assert.match(html, /課堂安排 · 9 堂/);
+  assert.match(html, /2026年10月1日/);
   assert.match(html, /16:00–17:00 · Koko/);
   assert.match(html, /Permanent move to Thursday/);
   assert.match(html, /data-revision="original"/);
@@ -75,14 +75,14 @@ test('original and earlier revisions use snapshots after the current invoice cha
   Object.assign(state.invoices[0], { description: 'A changed invoice', period: 'New billing period', lessonPlan: { lessonCount: 6, lessonDates: [] } });
   const before = clone(state);
   const original = renderReceiptDocument(state, 'R-101', { revisionId: 'original' });
-  assert.match(original, /Regular programme · 8 lessons/);
-  assert.match(original, /Lesson entitlement · 8 lessons/);
-  assert.match(original, /7 Oct 2026/);
-  assert.match(original, /Oct–Nov 2026/);
-  assert.doesNotMatch(original, /A changed invoice|New billing period|Lesson entitlement · 7|9 Oct 2026/);
+  assert.match(original, /常規課程 · 8 堂/);
+  assert.match(original, /課堂安排 · 8 堂/);
+  assert.match(original, /2026年10月7日/);
+  assert.match(original, /2026 年 10 至 11 月/);
+  assert.doesNotMatch(original, /A changed invoice|New billing period|課堂安排 · 7|2026年10月9日/);
   const earlier = renderReceiptDocument(state, 'R-101', { revisionId: 'R-101-A1' });
-  assert.match(earlier, /Lesson entitlement · 9 lessons/);
-  assert.match(earlier, /1 Oct 2026/);
+  assert.match(earlier, /課堂安排 · 9 堂/);
+  assert.match(earlier, /2026年10月1日/);
   assert.doesNotMatch(earlier, /Friday instead|A changed invoice|New billing period/);
   assert.deepEqual(state, before);
 });
@@ -91,8 +91,8 @@ test('receipt distinguishes retained make-up entitlement from dated regular less
   const state = amendedFixture();
   Object.assign(state.receipts[0].revisions[0], { description: 'Regular programme · 8 lessons', lessonCount: 8, makeUpLessonCount: 1 });
   const html = renderReceiptDocument(state, 'R-101');
-  assert.match(html, /Lesson entitlement · 8 lessons/);
-  assert.match(html, /Make-up entitlement：1 lesson · Contact the centre to arrange\./);
+  assert.match(html, /課堂安排 · 8 堂/);
+  assert.match(html, /補堂名額：1 堂 · 請聯絡中心安排。/);
   assert.equal((html.match(/<li>/g) || []).length, 2);
 });
 
@@ -147,7 +147,7 @@ test('all generated schedule reasons use Traditional Chinese while custom notes 
     const parent = renderReceiptDocument(state, 'R-101', { role: 'parent' });
     assert.ok(parent.includes(zh));
     assert.ok(!parent.includes(en));
-    assert.ok(renderReceiptDocument(state, 'R-101').includes(en));
+    assert.ok(renderReceiptDocument(state, 'R-101').includes(zh));
     assert.deepEqual(state, before);
   }
   state.receipts[0].revisions[0].reason = 'Please keep this exact parent note.';
@@ -166,8 +166,8 @@ test('seven scheduled dates plus one make-up count as eight lessons on the recei
   assert.match(parent, /補堂名額：1 堂/);
   assert.equal((parent.match(/<li>/g) || []).length, 7);
   const admin = renderReceiptDocument(state, 'R-101');
-  assert.match(admin, /Lesson entitlement · 8 lessons/);
-  assert.match(admin, /Scheduled regular lessons：7 lessons/);
+  assert.match(admin, /課堂安排 · 8 堂/);
+  assert.match(admin, /已列出日期的常規課堂：7 堂/);
 });
 
 test('declined extra dates clearly show no class in the selected role language', () => {
@@ -181,8 +181,8 @@ test('declined extra dates clearly show no class in the selected role language',
   assert.match(parent, /以下日期不設課堂：<\/strong>2026年10月29日/);
   assert.doesNotMatch(parent, /No class on|Extra lesson declined|Sep–Oct/);
   const staff = renderReceiptDocument(state, 'R-101');
-  assert.match(staff, /No class on：<\/strong>29 Oct 2026/);
-  assert.match(staff, /Extra lesson declined; final surplus date excluded\./);
+  assert.match(staff, /以下日期不設課堂：<\/strong>2026年10月29日/);
+  assert.match(staff, /中心未有批准額外課堂，最後超出的日期不設課堂。/);
 });
 
 test('temporary receipt reasons explain the inclusive dates and restoration in both family roles', () => {
@@ -204,7 +204,8 @@ test('temporary receipt reasons explain the inclusive dates and restoration in b
       assert.match(html, /之後恢復原有上課時間/);
       assert.doesNotMatch(html, /Temporary dates|regular schedule change|Missing lesson|Extra lesson/);
     }
-    assert.ok(renderReceiptDocument(state, 'R-101').includes(reason));
+    assert.match(renderReceiptDocument(state, 'R-101'), /包括最後一天/);
+    assert.doesNotMatch(renderReceiptDocument(state, 'R-101'), /Temporary dates|regular schedule change/);
   }
 });
 
@@ -231,27 +232,27 @@ test('proof acknowledgement remains unchanged after bank matching and retains le
   state.receipts[0].bankId = 'BANK-101';
   assert.equal(renderReceiptDocument(state, 'R-101', { role: 'parent' }), before);
   const admin = renderReceiptDocument(state, 'R-101');
-  assert.match(admin, /Amended payment acknowledgement/);
-  assert.match(admin, /Acknowledgement no\./);
-  assert.doesNotMatch(admin, /Bank credit date/);
-  assert.match(admin, /<dt>Transaction date<\/dt><dd>22 Sept 2026<\/dd>/);
-  assert.match(admin, /<dt>Name on paying account<\/dt><dd>Chan &amp; Wong<\/dd>/);
+  assert.match(admin, /修訂付款確認/);
+  assert.match(admin, /付款確認編號/);
+  assert.doesNotMatch(admin, /銀行入賬日期/);
+  assert.match(admin, /<dt>交易日期<\/dt><dd>2026年9月22日<\/dd>/);
+  assert.match(admin, /<dt>付款戶口姓名<\/dt><dd>Chan &amp; Wong<\/dd>/);
 });
 
 test('remote legacy proofs are acknowledgements while cash and cheque keep receipt wording', () => {
   const state = fixture(), receipt = state.receipts[0];
   state.invoices[0].proof = true;
   assert.equal(isPaymentAcknowledgement(state, receipt), true);
-  assert.match(renderReceiptDocument(state, receipt.id), /Payment acknowledgement/);
-  assert.doesNotMatch(renderReceiptDocument(state, receipt.id), /Transaction date|Name on paying account/);
+  assert.match(renderReceiptDocument(state, receipt.id), /付款確認/);
+  assert.doesNotMatch(renderReceiptDocument(state, receipt.id), /交易日期|付款戶口姓名/);
   state.invoices[0].proofReview = { extracted: { paymentDate: '2026-09-22', payer: 'Chan Tai Man' } };
-  assert.match(renderReceiptDocument(state, receipt.id), /<dt>Transaction date<\/dt><dd>22 Sept 2026<\/dd>/);
-  assert.match(renderReceiptDocument(state, receipt.id), /<dt>Name on paying account<\/dt><dd>Chan Tai Man<\/dd>/);
+  assert.match(renderReceiptDocument(state, receipt.id), /<dt>交易日期<\/dt><dd>2026年9月22日<\/dd>/);
+  assert.match(renderReceiptDocument(state, receipt.id), /<dt>付款戶口姓名<\/dt><dd>Chan Tai Man<\/dd>/);
   for (const method of ['cash', 'cheque']) {
     state.invoices[0].paymentMethod = method;
     assert.equal(isPaymentAcknowledgement(state, receipt), false);
-    assert.match(renderReceiptDocument(state, receipt.id), /<span class="eyebrow">Receipt<\/span>/);
-    assert.doesNotMatch(renderReceiptDocument(state, receipt.id), /Transaction date|Name on paying account/);
+    assert.match(renderReceiptDocument(state, receipt.id), /<span class="eyebrow">收據<\/span>/);
+    assert.doesNotMatch(renderReceiptDocument(state, receipt.id), /交易日期|付款戶口姓名/);
   }
   assert.equal(isPaymentAcknowledgement(state, null), false);
 });

@@ -20,7 +20,7 @@ function withUI(run) {
   }
 }
 
-test('parent chat renders Chinese controls and fixture content while staff retain English',()=>withUI(({ui,state,viewer})=>{
+test('parent chat renders Chinese controls and fixture content for staff too',()=>withUI(({ui,state,viewer})=>{
   const thread=state.messages.find(thread=>thread.id==='thread-chloe');
   const texts=thread.messages.map(message=>message.text);
   const parent=ui.render();
@@ -33,9 +33,9 @@ test('parent chat renders Chinese controls and fixture content while staff retai
   assert.deepEqual(thread.messages.map(message=>message.text),texts);
   viewer.role='teacher';
   const staff=ui.render();
-  assert.match(staff,/aria-label="Send message"/);
-  assert.match(staff,/Could Chloe make up/);
-  assert.doesNotMatch(staff,/分兩次補堂|傳送訊息/);
+  assert.match(staff,/aria-label="傳送訊息"/);
+  assert.match(staff,/分兩次補堂/);
+  assert.doesNotMatch(staff,/Could Chloe make up|Send message/);
 }));
 
 test('list and message searches match Chinese display text and original English content',()=>withUI(({ui,type})=>{

@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import * as model from '../dist/model.js';
 import { isFamilyRole, familyText, familyContent, familyDate } from '../dist/family-locale.js';
+import { staffText, staffContent, staffDate } from '../dist/staff-locale.js';
 import { canStudentOpenAssignment, canStudentEditAssignment } from '../dist/student-work.js';
 import { renderStudentBinder } from '../dist/student-binder-ui.js';
 
@@ -19,8 +20,8 @@ function renderer() {
   const escape = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
   const context = vm.createContext({
     ...model, ui, state, isFamilyRole, canStudentOpenAssignment, canStudentEditAssignment, renderStudentBinder,
-    t: (en, zh) => isFamilyRole(ui.role) ? zh ?? familyText(en, ui.role) : en,
-    content: value => familyContent(value, ui.role), dateLabel: (date, options) => familyDate(date, ui.role, options), esc: escape,
+    t: (en, zh) => zh ?? staffText(en),
+    content: value => staffContent(value), dateLabel: (date, options) => staffDate(date, options), esc: escape,
     heading: (title, actions = '') => '<h1>' + escape(title) + '</h1>' + actions,
     action: (name, label, cls = '', attrs = '') => '<button data-action="' + name + '" class="' + cls + '" ' + attrs + '>' + label + '</button>',
     icon: () => '', thumbnail: () => '', childSwitch: () => '', art: () => '',
@@ -50,19 +51,17 @@ test('family locale formats actual lesson dates, tuition periods, levels and sta
   }
 });
 
-test('the same worksheet renders Chinese for students and parents, with staff English preserved', () => {
+test('the same worksheet renders Chinese for students and parents, and staff', () => {
   const app = renderer(), before = JSON.stringify(app.state);
   for (const role of ['student', 'parent', 'teacher']) {
     app.ui.role = role; app.ui.readonly = role === 'parent';
     const html = app.render();
-    if (isFamilyRole(role)) {
+    if (['student','parent','teacher'].includes(role)) {
       assert.match(html, /等值分數/); assert.match(html, /小三/); assert.match(html, /姓名：Chloe Chan/);
       assert.match(html, /完成以下等值分數。/); assert.match(html, /解題步驟/);
       assert.doesNotMatch(html, /Complete the equivalent fractions\.|Written working/);
-    } else {
-      assert.match(html, /Equivalent fractions/); assert.match(html, /Complete the equivalent fractions\./);
-      assert.match(html, /Teacher feedback/); assert.doesNotMatch(html, /完成以下等值分數。/);
     }
+    if (role === 'teacher') assert.match(html, /老師評語/);
     if (role === 'student') {
       assert.match(html, /data-action="submit-work"[^>]*>\s*交給老師/);
       assert.match(html, /aria-label="移動頁面"/);
@@ -85,7 +84,7 @@ test('worksheet questions across the seeded curriculum are translated without ch
     assignment.worksheetId = worksheetId;
     const before = JSON.stringify(app.state), worksheet = model.worksheetById(worksheetId);
     app.ui.role = 'student'; assert.ok(app.render().includes(chinese)); assert.ok(app.render().includes(worksheet.code));
-    app.ui.role = 'teacher'; assert.ok(app.render().includes(english));
+    app.ui.role = 'teacher'; assert.ok(app.render().includes(chinese));
     assert.equal(JSON.stringify(app.state), before);
   }
 });

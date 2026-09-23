@@ -83,7 +83,7 @@ test('offline launches isolate all six branch/role shells and their four install
       assert.equal(manifest.start_url, base + role + '/'); identities.add(manifest.id);
     }
     const html = await (await worker.fetch(base + '?role=teacher', { mode: 'navigate' })).text();
-    assert.ok(!html.includes('rel="manifest"')); assert.ok(html.includes(base === '/' ? 'Tsuen Wan' : 'Hang Hau'));
+    assert.ok(!html.includes('rel="manifest"')); assert.ok(html.includes(base === '/' ? '荃灣' : '坑口'));
   }
   assert.equal(identities.size, 4);
 });

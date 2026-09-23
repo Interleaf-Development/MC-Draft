@@ -60,9 +60,9 @@ for (const branch of [
       assert.ok(ui.render().includes('MathConcept（' + expected.chinese + '）'));
       viewer.role = 'teacher';
       ui.handleAction('wa-thread', group.id, {});
-      assert.ok(ui.render().includes(expected.director + ', ' + expected.colleague + ', Reception'));
+      assert.ok(ui.render().includes(expected.director + '、' + expected.colleague + '、接待處'));
       const bank = createBankCheckUI({ getState: () => state, getViewer: () => viewer });
-      assert.throws(() => bank.openUpload(), error => error.message === 'Bank reconciliation is available to ' + expected.teacher + ' in the Admin view.');
+      assert.throws(() => bank.openUpload(), error => error.message === '銀行對數只供' + expected.teacher + '在行政介面使用。');
     `], { cwd: new URL('..', import.meta.url), encoding: 'utf8', stdio: 'pipe' });
   });
 }

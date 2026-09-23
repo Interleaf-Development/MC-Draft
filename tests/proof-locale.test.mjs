@@ -56,15 +56,15 @@ test('Parent proof preview is Traditional Chinese and leaves billing records unc
   assert.deepEqual(state, before);
 });
 
-test('staff sees the same English proof labels and preview', t => {
+test('staff proof labels and preview use HK Traditional Chinese', t => {
   const { state, current, ui } = setup(t, 'admin'), before = clone(state);
   ui.openSubmit('INV-1024'); ui.handleAction('proof-sample');
-  assert.equal(current.title, 'Submit payment proof');
-  assert.match(current.body, /Valid payment proof/);
-  assert.match(current.body, /HK\$2000 shown; HK\$2000 expected\./);
-  assert.match(current.body, /MathConcept \(Tsuen Wan\)/);
-  assert.match(current.body, /<dt>Payer<\/dt><dd>Elaine Chan<\/dd>/);
-  assert.doesNotMatch(current.body, /付款證明|示範核對/);
+  assert.equal(current.title, '提交付款證明');
+  assert.match(current.body, /有效付款證明/);
+  assert.match(current.body, /證明金額：HK\$2000；應付金額：HK\$2000。/);
+  assert.match(current.body, /MathConcept（荃灣）/);
+  assert.match(current.body, /<dt>付款人<\/dt><dd>Elaine Chan<\/dd>/);
+  assert.doesNotMatch(current.body, />Valid payment proof<|>Payment date<|shown; HK\$/);
   assert.deepEqual(state, before);
 });
 
@@ -133,19 +133,19 @@ test('staff saved proof keeps original evidence and consequential results outsid
     const disclosure = current.body.match(/<details\b[^>]*>[\s\S]*?<\/details>/)?.[0];
     assert.ok(disclosure, scenario);
     assert.doesNotMatch(disclosure.match(/^<details[^>]*>/)[0], /\bopen(?:\s|=|>)/);
-    assert.match(disclosure, /<summary>Proof check details<\/summary>/);
-    assert.match(disclosure, /These are simulated results\. No AI read the uploaded file\./);
+    assert.match(disclosure, /<summary>付款證明核對詳情<\/summary>/);
+    assert.match(disclosure, /以上結果均為模擬，並非由 AI 讀取上載檔案得出。/);
     assert.match(disclosure, /class="proof-extracted|class="detail-grid proof-extracted/);
-    assert.match(disclosure, /aria-label="Demo proof checks"/);
+    assert.match(disclosure, /aria-label="示範付款證明核對"/);
     const visible = current.body.replace(disclosure, '');
     assert.match(visible, /src="data:image\/png;base64,YWJj"/);
     assert.match(visible, /Parent transfer\.png/);
-    assert.match(visible, new RegExp(scenario === 'pass' ? 'Proof submitted for centre review' : scenario === 'duplicate' ? 'Possible duplicate payment' : 'Proof needs review'));
+    assert.match(visible, new RegExp(scenario === 'pass' ? '付款證明已提交，待中心覆核' : scenario === 'duplicate' ? '付款可能重複' : '付款證明待覆核'));
     assert.deepEqual(state, before, scenario);
   }
   invoice.proofReview.file = { name: 'Parent transfer.pdf', mimeType: 'application/pdf', size: 3, dataUrl: 'data:application/pdf;base64,YWJj' };
   ui.openProof(invoice.id);
-  assert.match(current.body.split('<details')[0], /id="proof-pdf-preview"[^>]+aria-label="Selected payment proof PDF"/);
+  assert.match(current.body.split('<details')[0], /id="proof-pdf-preview"[^>]+aria-label="已選擇的付款證明 PDF"/);
 });
 
 

@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const source = await readFile(new URL('../dist/proposal/demos.js', import.meta.url), 'utf8');
 const appSource = await readFile(new URL('../dist/proposal/app.js', import.meta.url), 'utf8');
 const origin = 'https://demo.example';
-const scenes = ['library', 'teacher', 'student', 'game', 'operations', 'billing', 'franchise'];
+const scenes = [ 'teacher', 'student', 'game', 'operations', 'billing', 'franchise'];
 
 // A DOM/event boundary for the real module: tests use rendered controls and
 // message events, without reaching into its frame map or activation state.
@@ -164,11 +164,11 @@ function harness(hash = '#teacher') {
         body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
       }
       document.getElementById('main').append(new Element('section', { id: 'vision', class: 'chapter' }));
-      const chapterIds = ['vision', 'student', 'teacher', 'library', 'protection', 'system', 'billing', 'franchise', 'rollout', 'proposal'];
+      const chapterIds = ['vision', 'student', 'teacher', 'library', 'system', 'franchise', 'rollout', 'proposal'];
       scope.english = scope.chinese = {
         chapters: chapterIds.map(id => ({ id, title: id })), references: {},
         chapterHTML: chapter => {
-          const ids = chapter.id === 'student' ? ['student', 'game'] : chapter.id === 'system' ? ['operations'] : [...scenes, 'rollout'].includes(chapter.id) ? [chapter.id] : [];
+          const ids = chapter.id === 'student' ? ['student', 'game'] : chapter.id === 'system' ? ['operations', 'billing'] : [...scenes, 'rollout'].includes(chapter.id) ? [chapter.id] : [];
           return `<section id="${chapter.id}" class="chapter">${ids.map(id => `<div id="demo-${id}"></div>`).join('')}</section>`;
         }
       };
@@ -337,7 +337,7 @@ test('saving accepts only boolean messages from current same-origin frames and p
   assert.equal(messages(franchise, 'mc-proposal:activate').length, 0);
   assert.equal(h.frame('franchise'), franchise);
   assert.equal(h.document.querySelectorAll('iframe').length, scenes.length);
-  assert.ok(h.notices.every(message => /Saving payment review/.test(message)));
+  assert.ok(h.notices.every(message => /正在儲存付款審核結果/.test(message)));
   assert.equal(h.notices.length, 2);
 
   const unloading = { prevented: false, preventDefault() { this.prevented = true; } };
@@ -401,13 +401,13 @@ test('the proposal shell blocks chapter, language and reading-mode navigation wh
   assert.equal(h.click(doc.getElementById('language-switch')).prevented, true);
   h.click(mode);
   h.click(doc.getElementById('next'));
-  assert.equal(h.address.hash, '#billing');
-  assert.equal(doc.getElementById('chapter-label').textContent, 'billing');
+  assert.equal(h.address.hash, '#system');
+  assert.equal(doc.getElementById('chapter-label').textContent, 'system');
   assert.equal(doc.body.classList.contains('present-mode'), false);
-  assert.match(doc.getElementById('toast').textContent, /Saving payment review/);
+  assert.match(doc.getElementById('toast').textContent, /正在儲存付款審核結果/);
   h.address.hash = '#student';
   h.emit('hashchange');
-  assert.equal(h.address.hash, '#billing');
+  assert.equal(h.address.hash, '#system');
   assert.equal(messages(billing, 'mc-proposal:deactivate').length, 0);
 
   h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: false });
@@ -485,15 +485,15 @@ test('scrolling within the student chapter keeps the visible game active rather 
 });
 
 test('legacy chapter links open the merged chapters and reuse their existing demo frames', () => {
-  for (const [legacy, chapter, demo] of [['authoring', 'library', 'library'], ['operations', 'system', 'operations']]) {
+  for (const [legacy, chapter, demo] of [['authoring', 'library', null], ['protection', 'library', null], ['operations', 'system', 'operations'], ['billing', 'system', 'operations']]) {
     const h = harness('#' + legacy); h.loadApp(); h.warm();
     assert.equal(h.address.hash, '#' + chapter);
     assert.equal(h.document.getElementById('chapter-label').textContent, chapter);
-    const original = h.frame(demo);
-    h.ready(demo, 'admin', 'schedule');
+    const original = demo ? h.frame(demo) : null;
+    if (demo) h.ready(demo, 'admin', 'schedule');
     h.click(h.document.querySelector('a[href="#student"]'));
     h.click(h.document.querySelector(`a[href="#${chapter}"]`));
-    assert.equal(h.frame(demo), original);
+    if (demo) assert.equal(h.frame(demo), original);
     assert.equal(h.document.querySelectorAll('iframe').length, scenes.length);
   }
 });

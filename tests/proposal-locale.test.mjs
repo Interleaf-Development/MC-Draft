@@ -39,7 +39,7 @@ test('proposal language links preserve the current chapter, presentation mode an
 });
 
 test('both proposal languages expose the same chapters, live demos and references', () => {
-  assert.deepEqual(chinese.chapters.map(c => c.id), ['vision', 'student', 'teacher', 'library', 'protection', 'system', 'billing', 'franchise', 'rollout', 'proposal']);
+  assert.deepEqual(chinese.chapters.map(c => c.id), ['vision', 'student', 'teacher', 'library', 'system', 'franchise', 'rollout', 'proposal']);
   assert.deepEqual(chinese.chapters.map(c => c.id), english.chapters.map(c => c.id));
   assert.deepEqual(Object.keys(chinese.references), Object.keys(english.references));
   for (const [index, chapter] of chinese.chapters.entries()) {
@@ -65,4 +65,22 @@ test('all marked cover and navigation text has a locale entry', async () => {
   for (const [, key, text] of html.matchAll(/data-copy="([^"]+)"[^>]*>([^<]*)</g)) {
     assert.equal(text, shellText[key], key + ' defaults to the approved Chinese copy');
   }
+});
+
+
+test('materials and centre administration are grouped without duplicating the teacher demo', () => {
+  for (const content of [chinese, english]) {
+    const materials = content.chapters.find(c => c.id === 'library');
+    const centre = content.chapters.find(c => c.id === 'system');
+    assert.equal([...materials.body.matchAll(/<h3>/g)].length, 3);
+    assert.equal([...centre.body.matchAll(/<h3>/g)].length, 3);
+    assert.doesNotMatch(materials.body, /data-demo=/);
+    assert.deepEqual([...centre.body.matchAll(/data-demo="([^"]+)"/g)].map(m => m[1]), ['operations', 'billing']);
+    const all = content.chapters.slice(1).map((c, i) => content.chapterHTML(c, i + 1)).join('');
+    assert.equal([...all.matchAll(/data-demo="teacher"/g)].length, 1);
+    assert.doesNotMatch(all, /class="eyebrow"/);
+    assert.match(content.chapterHTML(materials, 3), /<h2[^>]+>4\. /);
+  }
+  const centre = chinese.chapters.find(c => c.id === 'system');
+  assert.doesNotMatch(centre.body, /<th[^>]*>使用者<\/th>|已派發的習作保留當時的教材版本/);
 });

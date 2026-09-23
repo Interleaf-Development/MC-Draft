@@ -32,13 +32,13 @@ test('PDF preview uses local bytes, bounded canvas and one page at a time', asyn
   assert.ok(app.calls.options.data instanceof Uint8Array);
   assert.equal(new TextDecoder().decode(app.calls.options.data), '%PDF-1.4');
   const [controls, canvas] = app.target.children;
-  assert.equal(controls.children[1].textContent, 'Page 1 of 3');
+  assert.equal(controls.children[1].textContent, '第 1 頁，共 3 頁');
   assert.equal(controls.children[0].disabled, true);
   assert.equal(controls.children[2].disabled, false);
   assert.ok(canvas.width <= 1800 && canvas.height <= 2200);
   controls.children[2].listeners.click(); await settle();
   assert.deepEqual(app.calls.pages, [1, 2]);
-  assert.equal(app.target.children[0].children[1].textContent, 'Page 2 of 3');
+  assert.equal(app.target.children[0].children[1].textContent, '第 2 頁，共 3 頁');
   cancel();
   assert.equal(app.calls.destroyed, 1);
 });

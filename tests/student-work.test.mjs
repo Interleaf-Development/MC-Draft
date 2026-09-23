@@ -100,7 +100,7 @@ test('a teacher prepares from the chart, then opens the prepared worksheet for r
   assert.equal(assignment.status, 'prepared');
   assert.equal(changes, 1);
   assert.match(html, /is-prepared/);
-  assert.match(html, /Prepare for later/);
+  assert.match(html, /稍後派發/);
   ui.onClick({ dataset: { action: 'teacher-progress-prepare' } });
   assert.equal(changes, 1, 'Preparing clears the selection');
   ui.onClick({ dataset: { action: 'teacher-progress-worksheet', worksheet: 'p6-math-603-P' } });

@@ -61,33 +61,33 @@ test('combined actions count all dates, hide unnecessary checks and distinguish 
   const [oldReceipt, recentReceipt] = app.state.receipts;
   oldReceipt.bankId = 'BANK-OLD';
   app.state.bankTransactions.push({id:'BANK-OLD',date:'2026-07-31',amount:2000,reference:'PAID 888888'});
-  assert.match(app.ui.renderPrimaryActions(), /Upload bank statement/);
-  assert.match(app.ui.renderSecondaryActions(), /Pending payments · all dates \(1\)/);
-  assert.doesNotMatch(app.ui.renderSecondaryActions(), /Reconcile imported entries/);
+  assert.match(app.ui.renderPrimaryActions(), /上載銀行結單/);
+  assert.match(app.ui.renderSecondaryActions(), /待對數付款 · 所有日期 \(1\)/);
+  assert.doesNotMatch(app.ui.renderSecondaryActions(), /核對已匯入紀錄/);
   recentReceipt.bankId = 'BANK-RECENT';
   app.state.bankTransactions.push({id:'BANK-RECENT',date:'2026-09-30',amount:2000,reference:'PAID 999999'});
-  assert.doesNotMatch(app.ui.renderSecondaryActions(), /Pending payments|Reconcile imported entries/);
+  assert.doesNotMatch(app.ui.renderSecondaryActions(), /待對數付款|核對已匯入紀錄/);
   recentReceipt.bankId = null;
   app.state.invoices.find(invoice=>invoice.id===recentReceipt.invoiceId).proofReference='999999';
-  assert.match(app.ui.renderSecondaryActions(), /Reconcile imported entries/);
-  assert.match(app.ui.renderSecondaryActions(), /Pending payments · all dates \(1\)/);
-  assert.match(app.ui.renderSecondaryActions(), /Unmatched bank credits \(1\)/);
-  assert.match(app.ui.renderSecondaryActions(), /Statement history/);
+  assert.match(app.ui.renderSecondaryActions(), /核對已匯入紀錄/);
+  assert.match(app.ui.renderSecondaryActions(), /待對數付款 · 所有日期 \(1\)/);
+  assert.match(app.ui.renderSecondaryActions(), /未配對的銀行入賬（1）/);
+  assert.match(app.ui.renderSecondaryActions(), /結單紀錄/);
 });
 
 test('review queue includes historical receipts, paginates in the modal and resets when reopened', () => {
   const app = harness(reviewState());
   globalThis.document = app.document;
   app.ui.openReviewQueue();
-  assert.equal(app.modal.title,'Pending payments');
+  assert.equal(app.modal.title,'待對數付款');
   assert.match(app.modal.body,/R-QUEUE-00/);
-  assert.match(app.modal.body,/31 Jul/);
+  assert.match(app.modal.body,/2026年7月31日/);
   assert.match(app.modal.body,/<option value="pending" selected/);
-  assert.match(app.modal.body,/1–25 of 28/);
-  assert.doesNotMatch(app.modal.body+app.modal.footer,/Upload bank statement|Statement history/);
-  assert.match(app.modal.footer,/Unmatched bank credits \(0\)/);
+  assert.match(app.modal.body,/第 1–25 項，共 28 項/);
+  assert.doesNotMatch(app.modal.body+app.modal.footer,/上載銀行結單|結單紀錄/);
+  assert.match(app.modal.footer,/未配對的銀行入賬（0）/);
   app.ui.handleAction('bankcheck-page',null,{dataset:{kind:'receipts',page:'2'}});
-  assert.match(app.modal.body,/26–28 of 28/);
+  assert.match(app.modal.body,/第 26–28 項，共 28 項/);
   assert.match(app.modal.body,/R-QUEUE-27/);
   assert.doesNotMatch(app.modal.body,/R-QUEUE-00/);
   assert.equal(app.document.activeElement.direction,'previous','At the last page focus stays on the remaining usable pagination action');
@@ -95,7 +95,7 @@ test('review queue includes historical receipts, paginates in the modal and rese
   app.ui.handleAction('bankcheck-close');
   assert.equal(app.calls.closed,1);
   app.ui.openReviewQueue();
-  assert.match(app.modal.body,/1–25 of 28/);
+  assert.match(app.modal.body,/第 1–25 項，共 28 項/);
   app.ui.reset();
 });
 
@@ -115,7 +115,7 @@ test('queue search and status filter refresh the modal while preserving control 
   assert.equal(input.isConnected,false);
   app.ui.onChange({target:{id:'bankcheck-status',value:'reconciled'}});
   assert.match(app.modal.body,/<option value="reconciled" selected/);
-  assert.match(app.modal.body,/No matching payments/);
+  assert.match(app.modal.body,/沒有符合條件的付款/);
   assert.equal(app.document.activeElement,app.document.querySelector('#bankcheck-status'));
   assert.equal(app.calls.renders,0);
   app.ui.openReviewQueue();
@@ -134,7 +134,7 @@ test('queue review opens the connected receipt and closing returns to the existi
   assert.equal(app.calls.renders,0);
   app.ui.handleAction('bankcheck-review','unknown');
   assert.deepEqual(app.calls.matches,['R-QUEUE-00']);
-  assert.match(app.calls.toasts.at(-1)[0],/Receipt not found/);
+  assert.match(app.calls.toasts.at(-1)[0],/找不到收據/);
   app.ui.openReviewQueue();
   app.ui.handleAction('bankcheck-close');
   assert.equal(app.calls.closed,1);
@@ -154,7 +154,7 @@ test('statement import updates matching, closes its dialog and refreshes the sha
   assert.equal(app.calls.renders,1);
   assert.ok(analyzeStatement(app.state).receipts.filter(row=>row.linked&&row.status==='matched').length>matchedBefore);
   assert.deepEqual(app.state.receipts.map(receipt=>[receipt.id,receipt.issuedDate]),issued);
-  assert.match(app.calls.toasts.at(-1)[0],/payments reconciled/);
+  assert.match(app.calls.toasts.at(-1)[0],/筆付款/);
 });
 
 test('recheck uses existing ready entries, refreshes the board and removes the completed action', () => {
@@ -162,12 +162,12 @@ test('recheck uses existing ready entries, refreshes the board and removes the c
   globalThis.document = app.document;
   app.state.invoices[0].proofReference='111222';
   app.state.bankTransactions.push({id:'BANK-READY',date:'2026-07-31',amount:2000,reference:'FPS 111222'});
-  assert.match(app.ui.renderSecondaryActions(),/Reconcile imported entries/);
+  assert.match(app.ui.renderSecondaryActions(),/核對已匯入紀錄/);
   app.ui.handleAction('bankcheck-rerun');
   assert.equal(app.state.receipts[0].bankId,'BANK-READY');
   assert.equal(app.state.receipts[0].issuedDate,'2026-07-31');
   assert.equal(app.calls.renders,1);
-  assert.doesNotMatch(app.ui.renderSecondaryActions(),/Reconcile imported entries|Pending payments/);
+  assert.doesNotMatch(app.ui.renderSecondaryActions(),/核對已匯入紀錄|待對數付款/);
 });
 
 test('bank controls guard non-admin viewers and reject unknown actions without modifying records', () => {
@@ -179,7 +179,7 @@ test('bank controls guard non-admin viewers and reject unknown actions without m
     assert.equal(app.ui.renderPrimaryActions(),'');
     assert.equal(app.ui.renderSecondaryActions(),'');
     assert.equal(app.ui.render(),'');
-    assert.throws(()=>app.ui.openReviewQueue(),/Admin view/);
+    assert.throws(()=>app.ui.openReviewQueue(),/行政介面/);
     app.ui.handleAction('bankcheck-queue');
     app.ui.handleAction('bankcheck-rerun');
     app.ui.onInput({target:{id:'bankcheck-search',value:'hidden'}});
@@ -189,11 +189,11 @@ test('bank controls guard non-admin viewers and reject unknown actions without m
   app.viewer.role='admin';
   assert.equal(app.ui.handleAction('unrelated-action'),false);
   app.ui.handleAction('bankcheck-unknown');
-  assert.match(app.calls.toasts.at(-1)[0],/Unknown bank action/);
+  assert.match(app.calls.toasts.at(-1)[0],/無法識別這項銀行操作/);
   app.ui.onChange({target:{id:'bankcheck-status',value:'invalid'}});
-  assert.match(app.calls.toasts.at(-1)[0],/valid reconciliation status/);
+  assert.match(app.calls.toasts.at(-1)[0],/有效的對數狀態/);
   app.ui.handleAction('bankcheck-page',null,{dataset:{kind:'other',page:'2'}});
-  assert.match(app.calls.toasts.at(-1)[0],/Unknown receipt list/);
+  assert.match(app.calls.toasts.at(-1)[0],/無法識別這份收據清單/);
   assert.deepEqual(app.state,before);
 });
 
@@ -205,17 +205,17 @@ test('payment workspace separates channel queues and reconciled history without 
   app.state.receipts[3].bankId = 'BANK-SETTLED';
   app.state.bankTransactions.push({id:'BANK-SETTLED',date:'2026-09-30',amount:2000,reference:'SETTLED'});
   const pending = app.ui.render();
-  assert.match(pending,/Online payment/);
+  assert.match(pending,/網上付款/);
   assert.doesNotMatch(pending,/Non-face-to-face/);
   assert.match(pending,/data-id="non-face-to-face" aria-pressed="true"/);
   assert.match(pending,/R-QUEUE-00/);
   assert.doesNotMatch(pending,/R-QUEUE-01|R-QUEUE-02|R-QUEUE-03/);
   assert.match(pending,/Ethan Wong/);
   assert.match(pending,/Mr Wong/);
-  assert.match(pending,/<thead><tr><th>Student \/ parent<\/th><th>Amount<\/th><th>Payment date<\/th><\/tr><\/thead>/);
-  assert.doesNotMatch(pending,/<th>Invoice \/ acknowledgement<\/th>|<th>Status<\/th>|>Review<\/button>|>Details<\/button>|>INV-QUEUE-0<|>R-QUEUE-00</);
-  assert.match(pending,/Upload bank statement/);
-  assert.match(pending,/Payment date/);
+  assert.match(pending,/<thead><tr><th>學生／家長<\/th><th>金額<\/th><th>付款日期<\/th><\/tr><\/thead>/);
+  assert.doesNotMatch(pending,/<th>Invoice \/ acknowledgement<\/th>|<th>Status<\/th>|>覆核<\/button>|>Details<\/button>|>INV-QUEUE-0<|>R-QUEUE-00</);
+  assert.match(pending,/上載銀行結單/);
+  assert.match(pending,/付款日期/);
   app.ui.onChange({target:{id:'bankcheck-status',value:'reconciled'}});
   assert.match(app.ui.render(),/R-QUEUE-03/);
   assert.doesNotMatch(app.ui.render(),/R-QUEUE-00/);
@@ -224,9 +224,9 @@ test('payment workspace separates channel queues and reconciled history without 
   const cash = app.ui.render();
   assert.match(cash,/R-QUEUE-01/);
   assert.doesNotMatch(cash,/R-QUEUE-00|R-QUEUE-02|R-QUEUE-03/);
-  assert.match(cash,/Cash collection and deposit handling will be defined separately/);
+  assert.match(cash,/現金收取及存款處理流程將另行訂定/);
   assert.match(cash,/data-action="bankcheck-review"[^>]*data-id="R-QUEUE-01"[^>]*>Chloe Chan<\/button>/);
-  assert.doesNotMatch(cash,/>Review<\/button>|>Details<\/button>/);
+  assert.doesNotMatch(cash,/>覆核<\/button>|>Details<\/button>/);
   app.ui.handleAction('bankcheck-channel','cheque');
   assert.match(app.ui.render(),/R-QUEUE-02/);
   assert.doesNotMatch(app.ui.render(),/R-QUEUE-00|R-QUEUE-01|R-QUEUE-03/);
@@ -240,8 +240,8 @@ test('payment queue shows the claimed transaction date rather than acknowledgeme
   app.state.invoices[0].claimedPaymentDate = '2026-07-25';
   app.state.invoices[0].proofPayer = 'MRS CHAN ACCOUNT';
   app.ui.openReviewQueue();
-  assert.match(app.modal.body,/25 Jul/);
-  assert.doesNotMatch(app.modal.body,/31 Jul/);
+  assert.match(app.modal.body,/2026年7月25日/);
+  assert.doesNotMatch(app.modal.body,/2026年7月31日/);
   const input = app.document.querySelector('#bankcheck-search');
   input.value='MRS CHAN ACCOUNT';
   app.ui.onInput({target:input});
@@ -263,12 +263,12 @@ test('shared unmatched credits and bank ledger retain outgoing entries without c
   app.ui.handleAction('bankcheck-channel','cash');
   assert.match(app.ui.render(),/Unclaimed transfer/,'Unmatched credits stay visible across channels');
   app.ui.handleAction('bankcheck-ledger');
-  assert.equal(app.modal.title,'Bank ledger');
-  assert.match(app.modal.body,/Money in/);
-  assert.match(app.modal.body,/Money out/);
+  assert.equal(app.modal.title,'銀行流水賬');
+  assert.match(app.modal.body,/入賬/);
+  assert.match(app.modal.body,/支出/);
   assert.match(app.modal.body,/Unclaimed transfer/);
   assert.match(app.modal.body,/Office supplies/);
-  assert.match(app.modal.body,/Outgoing/);
+  assert.match(app.modal.body,/支出/);
   app.ui.handleAction('bankcheck-rerun');
   assert.equal(app.state.bankTransactions.length,2,'Rechecking must not duplicate or turn debit entries into credits');
   assert.equal(app.state.bankTransactions.find(row=>row.id==='DEBIT').direction,'debit');
@@ -280,9 +280,9 @@ test('upload uses CSV only and failed PDF selection cannot import simulated cont
   globalThis.document = app.document;
   app.ui.openUpload();
   assert.match(app.modal.body,/accept="\.csv,text\/csv"/);
-  assert.match(app.modal.body,/Date, Description, Debit, Credit/);
+  assert.match(app.modal.body,/Date（日期）、Description（摘要）、Debit（支出）、Credit（入賬）/);
   app.ui.onChange({target:{id:'bankcheck-file',files:[{name:'statement.pdf',type:'application/pdf',size:1200}]}});
-  assert.match(app.modal.body,/This file has not been read/);
+  assert.match(app.modal.body,/尚未讀取這個檔案/);
   assert.match(app.modal.footer,/data-bank-import disabled/);
   assert.equal(app.state.bankStatementImports?.length || 0,0);
 });
@@ -322,19 +322,19 @@ test('final audit lists issued receipts across all channels with bank status and
   const app = harness(auditState(),{finalAudit:true}), html = app.ui.render();
   assert.equal([...html.matchAll(/data-audit-receipt=/g)].length,7);
   assert.doesNotMatch(html,/bankcheck-channel|bank-channel-tabs|INV-NO-RECEIPT/);
-  assert.match(html,/<option value="all" selected>All receipts/);
-  assert.match(html,/<th>Student \/ invoice<\/th><th>Amount<\/th><th>Receipt date<\/th><th>Bank match status<\/th>/);
+  assert.match(html,/<option value="all" selected>所有收據/);
+  assert.match(html,/<th>學生／繳費通知<\/th><th>金額<\/th><th>收據日期<\/th><th>銀行配對狀態<\/th>/);
   assert.match(html,/INV-QUEUE-0 · R-QUEUE-00/);
-  assert.match(html,/data-audit-receipt="R-QUEUE-00"[^]*?<td class="nowrap">31 Jul/,'Audit date is the receipt issue date, not the bank or claimed payment date');
-  for (const status of ['Matched','Amount mismatch','Multiple matches','Not found','Cash handling','Cheque handling','Ready to match']) assert.ok(html.includes('>'+status+'<'),status);
-  assert.match(html,/AUDIT-MISMATCH-101[^]*?200[^]*?short/);
-  assert.match(html,/2 possible bank credits/);
-  assert.match(html,/data-id="R-QUEUE-00"[^>]*>View match<\/button>/);
-  assert.match(html,/data-id="R-QUEUE-01"[^>]*>Review match<\/button>/);
-  for (const label of ['Upload bank statement','Bank ledger','Statement history','Unmatched bank credits']) assert.ok(html.includes(label),label);
-  assert.match(html,/does not issue or resend receipts/);
-  assert.match(html,/Automatic bank matching applies to online payments only/);
-  assert.match(html,/CSV statements stay on this device\. Automatic matching is simulated/);
+  assert.match(html,/data-audit-receipt="R-QUEUE-00"[^]*?<td class="nowrap">2026年7月31日/,'Audit date is the receipt issue date, not the bank or claimed payment date');
+  for (const status of ['已配對','金額不符','有多項可能配對','未找到','現金處理','支票處理','可配對']) assert.ok(html.includes('>'+status+'<'),status);
+  assert.match(html,/AUDIT-MISMATCH-101[^]*?200[^]*?不足/);
+  assert.match(html,/2 筆銀行入賬可能相符/);
+  assert.match(html,/data-id="R-QUEUE-00"[^>]*>查看配對<\/button>/);
+  assert.match(html,/data-id="R-QUEUE-01"[^>]*>覆核配對<\/button>/);
+  for (const label of ['上載銀行結單','銀行流水賬','結單紀錄','未配對的銀行入賬']) assert.ok(html.includes(label),label);
+  assert.match(html,/不會發出或重發收據/);
+  assert.match(html,/自動銀行配對只適用於網上付款/);
+  assert.match(html,/CSV 結單只保留在此裝置，自動配對為模擬操作/);
 });
 
 test('final audit filters outstanding and matched receipts while keeping ready, cash and cheque records distinct', () => {
@@ -345,7 +345,7 @@ test('final audit filters outstanding and matched receipts while keeping ready, 
   assert.equal([...html.matchAll(/data-audit-receipt=/g)].length,6);
   assert.doesNotMatch(html,/data-audit-receipt="R-QUEUE-00"/);
   assert.match(html,/data-audit-receipt="R-QUEUE-06" data-bank-status="ready"/);
-  assert.match(html,/<option value="pending" selected>Outstanding/);
+  assert.match(html,/<option value="pending" selected>待跟進/);
   app.ui.onChange({target:{id:'bankcheck-status',value:'reconciled'}});
   html = app.ui.render();
   assert.equal([...html.matchAll(/data-audit-receipt=/g)].length,1);
@@ -373,5 +373,5 @@ test('final audit recheck links only the unique online credit and preserves all 
   assert.equal([...app.ui.render().matchAll(/data-audit-receipt=/g)].length,5,'Import returns to the outstanding receipt list');
   app.ui.openUpload();
   assert.match(app.modal.body,/accept="\.csv,text\/csv"/);
-  assert.match(app.modal.footer,/Import & check/);
+  assert.match(app.modal.footer,/匯入並核對/);
 });

@@ -91,7 +91,7 @@ p { color: var(--muted); }
 .feature-table ul { margin: 0; padding-left: 17px; }
 .feature-table li + li { margin-top: 4px; }
 .feature-detail { margin-top: 24px; }
-.feature-detail > h2, .feature-detail > h3 { margin-bottom: 8px; }
+.feature-detail > h2, .feature-detail > h3, .feature-detail > h4 { margin-bottom: 8px; }
 .feature-detail > div { color: var(--muted); }
 .plain-list { margin: 0; padding-left: 20px; color: #505050; }
 .plain-list li { margin: 6px 0; padding-left: 2px; line-height: 1.6; }
@@ -292,7 +292,7 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   h1 { font-size: 22pt; }
   h2 { font-size: 16pt; }
   h3 { font-size: 11pt; }
-  h1, h2, h3, .eyebrow, .document-type, .chapter-heading { break-after: avoid; }
+  h1, h2, h3, h4, .eyebrow, .document-type, .chapter-heading { break-after: avoid; }
   .chapter-heading { margin-bottom: 12pt; }
   .eyebrow, .document-type { margin-bottom: 4pt; font-size: 8pt; }
   .document-header { margin-bottom: 16pt; }
@@ -313,3 +313,11 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   .chapter-details summary span { display: none; }
   a { color: inherit; text-decoration: none; }
 }
+
+/* Group related features under a single numbered chapter. */
+.proposal-feature { margin-top: 28px; }
+.proposal-feature > h3 { font-size: 18px; margin-bottom: 10px; }
+.proposal-feature + .proposal-feature { padding-top: 24px; border-top: 1px solid var(--line); }
+.proposal-feature .feature-intro { font-size: 14px; line-height: 1.7; }
+.proposal-feature .feature-detail h4 { font-size: 15px; line-height: 1.5; }
+@media print { .proposal-feature > h3 { font-size: 13pt; } .proposal-feature .feature-detail h4 { font-size: 11pt; } }

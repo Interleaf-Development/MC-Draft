@@ -1,3 +1,4 @@
+import { staffText, staffDate, staffContent } from './staff-locale.js';
 import { TODAY, centre, tutors, students, studentById, worksheets, uid } from './model.js';
 import { conversationThreads, markConversationRead, sendConversationMessage, toggleConversationReaction, canViewConversation, viewerKey } from './conversations.js';
 import { familyText, familyDate, familyContent } from './family-locale.js';
@@ -34,17 +35,21 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
   const views = new Map();
   let renderedKey='', renderedThread='', scrollTop=0, listTop=0, jumpBottom=true, focusAfter=null, pickerQuery='', pickerLimit=20;
   let navigationMotion=null;
-  const t = (english, chinese) => getViewer().role==='parent' ? chinese : english;
-  const textLabel = value => familyText(value,getViewer().role);
-  const contentLabel = value => familyContent(value,getViewer().role);
-  const displayText = (thread,message) => familyChatMessage(thread,message,getViewer().role);
+  const t = (english, chinese) => chinese ?? staffText(english);
+  const textLabel = value => staffText(value);
+  const contentLabel = value => staffContent(value);
+  const displayText = (thread,message) => {
+    const staffFixtures=[['Please check today’s lesson changes before the afternoon classes.','請在下午課堂前查看今天的調堂安排。'],['I have checked my timetable. The classroom is ready.','我已查看課表，課室已準備好。'],['Parent enquiries are in the shared inbox for follow-up.','家長查詢已放在共用收件匣，待跟進。']];
+    const index=staffFixtures.findIndex(([original],index)=>thread?.id==='thread-staff-team'&&message?.id==='thread-staff-team-message-'+index&&message.text===original);
+    return index>=0?staffFixtures[index][1]:familyChatMessage(thread,message,'parent');
+  };
   const attachmentName = attachment => {
     const worksheet=attachment?.kind==='worksheet'&&worksheets.find(w=>w.id===attachment.worksheetId);
     return worksheet&&attachment.name===worksheet.title ? contentLabel(worksheet.title) : attachment?.name||'';
   };
   const displayMessage = (thread,message) => displayText(thread,message)||attachmentName(message?.attachment);
   const messageSearchText = (thread,message) => [messageText(message),displayMessage(thread,message),message?.attachment?.name,attachmentName(message?.attachment)].join(' ').toLowerCase();
-  const dayLabel = date => date===TODAY?t('Today','今天'):date==='2026-09-29'?t('Yesterday','昨天'):getViewer().role==='parent'?familyDate(date,'parent',true):date;
+  const dayLabel = date => date===TODAY?t('Today','今天'):date==='2026-09-29'?t('Yesterday','昨天'):staffDate(date,true);
   const errorLabels = {
     'This conversation is not available to this viewer.':'你無法查看此對話。',
     'Choose a supported attachment.':'請選擇支援的附件格式。',
@@ -59,7 +64,7 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
     'Choose a message in this conversation.':'請選擇此對話中的訊息。',
     'Choose a valid reaction.':'請選擇有效的表情回應。'
   };
-  const errorMessage = value => getViewer().role==='parent' ? errorLabels[value]||textLabel(value) : value;
+  const errorMessage = value => errorLabels[value]||textLabel(value);
   const current = () => {
     const key=viewerKey(getViewer());
     if(!views.has(key)) views.set(key,{selected:null,open:false,query:'',filter:'all',limit:30,messageLimit:50,searchOpen:false,chatQuery:'',menu:null,drafts:{},replies:{},attachments:{}});
@@ -67,14 +72,13 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
   };
   const threadById = id => getState().messages.find(t=>t.id===id && canViewConversation(getState(),t,getViewer()));
   const selected = () => threadById(current().selected);
-  const title = thread => thread.type==='group' ? thread.title : getViewer().role==='parent' ? textLabel(centre.name) : studentById(thread.studentId).name+' · '+studentById(thread.studentId).parent;
+  const title = thread => thread.type==='group' ? (thread.id==='thread-staff-team'&&thread.title===centre.branch+' team'?staffText(centre.branch)+'團隊':thread.title) : getViewer().role==='parent' ? textLabel(centre.name) : studentById(thread.studentId).name+' · '+studentById(thread.studentId).parent;
   const avatar = thread => thread.type==='group' ? '<span class="wa-avatar wa-group-avatar">'+icon('group')+'</span>' : getViewer().role==='parent' ? '<span class="wa-avatar wa-brand-avatar"><img src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></span>' : '<span class="wa-avatar '+studentById(thread.studentId).colour+'">'+esc(studentById(thread.studentId).initials)+'</span>';
   function visibleThreads() {
     const v=current(),viewer=getViewer();
-    if(viewer.role!=='parent')return conversationThreads(getState(),{...viewer,query:v.query,filter:v.filter});
     const tokens=v.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return conversationThreads(getState(),{...viewer,filter:v.filter}).filter(thread=>{
-      const student=studentById(thread.studentId);
+      const student=thread.type==='group'?{}:studentById(thread.studentId);
       const searchable=[thread.title,title(thread),student.name,student.number,student.parent,student.phone,...thread.messages.map(message=>messageSearchText(thread,message))].join(' ').toLowerCase();
       const compact=searchable.replace(/[\s-]/g,'');
       return tokens.every(token=>searchable.includes(token)||compact.includes(token.replace(/-/g,'')));
@@ -88,7 +92,7 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
   }
   function listRow(thread) {
     const last=thread.messages.at(-1), v=current(), draft=v.drafts[thread.id];
-    const lastStamp=last?.date==='2026-09-29'?t('Yesterday','昨天'):getViewer().role==='parent'&&last?.date&&last.date!==TODAY?familyDate(last.date,'parent'):last?.time||'';
+    const lastStamp=last?.date==='2026-09-29'?t('Yesterday','昨天'):last?.date&&last.date!==TODAY?familyDate(last.date,'parent'):last?.time||'';
     return button('thread',avatar(thread)+'<span class="wa-thread-copy"><span class="wa-thread-top"><span class="wa-thread-name">'+esc(title(thread))+'</span><span class="wa-thread-time'+(thread.unreadCount?' unread':'')+'">'+esc(lastStamp)+'</span></span><span class="wa-thread-preview"><span>'+(draft?'<span class="wa-draft-label">'+t('Draft: ','草稿：')+'</span>'+esc(draft):tick(thread,last)+esc(displayMessage(thread,last)||t('Start a conversation','開始對話')))+'</span><span class="wa-thread-indicators">'+(thread.favourite?icon('star'):'')+(thread.followUp&&getViewer().role!=='parent'?icon('flag'):'')+(thread.unreadCount?'<span class="wa-unread-count">'+thread.unreadCount+'</span>':'')+'</span></span></span>','wa-thread','data-id="'+thread.id+'" aria-current="'+(v.selected===thread.id)+'" aria-label="'+esc(title(thread)+(thread.type==='direct'?' · '+studentById(thread.studentId).name:'')+(thread.unreadCount?' · '+thread.unreadCount+t(' unread',' 則未讀訊息'):''))+'"');
   }
   function highlighted(text) {
@@ -103,18 +107,18 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
   function messageRow(thread,message,previous) {
     const isOwn=own(thread,message,getViewer()), first=!previous||previous.senderKey!==message.senderKey||previous.date!==message.date;
     const quote=thread.messages.find(m=>m.id===message.replyToId);
-    return '<div class="wa-message-row'+(isOwn?' own':'')+'" data-message-id="'+esc(message.id)+'"><div class="wa-message'+(first?' first':'')+'">'+(thread.type==='group'&&!isOwn&&first?'<span class="wa-sender">'+esc(message.senderName)+'</span>':'')+(quote?'<div class="wa-quote"><strong>'+esc(quote.senderName)+'</strong><span>'+esc(displayMessage(thread,quote))+'</span></div>':'')+attachmentHtml(message.attachment)+'<div class="wa-message-text">'+highlighted(displayText(thread,message))+'</div><span class="wa-message-meta">'+esc(message.time==='Yesterday'?'':message.time)+' '+tick(thread,message)+'</span>'+iconButton('message-menu','down',t('Message options','訊息選項'),'wa-message-menu-trigger','data-id="'+esc(message.id)+'"')+(current().menu==='message:'+message.id?'<div class="wa-menu wa-message-menu'+(current().menuBelow?' below':'')+'">'+button('reply',t('Reply','回覆'),'','data-id="'+esc(message.id)+'"')+'<div class="wa-reaction-picker">'+EMOJIS.slice(0,6).map(emoji=>button('react',emoji,'','data-id="'+esc(message.id)+'" data-emoji="'+emoji+'" aria-label="'+t('React ','回應 ')+emoji+'"')).join('')+'</div></div>':'')+((message.reactions||[]).length?'<div class="wa-reactions">'+message.reactions.map(r=>button('react',esc(r.emoji)+(r.by.length>1?' '+r.by.length:''),r.by.includes(viewerKey(getViewer()))?'active':'','data-id="'+esc(message.id)+'" data-emoji="'+esc(r.emoji)+'" aria-label="'+t('Reaction ','表情回應 ')+esc(r.emoji)+'" aria-pressed="'+r.by.includes(viewerKey(getViewer()))+'"')).join('')+'</div>':'')+'</div></div>';
+    return '<div class="wa-message-row'+(isOwn?' own':'')+'" data-message-id="'+esc(message.id)+'"><div class="wa-message'+(first?' first':'')+'">'+(thread.type==='group'&&!isOwn&&first?'<span class="wa-sender">'+esc(message.senderKey==='staff:reception'&&message.senderName==='Reception'?'接待處':message.senderName)+'</span>':'')+(quote?'<div class="wa-quote"><strong>'+esc(quote.senderKey==='staff:reception'&&quote.senderName==='Reception'?'接待處':quote.senderName)+'</strong><span>'+esc(displayMessage(thread,quote))+'</span></div>':'')+attachmentHtml(message.attachment)+'<div class="wa-message-text">'+highlighted(displayText(thread,message))+'</div><span class="wa-message-meta">'+esc(message.time==='Yesterday'?'':message.time)+' '+tick(thread,message)+'</span>'+iconButton('message-menu','down',t('Message options','訊息選項'),'wa-message-menu-trigger','data-id="'+esc(message.id)+'"')+(current().menu==='message:'+message.id?'<div class="wa-menu wa-message-menu'+(current().menuBelow?' below':'')+'">'+button('reply',t('Reply','回覆'),'','data-id="'+esc(message.id)+'"')+'<div class="wa-reaction-picker">'+EMOJIS.slice(0,6).map(emoji=>button('react',emoji,'','data-id="'+esc(message.id)+'" data-emoji="'+emoji+'" aria-label="'+t('React ','回應 ')+emoji+'"')).join('')+'</div></div>':'')+((message.reactions||[]).length?'<div class="wa-reactions">'+message.reactions.map(r=>button('react',esc(r.emoji)+(r.by.length>1?' '+r.by.length:''),r.by.includes(viewerKey(getViewer()))?'active':'','data-id="'+esc(message.id)+'" data-emoji="'+esc(r.emoji)+'" aria-label="'+t('Reaction ','表情回應 ')+esc(r.emoji)+'" aria-pressed="'+r.by.includes(viewerKey(getViewer()))+'"')).join('')+'</div>':'')+'</div></div>';
   }
   function conversation(thread) {
     if(!thread)return '<div class="wa-chat-pane wa-empty-chat"><span class="wa-empty-icon">'+icon('new')+'</span><h2>'+t('Your conversations','你的對話')+'</h2><p>'+t('Select a chat to start messaging.','選擇對話以傳送訊息。')+'</p></div>';
     const v=current(), parent=getViewer().role==='parent', s=thread.type==='direct'?studentById(thread.studentId):null;
-    const subtitle=s?(parent?s.name+' · 接待處及教學團隊':s.name+' · '+s.number):[centre.manager,(tutors.find(tutor=>tutor.id!==centre.managerId)||tutors[0]).name,'Reception'].join(', ');
+    const subtitle=s?(parent?s.name+' · 接待處及教學團隊':s.name+' · '+s.number):[centre.manager,(tutors.find(tutor=>tutor.id!==centre.managerId)||tutors[0]).name,'接待處'].join('、');
     const matches=thread.messages.filter(m=>!v.chatQuery||messageSearchText(thread,m).includes(v.chatQuery.toLowerCase()));
     const visible=matches.slice(-v.messageLimit); let prev;
     const bubbles=visible.map(m=>{let html='';if(!prev||prev.date!==m.date)html='<div class="wa-day-label">'+esc(dayLabel(m.date))+'</div>';html+=messageRow(thread,m,prev);prev=m;return html;}).join('');
     const reply=thread.messages.find(m=>m.id===v.replies[thread.id]), attachment=v.attachments[thread.id];
     const hasMessage=Boolean(v.drafts[thread.id]?.trim()||attachment);
-    return '<section class="wa-chat-pane" aria-label="'+esc(t('Conversation with ','與 ')+title(thread)+t('','的對話'))+'"><header class="wa-chat-header">'+iconButton('back','back',t('Back to chats','返回對話列表'),'wa-back')+avatar(thread)+'<div class="wa-chat-identity"><h2>'+esc(title(thread))+'</h2><p>'+esc(subtitle)+'</p></div><div class="wa-header-actions">'+iconButton('search-chat','search',t('Search conversation','搜尋對話'))+'</div></header>'+(v.searchOpen?'<div class="wa-chat-search">'+icon('search')+'<input id="wa-chat-search" placeholder="'+t('Search in conversation','搜尋對話內容')+'" aria-label="'+t('Search in conversation','搜尋對話內容')+'" value="'+esc(v.chatQuery)+'"><span>'+matches.length+'</span>'+iconButton('close-search','close',t('Close search','關閉搜尋'))+'</div>':'')+'<div class="wa-conversation-scroll" role="log" aria-label="'+t('Messages','訊息')+'">'+(matches.length>v.messageLimit?button('older',t('Load earlier messages','載入較早的訊息'),'wa-load-earlier'):'')+(bubbles||'<div class="wa-day-label">'+(v.chatQuery?t('No matching messages','找不到相符訊息'):t('Start a conversation','開始對話'))+'</div>')+'</div><div class="wa-compose-wrap">'+(reply?'<div class="wa-reply-preview"><div><strong>'+esc(reply.senderName)+'</strong><span>'+esc(displayMessage(thread,reply))+'</span></div>'+iconButton('cancel-reply','close',t('Cancel reply','取消回覆'))+'</div>':'')+(attachment?'<div class="wa-attachment-preview">'+(attachment.kind==='image'?'<img src="'+esc(attachment.dataUrl)+'" alt="'+t('Attachment preview','附件預覽')+'">':icon('file'))+'<span>'+esc(attachmentName(attachment))+'</span>'+iconButton('remove-attachment','close',t('Remove attachment','移除附件'))+'</div>':'')+'<div class="wa-composer">'+iconButton('attach-menu','plus',t('Attach','加入附件'),'', 'aria-expanded="'+(v.menu==='attach')+'"')+iconButton('emoji-menu','smile',t('Emoji','表情符號'),'', 'aria-expanded="'+(v.menu==='emoji')+'"')+'<textarea id="chat-input" rows="1" maxlength="4000" aria-label="'+t('Message','訊息')+'" placeholder="'+t('Type a message','輸入訊息')+'">'+esc(v.drafts[thread.id]||'')+'</textarea>'+iconButton('send','send',t('Send message','傳送訊息'),'wa-send'+(hasMessage?' active':''),hasMessage?'':'disabled')+'</div>'+(v.menu==='emoji'?'<div class="wa-emoji-picker" aria-label="'+t('Emoji','表情符號')+'">'+EMOJIS.map(emoji=>button('emoji',emoji,'','data-emoji="'+emoji+'" aria-label="'+t('Insert ','插入 ')+emoji+'"')).join('')+'</div>':'')+(v.menu==='attach'?'<div class="wa-menu wa-attachment-picker">'+button('choose-image',icon('image')+' '+t('Photos','相片'))+button('choose-document',icon('file')+' '+t('Document','文件'))+button('worksheet-picker',icon('book')+' '+t('Worksheet','工作紙'))+'</div>':'')+'<input type="file" id="wa-file" hidden aria-label="'+t('Choose an attachment','選擇附件')+'" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain"></div></section>';
+    return '<section class="wa-chat-pane" aria-label="'+esc(t('Conversation with ','與 ')+title(thread)+t('','的對話'))+'"><header class="wa-chat-header">'+iconButton('back','back',t('Back to chats','返回對話列表'),'wa-back')+avatar(thread)+'<div class="wa-chat-identity"><h2>'+esc(title(thread))+'</h2><p>'+esc(subtitle)+'</p></div><div class="wa-header-actions">'+iconButton('search-chat','search',t('Search conversation','搜尋對話'))+'</div></header>'+(v.searchOpen?'<div class="wa-chat-search">'+icon('search')+'<input id="wa-chat-search" placeholder="'+t('Search in conversation','搜尋對話內容')+'" aria-label="'+t('Search in conversation','搜尋對話內容')+'" value="'+esc(v.chatQuery)+'"><span>'+matches.length+'</span>'+iconButton('close-search','close',t('Close search','關閉搜尋'))+'</div>':'')+'<div class="wa-conversation-scroll" role="log" aria-label="'+t('Messages','訊息')+'">'+(matches.length>v.messageLimit?button('older',t('Load earlier messages','載入較早的訊息'),'wa-load-earlier'):'')+(bubbles||'<div class="wa-day-label">'+(v.chatQuery?t('No matching messages','找不到相符訊息'):t('Start a conversation','開始對話'))+'</div>')+'</div><div class="wa-compose-wrap">'+(reply?'<div class="wa-reply-preview"><div><strong>'+esc(reply.senderKey==='staff:reception'&&reply.senderName==='Reception'?'接待處':reply.senderName)+'</strong><span>'+esc(displayMessage(thread,reply))+'</span></div>'+iconButton('cancel-reply','close',t('Cancel reply','取消回覆'))+'</div>':'')+(attachment?'<div class="wa-attachment-preview">'+(attachment.kind==='image'?'<img src="'+esc(attachment.dataUrl)+'" alt="'+t('Attachment preview','附件預覽')+'">':icon('file'))+'<span>'+esc(attachmentName(attachment))+'</span>'+iconButton('remove-attachment','close',t('Remove attachment','移除附件'))+'</div>':'')+'<div class="wa-composer">'+iconButton('attach-menu','plus',t('Attach','加入附件'),'', 'aria-expanded="'+(v.menu==='attach')+'"')+iconButton('emoji-menu','smile',t('Emoji','表情符號'),'', 'aria-expanded="'+(v.menu==='emoji')+'"')+'<textarea id="chat-input" rows="1" maxlength="4000" aria-label="'+t('Message','訊息')+'" placeholder="'+t('Type a message','輸入訊息')+'">'+esc(v.drafts[thread.id]||'')+'</textarea>'+iconButton('send','send',t('Send message','傳送訊息'),'wa-send'+(hasMessage?' active':''),hasMessage?'':'disabled')+'</div>'+(v.menu==='emoji'?'<div class="wa-emoji-picker" aria-label="'+t('Emoji','表情符號')+'">'+EMOJIS.map(emoji=>button('emoji',emoji,'','data-emoji="'+emoji+'" aria-label="'+t('Insert ','插入 ')+emoji+'"')).join('')+'</div>':'')+(v.menu==='attach'?'<div class="wa-menu wa-attachment-picker">'+button('choose-image',icon('image')+' '+t('Photos','相片'))+button('choose-document',icon('file')+' '+t('Document','文件'))+button('worksheet-picker',icon('book')+' '+t('Worksheet','工作紙'))+'</div>':'')+'<input type="file" id="wa-file" hidden aria-label="'+t('Choose an attachment','選擇附件')+'" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain"></div></section>';
   }
   function render() {
     const v=current(), key=viewerKey(getViewer()), old=document.querySelector('.wa-conversation-scroll'), oldList=document.querySelector('.wa-thread-scroll');
@@ -154,14 +158,14 @@ export function createConversationUI({getState,getViewer,persist,render:renderAp
   function newChat() {
     if(getViewer().role==='parent'){startStudentChat(getViewer().studentId);return;}
     pickerQuery='';pickerLimit=20;
-    modal(t('New chat','新對話'),'<div class="wa-search">'+icon('search')+'<input id="wa-contact-search" aria-label="Search contacts" placeholder="Search student, parent or ID"></div><div id="wa-contact-results" class="wa-contact-results"></div>');
+    modal(t('New chat','新對話'),'<div class="wa-search">'+icon('search')+'<input id="wa-contact-search" aria-label="搜尋聯絡人" placeholder="搜尋學生、家長或編號"></div><div id="wa-contact-results" class="wa-contact-results"></div>');
     updateContacts();
   }
   function updateContacts() {
     const query=pickerQuery.trim().toLowerCase().replace(/[\s-]/g,'');
     const contacts=students.filter(s=>(s.name+' '+s.parent+' '+s.number).toLowerCase().replace(/[\s-]/g,'').includes(query));
     const results=document.getElementById('wa-contact-results');if(!results)return;
-    results.innerHTML=contacts.slice(0,pickerLimit).map(s=>button('contact','<span class="wa-avatar '+s.colour+'">'+esc(s.initials)+'</span><span><strong>'+esc(s.parent)+'</strong><small>'+esc(s.name)+' · '+s.number+'</small></span>','wa-contact','data-id="'+s.id+'"')).join('')+(contacts.length>pickerLimit?button('more-contacts','Load more','wa-contact-more'):'')+(!contacts.length?'<p>No contacts found.</p>':'');
+    results.innerHTML=contacts.slice(0,pickerLimit).map(s=>button('contact','<span class="wa-avatar '+s.colour+'">'+esc(s.initials)+'</span><span><strong>'+esc(s.parent)+'</strong><small>'+esc(s.name)+' · '+s.number+'</small></span>','wa-contact','data-id="'+s.id+'"')).join('')+(contacts.length>pickerLimit?button('more-contacts','載入更多','wa-contact-more'):'')+(!contacts.length?'<p>找不到聯絡人。</p>':'');
   }
   function startStudentChat(studentId) {
     if(!students.some(s=>s.id===studentId)||(getViewer().role==='parent'&&studentId!==getViewer().studentId))return;

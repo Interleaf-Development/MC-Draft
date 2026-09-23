@@ -223,7 +223,7 @@ test('the combined chart keeps every worksheet available exactly once, including
   assert.deepEqual(new Set(ids), new Set(expected));
   for (const worksheet of ['p6-ce-P6-01', 'p6-sspa-6B-6', 'p6-ps-54']) assert.ok(ids.includes(worksheet));
   app.ui.onInput({ target: { id: 'teacher-progress-worksheet-search', value: '6B01' } });
-  assert.match(app.html, /4 matches/);
+  assert.match(app.html, /4 項結果/);
   assert.equal([...app.html.matchAll(/data-worksheet="([^"]+)"/g)].length, expected.length, 'Searching highlights matches while preserving the chart and merged topic groups');
 });
 

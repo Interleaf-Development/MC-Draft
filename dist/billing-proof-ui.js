@@ -106,9 +106,9 @@ const safeAttachment = file => file && MIME_TYPES.has(file.mimeType) && typeof f
 /** Payment evidence UI. The host owns persistence, application rendering and modals. */
 export function createProofUI({ getState, getViewer, change, modal, closeModal, toast, openReceipt }) {
   let draft = null, cancelPdf = null;
-  const t = (value, zh) => ['parent', 'student'].includes(getViewer().role) ? (zh ?? COPY[value] ?? familyText(value, getViewer().role)) : value;
-  const content = value => familyContent(value, getViewer().role);
-  const safeDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(Date.parse(value)) ? familyDate(value, getViewer().role) : t('Not readable');
+  const t = (value, zh) => zh ?? COPY[value] ?? familyText(value, 'parent');
+  const content = value => familyContent(value, 'parent');
+  const safeDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(Date.parse(value)) ? familyDate(value, 'parent') : t('Not readable');
   const detailText = value => {
     const amount = String(value || '').match(/^HK\$(.+) shown; HK\$(.+) expected\.$/);
     return amount ? t(value, `證明金額：HK$${amount[1]}；應付金額：HK$${amount[2]}。`) : t(content(value));
@@ -171,11 +171,10 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
     cancelPdf?.(); cancelPdf = null;
     const target = document.querySelector('#proof-pdf-preview');
     if (!target || file?.mimeType !== 'application/pdf' || !safeAttachment(file)) return;
-    const family = ['parent', 'student'].includes(getViewer().role);
-    cancelPdf = renderPaymentPdf(target, file.dataUrl, { label: t('Payment proof'), ...(family ? { copy: {
+    cancelPdf = renderPaymentPdf(target, file.dataUrl, { label: t('Payment proof'), copy: {
       loading: '正在開啟 PDF…', previous: '上一頁', next: '下一頁', page: (current, total) => `第 ${current} 頁，共 ${total} 頁`,
       unavailable: '未能預覽此 PDF。請改用圖片或沒有密碼保護的 PDF。'
-    } } : {}) });
+    } });
   }
 
   function draftOptions() {
@@ -253,7 +252,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
         const checkDetails = `<p class="small muted">${t('These are simulated results. No AI read the uploaded file.')}</p>${detailFields(review.extracted)}${checks(review)}`;
         const bankNote = issued ? `<p class="proof-footer-note small muted">${t('Payment proof accepted. Bank reconciliation is recorded separately.')}</p>` : '';
         body += admin
-          ? `<details class="proof-demo-controls proof-check-details"><summary>Proof check details</summary><div class="proof-check-details-content">${checkDetails}${bankNote}</div></details>`
+          ? `<details class="proof-demo-controls proof-check-details"><summary>付款證明核對詳情</summary><div class="proof-check-details-content">${checkDetails}${bankNote}</div></details>`
           : `<section class="proof-demo-controls"><h3 class="proof-section-title">${t('Demo check')}</h3>${checkDetails}</section>${bankNote}`;
       }
       const receiptAction = invoice.receiptId ? button('receipt', icons.receipt + ' ' + t(acknowledgement ? 'Open payment acknowledgement' : 'Open receipt'), 'btn primary', `data-id="${esc(invoice.id)}"`) : invoice.proofDisposition === 'returned' ? button('replace', t('Upload another proof'), 'btn primary', `data-id="${esc(invoice.id)}"`) : '';

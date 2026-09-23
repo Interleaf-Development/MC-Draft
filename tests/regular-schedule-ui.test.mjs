@@ -51,7 +51,7 @@ function reviewExtra(app) {
   app.ui.open('oliver');
   app.set({ effective: '2026-10-01', weekday: 4, start: 840 });
   app.ui.handleAction('regular-review');
-  assert.equal(app.modal.title, 'Review regular schedule change');
+  assert.equal(app.modal.title, '檢視常規課表更改');
   return app;
 }
 
@@ -59,10 +59,10 @@ test('reviewing a permanent 8-to-9 change shows receipt impact without modifying
   const app = harness(), before = structuredClone(app.state);
   reviewExtra(app);
   assert.match(app.modal.body, /8 <span>→<\/span> 9/);
-  assert.match(app.modal.body, /Allow 9 lessons at the same fee/);
-  assert.match(app.modal.body, /Keep 8 lessons/);
-  assert.match(app.modal.body, /No additional payment/);
-  assert.match(app.modal.body, /Compare lesson dates/);
+  assert.match(app.modal.body, /維持學費，安排 9 堂/);
+  assert.match(app.modal.body, /維持 8 堂/);
+  assert.match(app.modal.body, /毋須額外付款/);
+  assert.match(app.modal.body, /比較上課日期/);
   assert.equal(app.root.querySelector('[data-action="regular-apply"]').disabled, true);
   assert.doesNotMatch(app.modal.body, /type="radio"[^>]*checked/);
   assert.deepEqual(app.state.bookings, before.bookings);
@@ -73,7 +73,7 @@ test('reviewing a permanent 8-to-9 change shows receipt impact without modifying
 test('Back retains the proposed day, time and effective date without applying the change', () => {
   const app = reviewExtra(harness()), before = structuredClone(app.state);
   app.ui.handleAction('regular-back');
-  assert.equal(app.modal.title, 'Change regular schedule');
+  assert.equal(app.modal.title, '更改常規上課時間');
   assert.equal(app.root.querySelector('#regular-effective').value, '2026-10-01');
   assert.equal(app.root.querySelector('#regular-weekday').value, '4');
   assert.equal(app.root.querySelector('#regular-start').value, '840');
@@ -124,11 +124,11 @@ test('the 8-to-7 review requires staff to choose a make-up credit or the reduced
   app.set({ effective: '2026-10-07', weekday: 2, start: 960, tutor: model.tutors[1].id });
   const before = structuredClone(app.state);
   app.ui.handleAction('regular-review');
-  assert.equal(app.modal.title, 'Review regular schedule change');
+  assert.equal(app.modal.title, '檢視常規課表更改');
   assert.match(app.modal.body, /8 <span>→<\/span> 7/);
-  assert.match(app.modal.body, /Give 1 make-up lesson/);
-  assert.match(app.modal.body, /7 scheduled \+ 1 to arrange with CS/);
-  assert.match(app.modal.body, /Keep 7 lessons, no make-up/);
+  assert.match(app.modal.body, /提供 1 堂補堂/);
+  assert.match(app.modal.body, /已安排 7 堂，另有 1 堂由客服安排/);
+  assert.match(app.modal.body, /維持 7 堂，不補堂/);
   assert.equal(app.root.querySelector('[data-action="regular-apply"]').disabled, true);
   assert.doesNotMatch(app.modal.body, /type="radio"[^>]*checked/);
   assert.deepEqual(app.state, before, 'Review does not grant a credit or change a lesson');
@@ -165,8 +165,8 @@ test('the declined surplus date shown in review skips preserved leave and matche
   const state = model.seed();
   state.bookings.push({ id: 'oliver-preserved-leave', studentId: 'oliver', date: '2026-11-25', start: 960, duration: 60, tutor: model.tutors[0].id, status: 'absent', attendance: 'absent', caseId: 'leave-oliver-nov25' });
   const app = reviewExtra(harness(state));
-  assert.match(app.modal.body, /No class on 19 Nov 2026\./);
-  assert.doesNotMatch(app.modal.body, /No class on 25 Nov 2026\./);
+  assert.match(app.modal.body, /2026年11月19日 不設課堂。/);
+  assert.doesNotMatch(app.modal.body, /2026年11月25日 不設課堂。/);
   app.choose('decline');
   app.ui.handleAction('regular-apply');
   assert.equal(app.calls.changed, 1);
@@ -198,9 +198,9 @@ test('three-week change reveals its final date, preserves it on Back, and restor
   app.toggleEnd(true);
   assert.equal(app.root.querySelector('#regular-end').value, '2026-10-21');
   app.ui.handleAction('regular-review');
-  assert.equal(app.modal.title, 'Review regular schedule change');
-  assert.match(app.modal.body, /From 1 Oct 2026 through 21 Oct 2026 \(inclusive\)/);
-  assert.match(app.modal.body, /Usual schedule resumes 28 Oct 2026/);
+  assert.equal(app.modal.title, '檢視常規課表更改');
+  assert.match(app.modal.body, /由 2026年10月1日 至 2026年10月21日（包括當日）/);
+  assert.match(app.modal.body, /恢復原有課表日期：2026年10月28日/);
   app.ui.handleAction('regular-back');
   assert.equal(app.root.querySelector('#regular-has-end').checked, true);
   assert.equal(app.root.querySelector('#regular-end').value, '2026-10-21');
@@ -225,7 +225,7 @@ test('unchecking Final date removes its limit and applies a permanent change', (
   app.toggleEnd(false);
   assert.equal(app.root.querySelector('#regular-end'), null);
   app.ui.handleAction('regular-review');
-  assert.doesNotMatch(app.modal.body, /Usual schedule resumes/);
+  assert.doesNotMatch(app.modal.body, /恢復原有課表日期：/);
   app.choose('allow');
   app.ui.handleAction('regular-apply');
   assert.equal(app.calls.changed, 1, app.calls.errors.join(', '));
@@ -242,7 +242,7 @@ test('the effective date chooses the paid period without a receipt selector', ()
   app.set({ effective: '2026-12-01', weekday: 4, start: 840 });
   app.toggleEnd(true);
   app.ui.handleAction('regular-review');
-  assert.equal(app.modal.title, 'Review regular schedule change');
+  assert.equal(app.modal.title, '檢視常規課表更改');
   app.ui.handleAction('regular-apply');
   assert.equal(app.calls.changed, 1, app.calls.errors.join(', '));
   assert.deepEqual(app.calls.receipts, ['R-next']);
@@ -256,13 +256,13 @@ test('a checked final date must be present and valid before preview or mutation'
   app.toggleEnd(true);
   app.set({ end: '' });
   app.ui.handleAction('regular-review');
-  assert.match(app.root.querySelector('#form-error').textContent, /Choose a final date/);
+  assert.match(app.root.querySelector('#form-error').textContent, /請選擇結束日期/);
   app.set({ end: '2026-09-30' });
   app.ui.handleAction('regular-review');
-  assert.match(app.root.querySelector('#form-error').textContent, /final date on or after/);
+  assert.match(app.root.querySelector('#form-error').textContent, /結束日期不可早於/);
   app.set({ effective: '2027-02-01', end: '2027-02-21' });
   app.ui.handleAction('regular-review');
-  assert.match(app.root.querySelector('#form-error').textContent, /start date within a paid tuition period/);
-  assert.equal(app.modal.title, 'Change regular schedule');
+  assert.match(app.root.querySelector('#form-error').textContent, /已繳費期數內的生效日期/);
+  assert.equal(app.modal.title, '更改常規上課時間');
   assert.deepEqual(app.state, before);
 });

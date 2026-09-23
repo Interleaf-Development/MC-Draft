@@ -6,8 +6,8 @@ const loadLibrary = () => libraryPromise ??= import('./vendor/pdfjs/pdf.min.js')
 });
 
 /** Render one PDF page at a time to bound memory; return a cancellation callback. */
-export function renderPaymentPdf(target, dataUrl, { loadPdfLibrary = loadLibrary, label = 'Payment proof', copy = {} } = {}) {
-  const text = { loading: 'Opening PDF…', previous: 'Previous page', next: 'Next page', page: (current, total) => `Page ${current} of ${total}`, unavailable: 'This PDF could not be previewed. Ask the parent for an image or an unprotected PDF.', ...copy };
+export function renderPaymentPdf(target, dataUrl, { loadPdfLibrary = loadLibrary, label = '付款證明', copy = {} } = {}) {
+  const text = { loading: '正在開啟 PDF…', previous: '上一頁', next: '下一頁', page: (current, total) => `第 ${current} 頁，共 ${total} 頁`, unavailable: '未能預覽此 PDF。請家長提供圖片或沒有密碼保護的 PDF。', ...copy };
   let disposed = false, documentTask, pdf, renderTask, pageNumber = 1, version = 0;
   const owner = target.ownerDocument;
   const status = owner.createElement('p');

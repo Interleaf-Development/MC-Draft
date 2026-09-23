@@ -1,34 +1,28 @@
 import { p6Topics, p6Worksheets, p6SupplementGroups } from './p6-curriculum.js';
 import { p3Topics, p3Worksheets, p3SupplementGroups } from './p3-curriculum.js';
 import { progressRecordCatalogues } from './progress-records.js';
-import { TODAY, worksheets, time, dateLabel } from './model.js';
+import { TODAY, worksheets, time } from './model.js';
 import { getTeacherClasses, worksheetProgress, assignTeacherWorksheets } from './teacher-progress.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
 const statuses = {
-  prepared: ['Prepared', 'prepared'],
-  upcoming: ['Sent', 'sent'],
-  'in-progress': ['In progress', 'working'],
-  submitted: ['To mark', 'submitted'],
-  corrections: ['Corrections', 'corrections'],
-  completed: ['Completed', 'completed']
+  prepared: ['已備課', 'prepared'],
+  upcoming: ['已派發', 'sent'],
+  'in-progress': ['進行中', 'working'],
+  submitted: ['待批改', 'submitted'],
+  corrections: ['待改正', 'corrections'],
+  completed: ['已完成', 'completed']
 };
-const termLabels = { first: 'First term', second: 'Second term', extended: 'Extended part' };
+const termLabels = { first: '上學期', second: '下學期', extended: '延伸部分', books: '練習冊及應用題', supplementary: '補充工作紙' };
 const worksheetMap = new Map(worksheets.map(worksheet => [worksheet.id, worksheet]));
 const grades = ['K', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'S1', 'S2', 'S3'];
-const gradeLabels = { K: 'Kindergarten', S1: 'F1 (S1)', S2: 'F2 (S2)', S3: 'F3 (S3)' };
+const gradeLabels = { K: '幼稚園', K1: '幼兒班', K2: '幼稚園低班', K3: '幼稚園高班', P1: '小一', P2: '小二', P3: '小三', P4: '小四', P5: '小五', P6: '小六', S1: '中一', S2: '中二', S3: '中三' };
+const familyLabels = { topic: '課題', math: 'Math 1–6', excel: 'EXCEL', revision: '溫習', ce: '綜合溫習', ps: '應用題', sspa: '呈分試練習', ex: '練習', mc: '選擇題', quiz: '小測', books: '練習冊', supplementary: '補充工作紙' };
 const action = (name, label, attributes = '', className = '') => '<button type="button" class="'+esc(className)+'" data-action="teacher-progress-'+name+'" '+attributes+'>'+label+'</button>';
-// Keep the compact wording familiar from the printed curriculum index.
-const compactTopics = {
- '601':'Div. decimals & whole no. by whole no.', '602':'Div. whole no. & decimals by decimals',
- '603':'Mixed operations with decimals', '604':'Decimals ↔ fractions', '605':'Comparing decimals & fractions',
- '608':'Percentages ↔ decimals ↔ fractions', '609':'Finding percentages',
- '610':'Values by % (part, remaining)', '611':'Values by % (increase, decrease)',
- '614':'Circumferences', '615':'Calculating circumferences', '617':'Angles (degrees)',
- '621':'Travel graphs', '624':'Problem solving with simple equations',
- '626':'Uses & abuses of statistics', '632':'Square & triangular numbers'
-};
-const shortPsLabels = { 'decimal-division':'Decimal division', 'decimal-mixed':'Mixed decimals', mixed:'Mixed operations', volume:'Volume', averages:'Averages', percentages:'Percentages', circumference:'Circumferences', diagrams:'Diagrams', speed:'Speed', equations:'Equations' };
+// Translate the presentation only: catalogue titles, codes and saved work retain
+// their original values, while every grade uses its supplied Chinese topic name.
+const titleFor = item => item.titleZh || item.title;
+const sectionLabel = (section, family) => family === 'ps' || family === 'sspa' ? section.titleZh || section.label : section.label;
 const searchIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>';
 
 export function createTeacherProgressUI({ getState, getTutorId, change, render, onStudentChange, openAssignment, openFolder, openStudentView }) {
@@ -145,11 +139,11 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   function worksheetButton(worksheet) {
     if (!worksheet) return '';
     const assignment = statusFor(worksheet.id);
-    const status = assignment ? statuses[assignment.status] || ['Sent', 'sent'] : ['Not sent', 'available'];
+    const status = assignment ? statuses[assignment.status] || ['已派發', 'sent'] : ['未派發', 'available'];
     const picked = !assignment && selected.has(worksheet.id);
     const label = worksheet.variant || worksheet.code;
-    const title = worksheet.code+' · '+worksheet.title+' · '+(picked ? 'Selected' : status[0]);
-    return action('worksheet', '<span>'+esc(label)+'</span>', 'data-worksheet="'+esc(worksheet.id)+'" aria-label="'+esc(title)+(assignment ? ' · Open worksheet' : '')+'" title="'+esc(title)+'"'+(!assignment ? ' aria-pressed="'+picked+'"' : ''), 'teacher-progress-box is-'+status[1]+(picked ? ' is-selected' : '')+(worksheetSearch.trim() ? matches(worksheet) ? ' is-match' : ' is-muted' : ''));
+    const title = worksheet.code+' · '+titleFor(worksheet)+' · '+(picked ? '已選取' : status[0]);
+    return action('worksheet', '<span>'+esc(label)+'</span>', 'data-worksheet="'+esc(worksheet.id)+'" aria-label="'+esc(title)+(assignment ? ' · 開啟工作紙' : '')+'" title="'+esc(title)+'"'+(!assignment ? ' aria-pressed="'+picked+'"' : ''), 'teacher-progress-box is-'+status[1]+(picked ? ' is-selected' : '')+(worksheetSearch.trim() ? matches(worksheet) ? ' is-match' : ' is-muted' : ''));
   }
 
   function topicWorksheets(topic, family) {
@@ -159,7 +153,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   function matches(worksheet) {
     const normalize = value => String(value || '').toLowerCase().replace(/\s+/g, '');
     const query = normalize(worksheetSearch);
-    return !query || [worksheet.code, worksheet.title, worksheet.titleZh, worksheet.topic, worksheet.familyLabel].some(value => normalize(value).includes(query));
+    return !query || [worksheet.code, worksheet.title, titleFor(worksheet), worksheet.topic, worksheet.topicZh, worksheet.familyLabel, familyLabels[worksheet.family]].some(value => normalize(value).includes(query));
   }
 
   function groupSections(family, term) {
@@ -171,17 +165,17 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
   }
 
   function termCollection(family, term) {
-    return groupSections(family, term).map(section => '<div class="teacher-progress-collection-group"><div class="teacher-progress-group-label" title="'+esc(section.label)+'">'+esc(family === 'ps' ? shortPsLabels[section.id] || section.label : section.label)+'</div><div class="teacher-progress-boxes">'+sectionButtons(section)+'</div></div>').join('');
+    return groupSections(family, term).map(section => '<div class="teacher-progress-collection-group"><div class="teacher-progress-group-label" title="'+esc(section.titleZh || section.label)+'">'+esc(sectionLabel(section, family))+'</div><div class="teacher-progress-boxes">'+sectionButtons(section)+'</div></div>').join('');
   }
 
   function combinedChart() {
     const data = curriculum();
     if (data.columns) return topicFamilyChart(data);
     if (!data.topics.length) {
-      if (!data.worksheets.length) return '<div class="teacher-progress-empty">No '+esc(worksheetGrade)+' worksheets in this demo. Choose another grade to browse.</div>';
-      return '<table class="teacher-progress-table teacher-progress-samples"><thead><tr><th scope="col">Topic</th><th scope="col">Sample worksheets</th></tr></thead><tbody>'+data.worksheets.map(sheet => '<tr><th scope="row">'+esc(sheet.title)+'</th><td>'+worksheetButton(sheet)+'</td></tr>').join('')+'</tbody></table>';
+      if (!data.worksheets.length) return '<div class="teacher-progress-empty">此示範暫無'+esc(gradeLabels[worksheetGrade] || worksheetGrade)+'工作紙，請選擇其他年級。</div>';
+      return '<table class="teacher-progress-table teacher-progress-samples"><thead><tr><th scope="col">課題</th><th scope="col">示範工作紙</th></tr></thead><tbody>'+data.worksheets.map(sheet => '<tr><th scope="row">'+esc(titleFor(sheet))+'</th><td>'+worksheetButton(sheet)+'</td></tr>').join('')+'</tbody></table>';
     }
-    const columns = [['topic','Topic'],['math','Math 1–6'],['excel','EXCEL'],['revision','Revision'], ...(data.groups.some(group => group.id === 'ce') ? [['ce','CE Rev']] : []), ['ps','PS']];
+    const columns = [['topic',familyLabels.topic],['math',familyLabels.math],['excel',familyLabels.excel],['revision',familyLabels.revision], ...(data.groups.some(group => group.id === 'ce') ? [['ce',familyLabels.ce]] : []), ['ps',familyLabels.ps]];
     const banks = columns.filter(([id]) => ['ce','ps'].includes(id));
     const header = '<table class="teacher-progress-table teacher-progress-grade-'+esc(worksheetGrade)+'"><colgroup>'+columns.map(([id]) => '<col class="teacher-progress-'+id+'-col">').join('')+'</colgroup><thead><tr>'+columns.map(([, label]) => '<th scope="col">'+label+'</th>').join('')+'</tr></thead><tbody>';
     const terms = Object.entries(termLabels).map(([term, label]) => {
@@ -192,44 +186,44 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
         const revision = revisions.find(section => section.topicCodes[0] === topic.code);
         const covered = revisions.some(section => section.topicCodes.includes(topic.code));
         const revisionCell = revision ? '<td rowspan="'+revision.topicCodes.length+'" class="teacher-progress-revision-cell"><div class="teacher-progress-revision-group"><strong>'+esc(revision.label)+'</strong><div class="teacher-progress-boxes">'+sectionButtons(revision)+'</div></div></td>' : covered ? '' : '<td class="teacher-progress-empty-cell"></td>';
-        return '<tr><th scope="row" title="'+esc(topic.title)+'"><span class="teacher-progress-topic-code">'+esc(topic.code)+'</span><span class="teacher-progress-topic-name">'+esc(compactTopics[topic.code] || topic.title)+'</span></th><td><div class="teacher-progress-boxes">'+topicWorksheets(topic, 'math').map(worksheetButton).join('')+'</div></td><td><div class="teacher-progress-boxes">'+topicWorksheets(topic, 'excel').map(worksheetButton).join('')+'</div></td>'+revisionCell+(index === 0 ? banks.map(([id]) => '<td rowspan="'+topics.length+'" class="teacher-progress-term-bank teacher-progress-'+id+'-bank">'+termCollection(id, term)+'</td>').join('') : '')+'</tr>';
+        return '<tr><th scope="row" title="'+esc(titleFor(topic))+'"><span class="teacher-progress-topic-code">'+esc(topic.code)+'</span><span class="teacher-progress-topic-name">'+esc(titleFor(topic))+'</span></th><td><div class="teacher-progress-boxes">'+topicWorksheets(topic, 'math').map(worksheetButton).join('')+'</div></td><td><div class="teacher-progress-boxes">'+topicWorksheets(topic, 'excel').map(worksheetButton).join('')+'</div></td>'+revisionCell+(index === 0 ? banks.map(([id]) => '<td rowspan="'+topics.length+'" class="teacher-progress-term-bank teacher-progress-'+id+'-bank">'+termCollection(id, term)+'</td>').join('') : '')+'</tr>';
       }).join('');
     }).join('');
-    const sspa = groupSections('sspa').map(section => '<tr class="teacher-progress-sspa-row"><th scope="row">'+esc(section.label)+'</th><td colspan="'+(columns.length-1)+'"><div class="teacher-progress-boxes">'+sectionButtons(section)+'</div></td></tr>').join('');
+    const sspa = groupSections('sspa').map(section => '<tr class="teacher-progress-sspa-row"><th scope="row">'+esc(sectionLabel(section, 'sspa'))+'</th><td colspan="'+(columns.length-1)+'"><div class="teacher-progress-boxes">'+sectionButtons(section)+'</div></td></tr>').join('');
     return header+terms+sspa+'</tbody></table>';
   }
 
   // Secondary EX/MC/REV/QUIZ and the shared kindergarten index have their own
   // column families. Keep every family on one chart, just like the source.
   function topicFamilyChart(data) {
-    const columns = [['topic', 'Topic'], ...data.columns];
-    const sections = data.termLabels || { all: gradeLabels[worksheetGrade] || worksheetGrade };
-    return '<table class="teacher-progress-table teacher-progress-family-chart teacher-progress-grade-'+esc(worksheetGrade)+'"><colgroup>'+columns.map(([id]) => '<col class="teacher-progress-'+esc(id)+'-col">').join('')+'</colgroup><thead><tr>'+columns.map(([, label]) => '<th scope="col">'+esc(label)+'</th>').join('')+'</tr></thead><tbody>'+Object.entries(sections).map(([term, label]) => '<tr class="teacher-progress-term"><th colspan="'+columns.length+'" scope="colgroup">'+esc(label)+'</th></tr>'+data.topics.filter(topic => topic.term === term).map(topic => '<tr><th scope="row"><span class="teacher-progress-topic-code">'+esc(topic.code)+'</span><span class="teacher-progress-topic-name">'+esc(topic.title)+(topic.pagesLabel ? '<small class="teacher-progress-page-ref">pp. '+esc(topic.pagesLabel)+'</small>' : '')+'</span></th>'+data.columns.map(([family]) => '<td><div class="teacher-progress-boxes">'+topicWorksheets(topic, family).map(worksheetButton).join('')+'</div></td>').join('')+'</tr>').join('')).join('')+'</tbody></table>';
+    const columns = [['topic', familyLabels.topic], ...data.columns.map(([family, label]) => [family, familyLabels[family] || label])];
+    const sections = data.termLabels ? Object.fromEntries(Object.entries(data.termLabels).map(([term, label]) => [term, term === 'all' ? gradeLabels[worksheetGrade] || label : termLabels[term] || label])) : { all: gradeLabels[worksheetGrade] || worksheetGrade };
+    return '<table class="teacher-progress-table teacher-progress-family-chart teacher-progress-grade-'+esc(worksheetGrade)+'"><colgroup>'+columns.map(([id]) => '<col class="teacher-progress-'+esc(id)+'-col">').join('')+'</colgroup><thead><tr>'+columns.map(([, label]) => '<th scope="col">'+esc(label)+'</th>').join('')+'</tr></thead><tbody>'+Object.entries(sections).map(([term, label]) => '<tr class="teacher-progress-term"><th colspan="'+columns.length+'" scope="colgroup">'+esc(label)+'</th></tr>'+data.topics.filter(topic => topic.term === term).map(topic => '<tr><th scope="row"><span class="teacher-progress-topic-code">'+esc(topic.code)+'</span><span class="teacher-progress-topic-name">'+esc(titleFor(topic))+(topic.pagesLabel ? '<small class="teacher-progress-page-ref">第 '+esc(topic.pagesLabel)+' 頁</small>' : '')+'</span></th>'+data.columns.map(([family]) => '<td><div class="teacher-progress-boxes">'+topicWorksheets(topic, family).map(worksheetButton).join('')+'</div></td>').join('')+'</tr>').join('')).join('')+'</tbody></table>';
   }
 
   function footer(student) {
     const chosen = [...selected].map(id => worksheetMap.get(id)).filter(Boolean);
     const codes = chosen.map(worksheet => worksheet.code).join(', ');
-    return '<div class="teacher-progress-footer"><div class="teacher-progress-selection" aria-live="polite"><strong>'+chosen.length+' selected</strong><span title="'+esc(codes)+'">'+(chosen.length ? esc(codes) : 'Select worksheet boxes')+'</span></div><div class="teacher-progress-send-actions">'+(chosen.length ? action('clear', 'Clear', '', 'btn ghost small') : '')+'<select id="teacher-progress-purpose" aria-label="Send as"><option value="classwork"'+(!homework ? ' selected' : '')+'>Classwork</option><option value="homework"'+(homework ? ' selected' : '')+'>Homework</option></select>'+action('prepare', 'Prepare for later', 'aria-label="Prepare '+chosen.length+' worksheet'+(chosen.length === 1 ? '' : 's')+' for '+esc(student.name)+'"'+(!chosen.length ? ' disabled' : ''), 'btn small')+action('send', 'Send to student', 'aria-label="Send '+chosen.length+' worksheet'+(chosen.length === 1 ? '' : 's')+' to '+esc(student.name)+'"'+(!chosen.length ? ' disabled' : ''), 'btn primary')+'</div></div>';
+    return '<div class="teacher-progress-footer"><div class="teacher-progress-selection" aria-live="polite"><strong>'+chosen.length+' 份已選取</strong><span title="'+esc(codes)+'">'+(chosen.length ? esc(codes) : '選取工作紙')+'</span></div><div class="teacher-progress-send-actions">'+(chosen.length ? action('clear', '清除', '', 'btn ghost small') : '')+'<select id="teacher-progress-purpose" aria-label="工作紙用途"><option value="classwork"'+(!homework ? ' selected' : '')+'>課堂練習</option><option value="homework"'+(homework ? ' selected' : '')+'>家課</option></select>'+action('prepare', '稍後派發', 'aria-label="為 '+esc(student.name)+' 預備 '+chosen.length+' 份工作紙"'+(!chosen.length ? ' disabled' : ''), 'btn small')+action('send', '派發給學生', 'aria-label="派發 '+chosen.length+' 份工作紙給 '+esc(student.name)+'"'+(!chosen.length ? ' disabled' : ''), 'btn primary')+'</div></div>';
   }
 
   function classNavigation() {
     const list = classes(), session = currentClass();
     const index = list.findIndex(item => item.id === session?.id);
     const arrow = direction => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="'+(direction === 'previous' ? 'm14 6-6 6 6 6' : 'm10 6 6 6-6 6')+'"/></svg>';
-    return '<section class="teacher-progress-classes" aria-label="Classes and students"><div class="teacher-progress-classes-heading"><strong>Classes</strong>'+action('today', 'Today', '', 'btn ghost small')+'</div><div class="teacher-progress-date-actions"><input id="teacher-progress-class-date" type="date" aria-label="Find classes by date" value="'+(session?.date || TODAY)+'"></div><div class="teacher-progress-class-navigation">'+action('previous-class', arrow('previous'), 'aria-label="Previous class"'+(index <= 0 ? ' disabled' : ''), 'teacher-progress-class-arrow')+'<div class="teacher-progress-classes-list" role="group" aria-label="Past and upcoming classes">'+list.map(item => {
-      const date = dateLabel(item.date,{weekday:'short'}), hours = time(item.start)+'–'+time(item.end);
+    return '<section class="teacher-progress-classes" aria-label="課堂及學生"><div class="teacher-progress-classes-heading"><strong>課堂</strong>'+action('today', '今天', '', 'btn ghost small')+'</div><div class="teacher-progress-date-actions"><input id="teacher-progress-class-date" type="date" aria-label="按日期尋找課堂" value="'+(session?.date || TODAY)+'"></div><div class="teacher-progress-class-navigation">'+action('previous-class', arrow('previous'), 'aria-label="上一堂"'+(index <= 0 ? ' disabled' : ''), 'teacher-progress-class-arrow')+'<div class="teacher-progress-classes-list" role="group" aria-label="過往及即將開始的課堂">'+list.map(item => {
+      const date = new Intl.DateTimeFormat('zh-HK', { month: 'short', day: 'numeric', weekday: 'short' }).format(new Date(item.date+'T12:00:00')), hours = time(item.start)+'–'+time(item.end);
       return action('class', '<strong>'+hours+'</strong>', 'data-class="'+esc(item.id)+'" aria-pressed="'+(selectedClass === item.id)+'" aria-label="'+esc(date+' · '+hours)+'"', 'teacher-progress-class'+(selectedClass === item.id ? ' is-active' : ''));
-    }).join('')+'</div>'+action('next-class', arrow('next'), 'aria-label="Next class"'+(index < 0 || index === list.length-1 ? ' disabled' : ''), 'teacher-progress-class-arrow')+'</div><div class="teacher-progress-students-list" role="group" aria-label="Students in selected class">'+(session ? session.students.map(student => action('student', '<span>'+esc(student.name)+'</span>'+(student.level ? '<small>'+esc(student.level)+'</small>' : ''), 'data-student="'+esc(student.id)+'" aria-pressed="'+(selectedStudent === student.id)+'"', 'teacher-progress-student'+(selectedStudent === student.id ? ' is-active' : ''))).join('') : '<p class="teacher-progress-empty">No classes scheduled for this teacher.</p>')+'</div></section>';
+    }).join('')+'</div>'+action('next-class', arrow('next'), 'aria-label="下一堂"'+(index < 0 || index === list.length-1 ? ' disabled' : ''), 'teacher-progress-class-arrow')+'</div><div class="teacher-progress-students-list" role="group" aria-label="所選課堂的學生">'+(session ? session.students.map(student => action('student', '<span>'+esc(student.name)+'</span>'+(student.level ? '<small>'+esc(gradeLabels[student.level] || student.level)+'</small>' : ''), 'data-student="'+esc(student.id)+'" aria-pressed="'+(selectedStudent === student.id)+'"', 'teacher-progress-student'+(selectedStudent === student.id ? ' is-active' : ''))).join('') : '<p class="teacher-progress-empty">這位老師暫無已安排的課堂。</p>')+'</div></section>';
   }
 
   function renderUI() {
     const student = currentStudent();
     const matchesCount = worksheetSearch.trim() ? curriculum().worksheets.filter(matches).length : null;
-    const gradePicker = '<label class="teacher-progress-grade-label">Worksheets<select id="teacher-progress-grade" aria-label="Worksheet grade">'+grades.map(grade => '<option value="'+grade+'"'+(grade === worksheetGrade ? ' selected' : '')+'>'+(gradeLabels[grade] || grade)+'</option>').join('')+'</select></label>';
-    const header = student ? '<header class="teacher-progress-header"><div class="teacher-progress-identity"><h2>'+esc(student.name)+'</h2>'+(student.level ? '<span>'+esc(student.level)+'</span>' : '')+'</div>'+gradePicker+'<div class="teacher-progress-header-actions">'+action('folder', 'Learning folder', '', 'btn small')+action('student-view', 'View student app', '', 'btn small')+'</div><div class="teacher-progress-search-area"><label class="teacher-progress-search teacher-progress-worksheet-search">'+searchIcon+'<input id="teacher-progress-worksheet-search" type="search" placeholder="Topic or code" aria-label="Find worksheet by topic or code" value="'+esc(worksheetSearch)+'"></label>'+(matchesCount === null ? '' : '<span class="teacher-progress-search-result" aria-live="polite">'+(matchesCount ? matchesCount+' matches' : 'No worksheets found')+'</span>')+'</div></header>' : '';
-    const legend = '<div class="teacher-progress-legend" aria-label="Worksheet status legend">'+[['available','Not sent'],['prepared','Prepared'],['sent','Sent'],['working','In progress'],['submitted','To mark'],['corrections','Corrections'],['completed','Completed']].map(([status, label]) => '<span><i class="is-'+status+'" aria-hidden="true"></i>'+label+'</span>').join('')+'</div>';
-    return '<div class="teacher-progress">'+classNavigation()+'<section class="teacher-progress-workbench" aria-label="Worksheet progress">'+(student ? header+'<div class="teacher-progress-chart-scroll" tabindex="0" aria-label="Worksheet chart">'+combinedChart()+'</div>'+legend+footer(student) : '<div class="teacher-progress-empty">Choose a class to open student progress.</div>')+'</section></div>';
+    const gradePicker = '<label class="teacher-progress-grade-label">工作紙<select id="teacher-progress-grade" aria-label="工作紙年級">'+grades.map(grade => '<option value="'+grade+'"'+(grade === worksheetGrade ? ' selected' : '')+'>'+(gradeLabels[grade] || grade)+'</option>').join('')+'</select></label>';
+    const header = student ? '<header class="teacher-progress-header"><div class="teacher-progress-identity"><h2>'+esc(student.name)+'</h2>'+(student.level ? '<span>'+esc(gradeLabels[student.level] || student.level)+'</span>' : '')+'</div>'+gradePicker+'<div class="teacher-progress-header-actions">'+action('folder', '學習檔案', '', 'btn small')+action('student-view', '查看學生介面', '', 'btn small')+'</div><div class="teacher-progress-search-area"><label class="teacher-progress-search teacher-progress-worksheet-search">'+searchIcon+'<input id="teacher-progress-worksheet-search" type="search" placeholder="課題或編號" aria-label="按課題或編號尋找工作紙" value="'+esc(worksheetSearch)+'"></label>'+(matchesCount === null ? '' : '<span class="teacher-progress-search-result" aria-live="polite">'+(matchesCount ? matchesCount+' 項結果' : '找不到工作紙')+'</span>')+'</div></header>' : '';
+    const legend = '<div class="teacher-progress-legend" aria-label="工作紙狀態圖例">'+[['available','未派發'], ...Object.values(statuses).map(([label, status]) => [status, label])].map(([status, label]) => '<span><i class="is-'+status+'" aria-hidden="true"></i>'+label+'</span>').join('')+'</div>';
+    return '<div class="teacher-progress">'+classNavigation()+'<section class="teacher-progress-workbench" aria-label="工作紙進度">'+(student ? header+'<div class="teacher-progress-chart-scroll" tabindex="0" aria-label="工作紙進度表">'+combinedChart()+'</div>'+legend+footer(student) : '<div class="teacher-progress-empty">請選擇課堂以查看學生進度。</div>')+'</section></div>';
   }
 
   function onClick(button) {
@@ -264,7 +258,7 @@ export function createTeacherProgressUI({ getState, getTutorId, change, render, 
       preserveView(() => change(() => {
         assignTeacherWorksheets(getState(), { studentId: student.id, worksheetIds: chosen, homework, prepared, tutorId: getTutorId() });
         selected.clear();
-      }, 'Worksheets '+(prepared ? 'prepared for ' : 'sent to ')+student.name+'.'));
+      }, prepared ? '已為 '+student.name+' 預備工作紙。' : '已派發工作紙給 '+student.name+'。'));
     } else if (name === 'teacher-progress-folder') {
       if (currentStudent()) openFolder?.(selectedStudent);
     } else if (name === 'teacher-progress-student-view') {

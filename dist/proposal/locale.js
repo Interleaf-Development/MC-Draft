@@ -16,7 +16,7 @@ export const language = typeof location === 'undefined' ? 'zh-HK' : getProposalL
 export const t = (en, zh) => language === 'zh-HK' ? zh : en;
 
 // This copy belongs to the proposal. The embedded application keeps its own
-// established staff/family languages and saved demo state.
+// Hong Kong Traditional Chinese interface and saved demo state.
 export const shellText = {
   skip: t('Skip to proposal', '跳至建議書內容'),
   contents: t('Contents', '目錄'),
@@ -24,8 +24,8 @@ export const shellText = {
   draftDate: t('23 September 2026', '2026年9月23日'),
   draftNote: t('Draft for discussion', '初稿，供討論用'),
   print: t('Print', '列印'),
-  documentType: t('01 / Product scope and delivery proposal', '01 / 系統功能及交付建議'),
-  documentTitle: t("MathConcept Paperless Teaching & Centre Management System", "MathConcept 無紙化教學及中心管理系統"),
+  documentType: t('Product scope and delivery proposal', '系統功能及交付建議'),
+  documentTitle: t("1. MathConcept Paperless Teaching & Centre Management System", "1. MathConcept 無紙化教學及中心管理系統"),
   documentSummary: t("Build a system for MathConcept covering student learning, paperless teaching-material management and centre operations, with dedicated native applications for students, parents and centres. This proposal first introduces the student learning experience after going paperless, supporting a hybrid approach in which students can complete exercises online or print materials for paper use. It then explains the process of digitising existing materials, creating new materials and handling centre administration.", "為 MathConcept 建立涵蓋學生學習、無紙化教材管理及中心營運的系統，並提供學生、家長及中心專用的原生應用程式（Native Application）。本建議書會先介紹學生無紙化下的學習體驗，支援學生以混合方式學習，既可在線上完成練習，也可列印教材供紙本使用，再說明現有教材的數碼化過程、新教材的編製方式及中心行政功能。"),
   systemOverview: t('System overview', '系統概覽'),
   appOverview: t("The system will include native applications for iOS and Android, suitable for tablets and phones, and a web application for use on computers. Each role’s interface supports different devices. The design will focus on tablets for students, phones for parents, tablets and computers for teachers, and computers for centre staff and HQ. Students will use portrait tablets with a full-page writing area. Fully supported devices and operating systems will be agreed when confirming the delivery scope.", "系統會包括原生應用程式（iOS 及 Android，並適用於平板及手機），以及網頁應用程式在電腦上使用。各角色的介面支持在不同設備上運作，但設計方向上，學生以平板為主，家長以手機為主，老師以平板及電腦為主，中心職員和總部的工作介面以電腦為主。學生以直向平板作答，配合完整頁面的書寫空間。完整支援的裝置及作業系統須在確認交付範圍時議定。"),
@@ -47,6 +47,6 @@ export const shellText = {
   dateLabel: t('Date', '日期'),
   statusLabel: t('Status', '文件狀態'),
   statusValue: t('Draft; scope, fees and dates to be agreed', '初稿；交付範圍、費用及日期待議'),
-  learningLink: t('02. Student learning experience', '02. 學生學習體驗'),
-  termsLink: t("10. Scope and commercial terms", "10. 範圍及商業安排")
+  learningLink: t('2. Student learning experience', '2. 學生學習體驗'),
+  termsLink: t("8. Scope and commercial terms", "8. 範圍及商業安排")
 };

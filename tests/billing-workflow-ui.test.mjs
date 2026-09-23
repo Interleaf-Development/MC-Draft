@@ -58,16 +58,16 @@ function harness(initial = stateWithQueues(), options = {}) {
 test('default queue counts invoices, leaves month unrestricted and renders only 25 compact rows', () => {
   const app = harness(), html = app.ui.render();
   assert.match(html, /data-id="review" aria-pressed="true"/);
-  assert.match(html, /待中心核對: 29 invoices/);
-  assert.match(html, /<option value="" selected>All billing months/);
-  assert.match(html, /1–25 of 29 invoices/);
+  assert.match(html, /待中心核對：29 張繳費通知/);
+  assert.match(html, /<option value="" selected>所有收費月份/);
+  assert.match(html, /第 1–25 項，共 29 張繳費通知/);
   assert.match(html, /INV-REVIEW-00/);
   assert.doesNotMatch(html, /INV-REVIEW-27/);
   assert.equal((html.match(/data-action="billingflow-review"/g) || []).length, 25);
   assert.doesNotMatch(html, /Auto-sent|billingflow-auto-sent|automatically issue/);
   assert.match(html, /data-action="billingflow-archive"/);
-  assert.doesNotMatch(html.match(/<nav[\s\S]*?<\/nav>/)[0], /Archive/);
-  const order = ['待家長付款', '待中心核對', '已發收據', 'Final audit'].map(label => html.indexOf(label));
+  assert.doesNotMatch(html.match(/<nav[\s\S]*?<\/nav>/)[0], /封存紀錄/);
+  const order = ['待家長付款', '待中心核對', '已發收據', '最終對數'].map(label => html.indexOf(label));
   assert.deepEqual([...order].sort((a, b) => a - b), order);
 });
 
@@ -76,12 +76,12 @@ test('filters, search and paging retain selection when opening and closing a rev
   app.ui.onChange({ target: { id: 'billingflow-charge', value: 'recurring' } });
   app.ui.handleAction('billingflow-page', null, { dataset: { page: '2' } });
   const before = app.ui.render();
-  assert.match(before, /26–28 of 28 invoices/);
+  assert.match(before, /第 26–28 項，共 28 張繳費通知/);
   app.ui.handleAction('billingflow-review', 'INV-REVIEW-27');
   assert.equal(app.modal.wide, true);
   assert.match(app.modal.body, /billingflow-review-columns/);
   assert.ok(app.modal.body.indexOf('billingflow-invoice') < app.modal.body.indexOf('billingflow-proof'));
-  assert.match(app.modal.body, /Sample proof/);
+  assert.match(app.modal.body, /示範付款證明/);
   assert.match(app.modal.footer, /確認並發出收據/);
   app.ui.handleAction('billingflow-close');
   assert.equal(app.ui.render(), before);
@@ -89,7 +89,7 @@ test('filters, search and paging retain selection when opening and closing a rev
   input.value = 'INV-REVIEW-27'; input.selectionStart = 2; input.selectionEnd = 8;
   app.ui.onInput({ target: input });
   await new Promise(resolve => setTimeout(resolve, 160));
-  assert.match(app.ui.render(), /1–1 of 1 invoices/);
+  assert.match(app.ui.render(), /第 1–1 項，共 1 張繳費通知/);
   assert.match(app.ui.render(), /INV-REVIEW-27/);
   assert.equal(app.document.activeElement.id, 'billingflow-search');
   assert.equal(app.document.activeElement.selectionStart, 2);
@@ -114,7 +114,7 @@ test('confirm saves once, keeps the modal open on persistence failure and return
   await settle();
   assert.equal(app.calls.closed, 1);
   assert.equal(app.state.receipts.length, receiptCount + 1);
-  assert.match(app.ui.render(), /26–27 of 27 invoices/);
+  assert.match(app.ui.render(), /第 26–27 項，共 27 張繳費通知/);
   assert.match(app.ui.render(), /<option value="recurring" selected/);
   app.ui.handleAction('billingflow-stage', 'issued');
   assert.match(app.ui.render(), /INV-REVIEW-27/);
@@ -129,7 +129,7 @@ test('return requires a reason, retains it through failed save and moves the inv
   app.ui.handleAction('billingflow-return', 'INV-REVIEW-00');
   await settle();
   assert.equal(app.calls.saves, 0);
-  assert.match(app.nodes.get('#form-error').textContent, /Enter a reason/);
+  assert.match(app.nodes.get('#form-error').textContent, /請填寫要求家長重新提交付款證明的原因/);
   const input = app.nodes.get('#billingflow-return-reason');
   input.value = 'Please include the full amount.';
   app.ui.onInput({ target: input });
@@ -146,25 +146,25 @@ test('return requires a reason, retains it through failed save and moves the inv
   assert.equal(app.state.invoices[0].proofReturnReason, 'Please include the full amount.');
   app.ui.handleAction('billingflow-stage', 'parent');
   assert.match(app.ui.render(), /Please include the full amount\./);
-  assert.match(app.ui.render(), /Waiting for replacement proof/);
-  assert.match(app.ui.render(), /Remind to replace proof/);
+  assert.match(app.ui.render(), /待重新提交付款證明/);
+  assert.match(app.ui.render(), /提醒重新提交證明/);
 });
 
 test('parent reminders show last reminder and cooldown, use simulated feedback and preserve rollback', () => {
   const app = harness(stateWithQueues(1));
   app.ui.handleAction('billingflow-stage', 'parent');
   const html = app.ui.render();
-  assert.match(html, /Last reminder/);
-  assert.match(html, /24-hour reminder cooldown/);
+  assert.match(html, /上次提醒：/);
+  assert.match(html, /須相隔 24 小時才可再次提醒/);
   assert.match(html, /data-id="INV-RETURN" disabled/);
-  assert.match(html, /Overdue/);
+  assert.match(html, /已逾期/);
   app.failSave(true);
   app.ui.handleAction('billingflow-remind', 'INV-PARENT');
   assert.equal(app.state.invoices.find(invoice => invoice.id === 'INV-PARENT').lastReminderAt, undefined);
   app.failSave(false);
   app.ui.handleAction('billingflow-remind', 'INV-PARENT');
   assert.equal(app.state.billingReminderEvents.length, 1);
-  assert.match(app.calls.toasts.at(-1)[0], /Demo reminder recorded\. No message was sent\./);
+  assert.match(app.calls.toasts.at(-1)[0], /已記錄示範提醒，未有發送訊息。/);
   assert.match(app.ui.render(), /data-id="INV-PARENT" disabled/);
   app.ui.handleAction('billingflow-remind', 'INV-PARENT');
   assert.equal(app.state.billingReminderEvents.length, 1);
@@ -174,16 +174,16 @@ test('saved images and PDFs are shown while unsafe attachments cannot become pre
   const app = harness(stateWithQueues(1)), invoice = app.state.invoices[0];
   invoice.proofReview.file = { mimeType: 'image/png', dataUrl: 'data:image/png;base64,AA==', name: 'parent-proof.png' };
   app.ui.handleAction('billingflow-review', invoice.id);
-  assert.match(app.modal.body, /<img src="data:image\/png;base64,AA==" alt="Uploaded payment proof"/);
-  assert.doesNotMatch(app.modal.body, /Sample proof/);
+  assert.match(app.modal.body, /<img src="data:image\/png;base64,AA==" alt="已上載的付款證明"/);
+  assert.doesNotMatch(app.modal.body, /示範付款證明/);
   invoice.proofReview.file = { mimeType: 'application/pdf', dataUrl: 'data:application/pdf;base64,JVBERg==', name: 'parent.pdf' };
   app.ui.handleAction('billingflow-review', invoice.id);
-  assert.match(app.modal.body, /id="billingflow-pdf-preview"[^>]+aria-label="Uploaded payment proof PDF"/);
+  assert.match(app.modal.body, /id="billingflow-pdf-preview"[^>]+aria-label="已上載的付款證明 PDF"/);
   assert.doesNotMatch(app.modal.body, /<object/);
   invoice.proofReview.file = { mimeType: 'image/png', dataUrl: 'javascript:alert(1)', name: '<unsafe>' };
   app.ui.handleAction('billingflow-review', invoice.id);
-  assert.match(app.modal.body, /saved proof could not be displayed/);
-  assert.doesNotMatch(app.modal.body, /javascript:|Sample proof|<unsafe>/);
+  assert.match(app.modal.body, /未能顯示已儲存的證明/);
+  assert.doesNotMatch(app.modal.body, /javascript:|示範付款證明|<unsafe>/);
 });
 
 test('archive is separate and final audit opens the existing workspace', () => {
@@ -192,7 +192,7 @@ test('archive is separate and final audit opens the existing workspace', () => {
   app.ui.handleAction('billingflow-archive');
   assert.match(app.ui.render(), /INV-ARCHIVE/);
   assert.doesNotMatch(app.ui.render(), /INV-REVIEW-00/);
-  assert.match(app.ui.render(), /Cancelled/);
+  assert.match(app.ui.render(), /已取消/);
   app.ui.openAudit();
   assert.match(app.ui.render(), /data-id="audit" aria-pressed="true"/);
   assert.match(app.ui.render(), /Bank reconciliation workspace/);
@@ -217,14 +217,14 @@ test('staff-only controls reject unauthorized and stale review actions without m
     app.ui.handleAction('billingflow-remind', 'INV-PARENT');
     app.ui.onChange({ target: { id: 'billingflow-charge', value: 'recurring' } });
     app.ui.onInput({ target: { id: 'billingflow-search', value: 'unauthorized' } });
-    assert.throws(() => app.ui.openAudit(), /Admin view/);
+    assert.throws(() => app.ui.openAudit(), /行政介面/);
   }
   assert.equal(app.calls.modals.length, 0);
   assert.equal(app.calls.saves, 0);
   assert.deepEqual(app.state, before);
   app.viewer.role = 'admin';
   app.ui.handleAction('billingflow-unknown');
-  assert.match(app.calls.toasts.at(-1)[0], /Unknown billing action/);
+  assert.match(app.calls.toasts.at(-1)[0], /無法識別這項繳費操作/);
   app.ui.reset();
 });
 
@@ -259,8 +259,8 @@ test('interrupted confirmation stays open, checks the persisted result and does 
   app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00'); await settle();
   assert.equal(app.calls.closed, 0);
   assert.equal(app.state.receipts.length, receiptsBefore + 1);
-  assert.match(app.nodes.get('#form-error').textContent, /save result was not confirmed/);
-  assert.match(app.nodes.get('#billingflow-recovery').innerHTML, /Check saved result/);
+  assert.match(app.nodes.get('#form-error').textContent, /未能確認儲存結果/);
+  assert.match(app.nodes.get('#billingflow-recovery').innerHTML, /檢查儲存結果/);
   app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00');
   assert.equal(app.calls.saves, 1);
   app.ui.handleAction('billingflow-recover');
@@ -279,7 +279,7 @@ test('demo failure retains evidence and a safe retry completes the same review',
   assert.equal(app.calls.saves, 0);
   assert.equal(app.modal.body, before);
   assert.equal(app.state.receipts.length, receiptsBefore);
-  assert.match(app.nodes.get('#form-error').textContent, /save failed/);
+  assert.match(app.nodes.get('#form-error').textContent, /儲存失敗/);
   app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00'); await settle();
   assert.equal(app.calls.closed, 1);
   assert.equal(app.state.receipts.length, receiptsBefore + 1);
@@ -289,8 +289,8 @@ test('invoice and proof have separate scroll regions and independent zoom levels
   const app = harness(stateWithQueues(1));
   app.ui.handleAction('billingflow-review', 'INV-REVIEW-00');
   assert.equal((app.modal.body.match(/class="billingflow-document-scroll"/g) || []).length, 2);
-  assert.match(app.modal.body, /aria-label="Invoice document"/);
-  assert.match(app.modal.body, /aria-label="Payment proof document"/);
+  assert.match(app.modal.body, /aria-label="繳費通知文件"/);
+  assert.match(app.modal.body, /aria-label="付款證明文件"/);
   app.ui.handleAction('billingflow-zoom', null, { dataset: { document: 'proof', step: '25' } });
   assert.equal(app.nodes.get('#billingflow-proof-document').style.zoom, 1.25);
   assert.equal(app.nodes.get('#billingflow-proof-document').style.width, '125%');
@@ -318,7 +318,7 @@ test('a rejected save response is recovered from persisted state instead of issu
   app.ui.handleAction('billingflow-confirm', 'INV-REVIEW-00'); await settle();
   assert.equal(app.calls.closed, 0);
   assert.equal(app.ui.isSaving(), false);
-  assert.match(app.nodes.get('#billingflow-recovery').innerHTML, /Check saved result/);
+  assert.match(app.nodes.get('#billingflow-recovery').innerHTML, /檢查儲存結果/);
   app.ui.handleAction('billingflow-recover');
   assert.equal(app.calls.closed, 1);
   assert.equal(app.state.receipts.length, receiptsBefore + 1);

@@ -150,8 +150,8 @@ test('cycle receipts and schedule changes use the exact lesson plan and exclude 
   assert.ok(invoice.lessonPlan.lessonDates.every(lesson => lesson.start === 960 && lesson.duration === 60 && lesson.tutor === centre.managerId));
   invoice.proof = true;
   const { receipt } = confirmInvoicePayment(state, invoice.id);
-  assert.match(renderReceiptDocument(state, receipt.id), /Lesson entitlement · 4 lessons/);
-  assert.doesNotMatch(renderReceiptDocument(state, receipt.id), /Lesson entitlement · 8 lessons/);
+  assert.match(renderReceiptDocument(state, receipt.id), /課堂安排 · 4 堂/);
+  assert.doesNotMatch(renderReceiptDocument(state, receipt.id), /課堂安排 · 8 堂/);
   assert.equal(getRemainingStudentLessons(state, 'chloe').lessons.length, 4);
   const preview = previewRegularScheduleChange(state, { studentId: 'chloe', invoiceId: invoice.id, effectiveDate: '2026-10-07', weekday: 4, start: 960, tutor: centre.managerId });
   assert.equal(preview.beforeTotalCount, 4);

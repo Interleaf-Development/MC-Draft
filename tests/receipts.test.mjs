@@ -97,7 +97,7 @@ test('receipt and payment-proof actions open the correct connected records witho
   const state = fresh(), before = JSON.stringify(state), { ui, calls } = createUI(state);
   const html = ui.render();
   assert.doesNotMatch(html, /data-action="receipts-proof"/);
-  assert.match(html, /aria-label="Receipts by sent date"/);
+  assert.match(html, /aria-label="按發出日期排列收據"/);
   ui.handleAction('receipts-open', 'R-1027');
   ui.handleAction('receipts-proof', 'R-1027');
   ui.handleAction('receipts-proof', 'unknown');
@@ -124,7 +124,7 @@ test('seven-column board shows only student names and amounts in its receipt ent
   const legend = html.match(/<div class="receipts-bank-legend"[^>]*>([\s\S]*?)<\/div>/)?.[1];
   assert.ok(legend);
   assert.deepEqual([...legend.matchAll(/receipts-bank-swatch is-(review|matched|waiting)/g)].map(match => match[1]), ['review', 'matched', 'waiting']);
-  assert.equal(legend.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(), 'Needs review Bank matched Awaiting bank check');
+  assert.equal(legend.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(), '待覆核 已核對銀行入賬 待核對銀行入賬');
   assert.doesNotMatch(legend, /<svg|receipts-bank-status/);
   assert.doesNotMatch(html, /data-action="receipts-(?:view|page)"|id="receipts-page-size"/);
 });
@@ -145,7 +145,7 @@ test('statement import refreshes suggested status to bank matched without changi
   assert.equal(receiptRegister(state).items[0].bankStatus, 'ready');
   assert.equal(receipt.bankId, null);
   const beforeEntry = ui.render().match(/<button\b(?=[^>]*data-action="receipts-open")[\s\S]*?<\/button>/)[0];
-  assert.match(beforeEntry, /Awaiting bank check/);
+  assert.match(beforeEntry, /待核對銀行入賬/);
   assert.match(beforeEntry, /class="receipts-entry is-waiting"/);
   assert.doesNotMatch(beforeEntry, /is-matched|<svg/);
   importBankStatement(state, { name: 'Week statement.csv', rows: [deposit()] });
@@ -154,10 +154,10 @@ test('statement import refreshes suggested status to bank matched without changi
   assert.equal(receipt.issuedDate, sentDate);
   assert.equal(receiptRegister(state).groups.find(group => group.date === sentDate).rows[0].receipt.id, receipt.id);
   const afterEntry = ui.render().match(/<button\b(?=[^>]*data-action="receipts-open")[\s\S]*?<\/button>/)[0];
-  assert.match(afterEntry, /Bank matched/);
+  assert.match(afterEntry, /已核對銀行入賬/);
   assert.match(afterEntry, /class="receipts-entry is-matched"/);
-  assert.match(afterEntry, /title="Bank matched"/);
-  assert.match(afterEntry, /aria-label="[^"]*Bank matched"/);
+  assert.match(afterEntry, /title="已核對銀行入賬"/);
+  assert.match(afterEntry, /aria-label="[^"]*已核對銀行入賬"/);
   assert.doesNotMatch(afterEntry, /<svg|receipts-bank-status/);
 });
 
@@ -165,13 +165,13 @@ test('manual reconciliation refreshes ambiguity and amount warnings in the same 
   const state = singleReceipt(), { ui } = createUI(state), receipt = state.receipts[0], sentDate = receipt.issuedDate;
   state.bankTransactions.push(deposit(), deposit({ id: 'BANK-SECOND', date: TODAY }));
   assert.equal(receiptRegister(state).items[0].bankStatus, 'ambiguous');
-  assert.match(ui.render(), /title="Ambiguous deposit"/);
+  assert.match(ui.render(), /title="入賬配對不明確"/);
   matchReceipt(state, receipt.id, 'BANK-SECOND');
   assert.equal(receiptRegister(state).items[0].bankStatus, 'matched');
   state.bankTransactions.find(bank => bank.id === 'BANK-SECOND').amount = 1800;
   assert.equal(receiptRegister(state).items[0].bankStatus, 'amount-mismatch');
   const entry = ui.render().match(/<button\b(?=[^>]*data-action="receipts-open")[\s\S]*?<\/button>/)[0];
-  assert.match(entry, /Amount mismatch/);
+  assert.match(entry, /金額不符/);
   assert.match(entry, /class="receipts-entry is-review"/);
   assert.doesNotMatch(entry, /is-matched|<svg/);
   assert.equal(receipt.issuedDate, sentDate);
@@ -210,7 +210,7 @@ test('each sent day puts every review case before waiting and matched receipts w
 test('missing deposits are reviewable and status filters keep all seven days, including no matches', () => {
   const state = singleReceipt(), { ui } = createUI(state);
   assert.equal(receiptRegister(state).items[0].bankStatus, 'missing');
-  assert.match(ui.render(), /title="Deposit not found"/);
+  assert.match(ui.render(), /title="未找到入賬"/);
   assert.equal(receiptRegister(state, { status: 'review' }).total, 1);
   assert.equal(receiptRegister(state, { status: 'matched' }).total, 0);
   for (const status of ['review', 'ready', 'matched', 'all']) {
@@ -219,7 +219,7 @@ test('missing deposits are reviewable and status filters keep all seven days, in
     assert.equal(result.groups.length, 7);
     assert.equal((html.match(/class="[^\"]*\breceipts-day-column\b[^\"]*"/g) || []).length, 7);
     assert.equal((html.match(/data-action="receipts-open"/g) || []).length, result.total);
-    if (!result.total) assert.match(html, /No matching receipts this week/);
+    if (!result.total) assert.match(html, /本週沒有符合條件的收據/);
   }
   ui.onChange({ target: { id: 'receipts-status', value: 'matched' } });
   ui.reset();

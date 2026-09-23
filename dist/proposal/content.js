@@ -1,3 +1,4 @@
+const feature = (title, intro, body) => `<section class="proposal-feature"><h3>${title}</h3>${intro ? `<p class="feature-intro">${intro}</p>` : ''}${body.replaceAll('<h3>', '<h4>').replaceAll('</h3>', '</h4>')}</section>`;
 const detail = (title, body) => `<section class="feature-detail"><h3>${title}</h3>${body}</section>`;
 const list = items => `<ul class="plain-list">${items.map(x=>`<li>${x}</li>`).join('')}</ul>`;
 const table = (headers, rows) => `<div class="feature-table-wrap"><table class="feature-table"><thead><tr>${headers.map(x=>`<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map((x,i)=>i===0?`<th scope="row">${x}</th>`:`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -19,8 +20,8 @@ export const chapters = [
  {id:'teacher',title:'Teacher assignment and feedback',heading:'Teacher assignment and feedback',intro:'Teachers continue using the familiar progress chart. Digitised materials will be stored together in the internal system, rather than on an openly accessible shared cloud drive. Teachers will not need to—and cannot—find or save materials on their personal computers. They only need to select the required content on the student’s progress chart, and the system sends it directly to the student. After choosing a class and student, teachers can click worksheets to assign them, then view answers and follow up corrections. When paper is needed, teachers can print materials within their authorised scope, directly from the system, without first creating or downloading a file on their computer.',body:
   demo('teacher','Class selection, progress and assignment')},
 
- {id:'library',title:'Material digitisation and authoring',heading:'Digitising materials and creating new worksheets',intro:'Existing materials can be converted for digital teaching in stages. First organise the catalogue so the original worksheets can be answered and marked on tablets; then gradually organise questions into reusable, editable content. This allows a pilot with selected materials before expanding the library.',body:
-  demo('library','Curriculum catalogue and assignment')+
+ {id:'library',title:'Materials',heading:'Materials',intro:'',body:
+ feature('Existing material digitisation', 'Existing materials can be converted for digital teaching in stages. First organise the catalogue so the original worksheets can be answered and marked on tablets; then gradually organise questions into reusable, editable content. This allows a pilot with selected materials before expanding the library.',
   detail('Preparing and converting the existing library',table(['Stage','Usable result','Review and acceptance'],[
    ['1. Catalogue the collection','Build the catalogue using the existing grades, topics, collections and worksheet numbers, so teachers can find what they need.','Check the classifications, file completeness, duplicate content and which version to use.'],
    ['2. Use the original worksheets on tablets','Preserve the layout of approved worksheets for teacher assignment, student handwriting and teacher marking.','Check layout, page count and writing positions. After this step, materials can be used for digital teaching, but may not yet be editable word by word.'],
@@ -33,16 +34,16 @@ export const chapters = [
    'Keep materials that cannot yet be converted faithfully in their original page form for review. Do not count unverified questions as completed editable content.',
    'Accept two outcomes separately: which materials can be used in the system, and how many questions have been verified and are editable. Agree their work scopes and costs separately.',
    'The catalogue demo uses supplied curriculum indexes, with sample questions for P3 and P6. The other worksheets still require their original files; editable conversion is not yet complete.'
-  ]))+
-  detail('Creating and approving new materials',`<p>Build a material-editing platform similar to Wix or Canva, where teachers can create and edit worksheets and interactive exercises by dragging and dropping. The platform can gradually add mathematical-symbol entry and formula editing with tools such as MathType. AI can also generate content, layouts, Python code or custom HTML interactive components for teachers to check and adjust. This gives teachers more freedom to design layouts and turn the same material into online interactive exercises or games, while retaining printing. Where needed, materials can also be exported as PDF or Word documents to fit existing workflows. AI can help generate questions, hints, solutions and interactive content for teachers to review and edit.</p>`)+
+  ])))+
+ feature('New material creation and approval', '',
+detail('Creating and approving new materials',`<p>Build a material-editing platform similar to Wix or Canva, where teachers can create and edit worksheets and interactive exercises by dragging and dropping. The platform can gradually add mathematical-symbol entry and formula editing with tools such as MathType. AI can also generate content, layouts, Python code or custom HTML interactive components for teachers to check and adjust. This gives teachers more freedom to design layouts and turn the same material into online interactive exercises or games, while retaining printing. Where needed, materials can also be exported as PDF or Word documents to fit existing workflows. AI can help generate questions, hints, solutions and interactive content for teachers to review and edit.</p>`)+
   detail('Keeping traditional-format materials',`<p>Existing materials such as PDFs can also be stored in the controlled library and managed alongside new content, with viewing, assignment and printing governed by permissions. Normal teaching accounts do not provide original-file downloads. Originals, answers and student work are managed separately; access and printing must stay within the user’s authorisation.</p>`)+
   detail('Editorial responsibilities and answer access',list([
    'MathConcept names the authors, mathematical reviewers and staff authorised to approve publication.',
    'Student materials, search results and exports must not expose restricted answers or teacher notes.',
    'MathConcept must approve any external processing of curriculum, including its purpose, usage rights and confidentiality conditions. This proposal does not authorise external AI or other content-processing services to use the library.'
-  ]))},
-
- {id:'protection',title:'Curriculum access and printing',heading:'Curriculum access and printing',intro:'HQ retains the master collection and approves materials before centres and teachers use them. Permissions follow each user’s role, centre and authorised curriculum. Distribution and printing records help HQ review use of the materials.',body:
+  ])))+
+ feature('Curriculum access and printing', 'HQ retains the master collection and approves materials before centres and teachers use them. Permissions follow each user’s role, centre and authorised curriculum. Distribution and printing records help HQ review use of the materials.',
   detail('Curriculum access',`<p>Users receive approved materials according to their role, centre and authorised curriculum. Originals, student work and answers are managed separately. HQ decides what may be published and who may access it.</p>`)+
   detail('Authorised printing',`<p>Set which materials may be printed and the permitted volumes, and record whether each print completed, failed or needs follow-up. Select the printers, printing arrangements and usage policy during the pilot, and name the staff responsible for exceptions.</p>`)+
   detail('Tracing the source of a copy',`<p>Use worksheet editions, issuing centres, user accounts and printing records to help establish a copy’s distribution history. Test the usefulness of tracing under agreed scan, photograph and photocopy conditions before confirming the achievable identification results.</p>`)+
@@ -51,25 +52,19 @@ export const chapters = [
    'These controls are proposed scope. Access restrictions, printing outcomes and copy-tracing performance require pilot verification.',
    'Readable or printable materials can still be captured or copied. Access limits and records reduce easy bulk copying and support investigation; they cannot prevent every leak.',
    'A copy trace or unusual usage record is an investigation lead. It does not by itself establish who disclosed material or prove misconduct.'
-  ]))},
-
- {id:'system',title:'Centre administration and scheduling',heading:'Centre administration, scheduling and parent communication',intro:'The centre can manage enrolment, class arrangements, parent communication and fees in one system, reducing repeated checks between different spreadsheets and records. HQ, centre staff, teachers, parents and students each have an appropriate interface and can view and handle information within their authorised scope. Leave, make-up lessons and timetable changes are handled together in the timetable. Parents can submit leave and preferred replacement dates; staff agree the actual make-up time with parents. The system clearly distinguishes confirmed arrangements from requests awaiting follow-up.',body:
-  demo('operations','Leave, timetable changes and make-up lessons')+
-  detail('Enrolment and follow-up',`<p>Handle enrolment, timetables, leave and make-up lessons, parent enquiries, invoices and receipts. Confirm class arrangements and follow up payment differences and other outstanding work.</p>`)+
-  detail('Timetable operations',`<p>Drag a lesson to another time or into the leave bin, or drag a student awaiting a make-up lesson back onto the timetable. Keyboard controls are also available. Before confirmation, check teacher availability, class capacity and time clashes.</p>`)+
+  ])))},
+ {id:'system',title:'Centre management',heading:'Centre management',intro:'',body:
+ feature('Centre administration', 'The centre can manage enrolment, class arrangements, parent communication and fees in one system, reducing repeated checks between different spreadsheets and records.',
+  detail('Enrolment and follow-up',`<p>Handle enrolment, timetables, leave and make-up lessons, parent enquiries, invoices and receipts. Confirm class arrangements and follow up payment differences and other outstanding work.</p>`))+
+ feature('Scheduling and parent communication', 'Leave, make-up lessons and timetable changes are handled together in the timetable. Parents can submit leave and preferred replacement dates; staff agree the actual make-up time with parents. The system clearly distinguishes confirmed arrangements from requests awaiting follow-up.',
+demo('operations','Leave, timetable changes and make-up lessons')+
+detail('Timetable operations',`<p>Drag a lesson to another time or into the leave bin, or drag a student awaiting a make-up lesson back onto the timetable. Keyboard controls are also available. Before confirmation, check teacher availability, class capacity and time clashes.</p>`)+
   detail('Leave and make-up arrangements',`<p>After a successful parent leave request, the original lesson is crossed out and a compact student item appears in the leave bin. Once staff and the parent agree a time, staff can drag the student from the leave bin back onto the timetable to arrange the make-up. The pending item is then removed and the original leave record retained. Submitting a preferred date does not mean the make-up lesson is confirmed.</p>`)+
   detail('One-off, temporary and ongoing timetable changes',`<p>Staff can move one lesson or change the regular timetable from a specified date. Leaving the end date unset makes the change ongoing; setting an end date makes it temporary, with the original arrangement resuming afterwards. Review the affected lessons and compare lesson counts before confirming.</p>`)+
   detail('Changes to lesson counts',`<p>Clearly show the additional or fewer lessons resulting from a timetable change. Staff decide whether to approve extra lessons or retain a corresponding make-up credit when lessons decrease.</p>`)+
   detail('Student and communication records',`<p>View remaining lesson dates, lesson remarks and parent communications. Records stay with the relevant student and lesson so other staff can take over and follow up.</p>`)+
-  detail('Change records',`<p>Keep the original lesson and receipt records and record the reason for the change. Document revision and date-handling rules must be agreed separately.</p>`)+
-  detail('Payment checks and outstanding work',`<p>Use AI to help review payment proof, issue receipts and complete final reconciliation. The billing section explains the full workflow.</p>`)+
-  detail('Records, permissions and demonstration scope',list([
-   'Assigned work retains the material version used at the time, so students answer and teachers mark the same content. Restricted answers are available only to authorised users.',
-   'The demo includes Admin, Teacher, Parent and Student workflows. Demonstration records do not sync across devices; payment checks are simulated.',
-   'HQ publishing, curriculum permissions, controlled printing and live operational support are proposed additions. Delivery follows the agreed scope and acceptance conditions.'
-  ]))},
-
- {id:'billing',title:'Invoice review and bank reconciliation',heading:'Invoice review and bank reconciliation',intro:'Billing follows the sequence: invoice → parent payment proof → staff review and approval → receipt. Bank statements are then checked to confirm whether actual credits match the receipt records. Receipt issuance and bank reconciliation have separate progress records, helping staff follow up unfinished work.',body:
+  detail('Change records',`<p>Keep the original lesson and receipt records and record the reason for the change. Document revision and date-handling rules must be agreed separately.</p>`))+
+ feature('Invoice review and bank reconciliation', 'Billing follows the sequence: invoice → parent payment proof → staff review and approval → receipt. Bank statements are then checked to confirm whether actual credits match the receipt records. Receipt issuance and bank reconciliation have separate progress records, helping staff follow up unfinished work. Use AI to help review payment proof, issue receipts and complete final reconciliation.',
   demo('billing','Payment review, receipts and final audit')+
   detail('Invoice creation and payment deadlines',table(['Charge','When the invoice is issued','Payment or enrolment rule'],[
    ['Paid assessment','Create the assessment invoice when a paid assessment is booked.','Show the assessment date, amount and payment deadline.'],
@@ -93,8 +88,7 @@ export const chapters = [
    'Show receipt progress and bank reconciliation progress separately. An issued receipt may still await bank reconciliation.',
    'The basic reconciliation approach uses bank statements. Confirm available record formats, matching conditions and payment-allocation rules before live use.',
    'Payment checks and automatic invoicing in the demonstration are simulated. Validate them against representative real records before live use.'
-  ]))},
-
+  ])))},
  {id:'franchise',title:'Multi-centre management',heading:'Multi-centre management',intro:'HQ centrally manages material publication, each centre’s curriculum access and operating policies. Each centre handles teaching, parent communication and fees within its authorised scope. New centres can use the same workflow while keeping their student and operational records separate.',body:
   demo('franchise','Tsuen Wan and Hang Hau')+
   table(['Feature','Included function','Condition or responsibility'],[
@@ -148,7 +142,7 @@ export const chapters = [
   ]))+`<div class="button-row"><button class="primary-button" data-action="reference" data-ref="scope">Detailed scope <span>↗</span></button><button class="secondary-button" data-action="reference" data-ref="assumptions">Open decisions and responsibilities</button></div>`}
 ];
 
-export function chapterHTML(c,i){return `<section class="chapter" id="${c.id}" data-chapter="${i}" aria-labelledby="heading-${c.id}"><div class="eyebrow">Section ${String(i+1).padStart(2,'0')}</div><div class="chapter-heading"><h2 id="heading-${c.id}">${c.heading}</h2><p class="section-intro">${c.intro}</p></div>${c.body}</section>`}
+export function chapterHTML(c,i){return `<section class="chapter" id="${c.id}" data-chapter="${i}" aria-labelledby="heading-${c.id}"><div class="chapter-heading"><h2 id="heading-${c.id}">${i+1}. ${c.heading}</h2>${c.intro ? `<p class="section-intro">${c.intro}</p>` : ''}</div>${c.body}</section>`}
 
 export const references = {
  scope:{title:'Detailed scope',body:
