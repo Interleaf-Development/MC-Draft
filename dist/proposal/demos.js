@@ -2,18 +2,18 @@ import { t } from './locale.js';
 
 // These frames load the operational demo itself: no duplicate application UI.
 const views = {
-  schedule: {label:t('Schedule','課表'), role:'admin', page:'schedule'},
+  schedule: {label:t('Schedule','時間表'), role:'admin', page:'schedule'},
   students: {label:t('Students','學生'), role:'admin', page:'students'},
   billing: {label:t('Billing & final audit','收費及最終對帳'), role:'admin', page:'billing'},
-  messages: {label:t('Conversations','對話'), role:'admin', page:'messages'},
-  teacher: {label:t('Progress chart','學習進度'), role:'teacher', page:'progress'},
+  messages: {label:t('Conversations','通訊紀錄'), role:'admin', page:'messages'},
+  teacher: {label:t('Progress chart','學習進度表'), role:'teacher', page:'progress'},
   classroom: {label:t('My classroom','我的課堂'), role:'teacher', page:'classroom'},
-  teacherSchedule: {label:t('My schedule','我的課表'), role:'teacher', page:'schedule'},
+  teacherSchedule: {label:t('My schedule','我的時間表'), role:'teacher', page:'schedule'},
   notes: {label:t('Lesson records','課堂紀錄'), role:'teacher', page:'notes'},
   student: {label:t('Student binder','學生學習冊'), role:'student', page:'work'},
   parent: {label:t('Parent app','家長應用程式'), role:'parent', page:'overview'},
-  parentLessons: {label:t('Parent lessons','家長課堂頁面'), role:'parent', page:'lessons', studentId:'twn-c64262b4d67d'},
-  parentPayments: {label:t('Parent payments','家長繳費頁面'), role:'parent', page:'payments', studentId:'chloe'},
+  parentLessons: {label:t('Parent lessons','子女課堂安排'), role:'parent', page:'lessons', studentId:'twn-c64262b4d67d'},
+  parentPayments: {label:t('Parent payments','家長繳費'), role:'parent', page:'payments', studentId:'chloe'},
   tw: {label:t('Tsuen Wan','荃灣'), role:'admin', page:'schedule', branch:'tw'},
   hh: {label:t('Hang Hau','坑口'), role:'admin', page:'schedule', branch:'hh'}
 };
@@ -38,7 +38,7 @@ export function demoIsSaving() {
 }
 export function demoNavigationBlocked() {
   if (!demoIsSaving()) return false;
-  notify(t('Saving payment review. Please wait before leaving this view.','正在儲存付款核對，請稍候才離開目前畫面。'));
+  notify(t('Saving payment review. Please wait before leaving this view.','正在儲存付款審核結果，請等候完成後再離開此頁。'));
   return true;
 }
 function syncSavingFrames() {
@@ -61,7 +61,7 @@ function selectedView(key) {
 }
 function shell(id) {
   const chosen = selection.get(id)||scenes[id][0];
-  return `<div class="live-demo" data-live-demo="${id}"><div class="live-demo-toolbar"><div class="live-demo-views" role="group" aria-label="${t('Demo views','示範畫面')}">${scenes[id].map(key=>`<button type="button" data-demo-view="${key}" aria-pressed="${chosen===key}">${views[key].label}</button>`).join('')}</div><button type="button" class="demo-expand" data-demo-expand aria-expanded="false">${t('Expand ↗','放大 ↗')}</button></div><div class="demo-viewport"><div class="demo-loading" role="status">${t('Loading demo…','正在載入示範…')}</div></div></div>`;
+  return `<div class="live-demo" data-live-demo="${id}"><div class="live-demo-toolbar"><div class="live-demo-views" role="group" aria-label="${t('Demo views','示範畫面')}">${scenes[id].map(key=>`<button type="button" data-demo-view="${key}" aria-pressed="${chosen===key}">${views[key].label}</button>`).join('')}</div><button type="button" class="demo-expand" data-demo-expand aria-expanded="false">${t('Expand ↗','放大 ↗')}</button></div><div class="demo-viewport"><div class="demo-loading" role="status">${t('Loading demo…','正在載入示範畫面…')}</div></div></div>`;
 }
 function sizeFrame(entry = active) {
   if (!entry || !entry.stage.clientWidth) return;
@@ -131,7 +131,7 @@ function mount(id, key) {
   entry.timeout=setTimeout(()=>{
     if(entry.ready || frames.get(id)!==entry)return;
     const loading=stage.querySelector('.demo-loading');
-    if(loading)loading.innerHTML=`<span>${t('The demo is taking longer to load.','示範載入時間較長。')}</span><button type="button" data-demo-retry>${t('Retry','重試')}</button>`;
+    if(loading)loading.innerHTML=`<span>${t('The demo is taking longer to load.','示範畫面仍在載入。')}</span><button type="button" data-demo-retry>${t('Retry','重新載入')}</button>`;
   },20000);
   return entry;
 }
@@ -178,32 +178,32 @@ export function activateDemo(id) {
 }
 const phases=[
   {
-    label:t('Discover','了解現況'),
-    title:t('Materials and workflow review','教材及營運流程確認'),
-    body:t('Inventory a representative sample of materials and operational records. Confirm the authoritative versions, essential workflows, device requirements and owners.','抽取具代表性的教材及營運紀錄作盤點，確認正式版本、核心流程、裝置要求及負責人。'),
-    items:[t('Material formats, page counts and exceptions','教材格式、頁數及特殊情況'),t('Sample schedules, balances and bank exports','課表、結餘及銀行匯出檔案樣本'),t('Pilot scope, responsibilities and success measures','試點範圍、分工及成效指標')],
-    gate:t('Approve the scope, migration estimate and pilot acceptance criteria.','確認範圍、資料遷移估算及試行驗收準則。')
+    label:t('Discover','需求確認'),
+    title:t('Materials and workflow review','教材盤點及流程確認'),
+    body:t('Inventory a representative sample of materials and operational records. Confirm the authoritative versions, essential workflows, device requirements and owners.','以具代表性的教材及營運紀錄作樣本，核對應採用的教材版本、必要流程、裝置要求及各項工作的負責人。'),
+    items:[t('Material formats, page counts and exceptions','教材格式、頁數及待處理項目'),t('Sample schedules, balances and bank exports','時間表、款項結餘及銀行紀錄樣本'),t('Pilot scope, responsibilities and success measures','試行範圍、責任分工及驗收指標')],
+    gate:t('Approve the scope, migration estimate and pilot acceptance criteria.','確認交付範圍、遷移工作量估算及試行驗收準則。')
   },
   {
-    label:t('Build the pilot','建立試點'),
+    label:t('Build the pilot','準備試行'),
     title:t('Pilot delivery','試行版本交付'),
-    body:t('Implement the agreed library, teaching, student, parent and administration flows. Start with a limited curriculum set and the selected devices.','落實已議定的教材庫、教學、學生、家長及行政流程，先採用指定裝置及小部分課程內容。'),
-    items:[t('Approved materials available to the right people','讓獲授權的人員取用合適教材'),t('Students can save, resume and correct their work','學生可儲存、繼續完成及改正習作'),t('Training, migration checks and support arrangements','培訓、資料遷移核對及支援安排')],
-    gate:t('Staff can complete the agreed journeys with validated data.','員工能使用已核實的資料完成議定流程。')
+    body:t('Implement the agreed library, teaching, student, parent and administration flows. Start with a limited curriculum set and the selected devices.','按議定範圍完成教材庫、老師、學生、家長及中心行政流程，先以選定的教材及裝置試行。'),
+    items:[t('Approved materials available to the right people','獲授權使用者可取用已核准教材'),t('Students can save, resume and correct their work','學生可儲存習作、繼續作答及完成改正'),t('Training, migration checks and support arrangements','職員培訓、遷移結果核對及支援安排')],
+    gate:t('Staff can complete the agreed journeys with validated data.','職員能以已核實的資料完成議定的日常操作。')
   },
   {
-    label:t('Validate','驗證'),
-    title:t('User acceptance and operating checks','用戶驗收及營運檢查'),
-    body:t('Run the pilot with real staff routines. Measure content fidelity, writing behaviour, scheduling consistency and financial exceptions.','按員工的實際工作流程試行，評估教材還原程度、書寫表現、排課一致性及財務異常情況。'),
-    items:[t('Approved printing with clear records and error handling','授權列印，備有清晰紀錄及問題處理安排'),t('Receipts reconcile with money received; discrepancies stand out','核對收據與實收款項，清楚標示差異'),t('Centre privacy, saved work and readiness for daily use','確認中心資料私隱、習作保留及日常使用準備')],
-    gate:t('Named reviewers accept the results and outstanding launch issues are resolved.','指定負責人接納驗證結果，並解決所有妨礙啟用的問題。')
+    label:t('Validate','試行驗收'),
+    title:t('User acceptance and operating checks','使用者驗收及營運核對'),
+    body:t('Run the pilot with real staff routines. Measure content fidelity, writing behaviour, scheduling consistency and financial exceptions.','讓職員按日常工作流程試用，核對教材內容及版面、學生書寫體驗、課堂安排和特殊收費情況的處理結果。'),
+    items:[t('Approved printing with clear records and error handling','按權限列印，保留列印紀錄並處理失敗個案'),t('Receipts reconcile with money received; discrepancies stand out','核對收據與實收款項，列明差異'),t('Centre privacy, saved work and readiness for daily use','核對中心資料權限、習作儲存及日常操作結果')],
+    gate:t('Named reviewers accept the results and outstanding launch issues are resolved.','指定驗收人員確認結果，並解決所有影響正式使用的問題。')
   },
   {
-    label:t('Expand','逐步推展'),
-    title:t('Additional centres and materials','新增中心及教材'),
-    body:t('Bring more materials and centres into use at a manageable pace. Extend worksheet creation and AI assistance once their teaching quality is established.','按可管理的進度加入更多教材及中心。確認教學品質後，再擴展工作紙編製及 AI 輔助功能。'),
-    items:[t('Batch migration with exception reports','分批遷移並提供異常報告'),t('Centre onboarding and support coverage','中心導入安排及支援範圍'),t('Overseas policies, languages and curriculum entitlements','海外政策、語言及課程使用權限')],
-    gate:t('Each centre is ready before its access and operations go live.','各中心準備就緒後，才開放存取權限並正式投入運作。')
+    label:t('Expand','分階段推展'),
+    title:t('Additional centres and materials','加入更多中心及教材'),
+    body:t('Bring more materials and centres into use at a manageable pace. Extend worksheet creation and AI assistance once their teaching quality is established.','配合實際運作，分批加入更多教材及中心。工作紙編製及 AI 輔助功能須先確認符合教學要求，再擴大使用範圍。'),
+    items:[t('Batch migration with exception reports','分批遷移教材，列明未能處理或須跟進的項目'),t('Centre onboarding and support coverage','中心啟用安排及支援範圍'),t('Overseas policies, languages and curriculum entitlements','海外中心的營運規則、使用語言及教材使用權')],
+    gate:t('Each centre is ready before its access and operations go live.','確認各中心已完成啟用準備，才開放使用權限並正式運作。')
   }
 ];
 function renderRollout() {
