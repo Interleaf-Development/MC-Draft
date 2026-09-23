@@ -11,6 +11,7 @@ const views = {
   teacherSchedule: {label:t('My schedule','我的時間表'), role:'teacher', page:'schedule'},
   notes: {label:t('Lesson records','課堂紀錄'), role:'teacher', page:'notes'},
   student: {label:t('Student binder','學生學習冊'), role:'student', page:'work'},
+  game: {label:t('Maths kart','數學飛車'), role:'game', page:'race'},
   parent: {label:t('Parent app','家長應用程式'), role:'parent', page:'overview'},
   parentLessons: {label:t('Parent lessons','子女課堂安排'), role:'parent', page:'lessons', studentId:'twn-c64262b4d67d'},
   parentPayments: {label:t('Parent payments','家長繳費'), role:'parent', page:'payments', studentId:'chloe'},
@@ -19,14 +20,14 @@ const views = {
 };
 const scenes = {
   student: ['student'],
+  game: ['game'],
   teacher: ['teacher','classroom','teacherSchedule','notes'],
   library: ['teacher','classroom'],
-  system: ['schedule','teacher','student','parent'],
   operations: ['schedule','parentLessons','messages','students'],
   billing: ['billing','parentPayments'],
   franchise: ['tw','hh']
 };
-const dimensions = {admin:[1440,1000],teacher:[1440,1000],student:[1024,1366],parent:[390,844]};
+const dimensions = {admin:[1440,1000],teacher:[1440,1000],student:[1024,1366],parent:[390,844],game:[675,900]};
 const selection = new Map();
 const frames = new Map();
 let active = null, initialised = false, phase = 0, notify = () => {};
@@ -47,6 +48,7 @@ function syncSavingFrames() {
 }
 
 function sourceURL(view) {
+  if(view.role==='game')return '/game1/?proposal=1&proposalPreload=1';
   const base = view.branch === 'hh' ? '/hh/' : '/';
   const path = ['parent','student'].includes(view.role) ? base+view.role+'/' : base;
   const params = new URLSearchParams({proposal:'1',proposalPreload:'1',role:view.role,page:view.page});
@@ -61,7 +63,7 @@ function selectedView(key) {
 }
 function shell(id) {
   const chosen = selection.get(id)||scenes[id][0];
-  return `<div class="live-demo" data-live-demo="${id}"><div class="live-demo-toolbar"><div class="live-demo-views" role="group" aria-label="${t('Demo views','示範畫面')}">${scenes[id].map(key=>`<button type="button" data-demo-view="${key}" aria-pressed="${chosen===key}">${views[key].label}</button>`).join('')}</div><button type="button" class="demo-expand" data-demo-expand aria-expanded="false">${t('Expand ↗','放大 ↗')}</button></div><div class="demo-viewport"><div class="demo-loading" role="status">${t('Loading demo…','正在載入示範畫面…')}</div></div></div>`;
+  return `<div class="live-demo${id==='game'?' live-demo-game':''}" data-live-demo="${id}"><div class="live-demo-toolbar"><div class="live-demo-views" role="group" aria-label="${t('Demo views','示範畫面')}">${scenes[id].map(key=>`<button type="button" data-demo-view="${key}" aria-pressed="${chosen===key}">${views[key].label}</button>`).join('')}</div><div class="demo-window-actions">${id==='game'?`<a class="demo-full-game" href="/game1/" target="_blank" rel="noopener">${t('Open full game ↗','獨立開啟遊戲 ↗')}</a>`:''}<button type="button" class="demo-expand" data-demo-expand aria-expanded="false">${t('Expand ↗','放大 ↗')}</button></div></div><div class="demo-viewport"><div class="demo-loading" role="status">${t('Loading demo…','正在載入示範畫面…')}</div></div></div>`;
 }
 function sizeFrame(entry = active) {
   if (!entry || !entry.stage.clientWidth) return;
@@ -70,6 +72,14 @@ function sizeFrame(entry = active) {
     stage.style.height='';
     frame.style.width=stage.clientWidth+'px';
     frame.style.height=stage.clientHeight+'px';
+    frame.style.transform='none';
+  } else if(view.role==='game') {
+    // Let the real game respond to this width, keeping touch controls full-size.
+    const width=Math.min(675,stage.clientWidth);
+    const height=Math.max(600,Math.min(900,Math.round(width*4/3)));
+    stage.style.height=height+'px';
+    frame.style.width=width+'px';
+    frame.style.height=height+'px';
     frame.style.transform='none';
   } else {
     const [width,height] = dimensions[view.role]||dimensions.admin;
@@ -96,10 +106,12 @@ function setActive(entry) {
   if (demoIsSaving()) return false;
   if (active?.ready) send(active,'mc-proposal:deactivate');
   active=entry;
-  if (active?.ready) send(active,'mc-proposal:activate');
+  if (active?.ready && !document.hidden) send(active,'mc-proposal:activate');
   return true;
 }
 function mount(id, key) {
+  const host=$('#demo-'+id);
+  if(!host)return null;
   const chosen=key||selection.get(id)||scenes[id][0];
   const view=selectedView(chosen);
   const existing=frames.get(id);
@@ -108,11 +120,11 @@ function mount(id, key) {
     if(existing.box.classList.contains('is-expanded'))expand(false);
     if(active===existing)setActive(null);
     existing.observer?.disconnect();
+    existing.visibilityObserver?.disconnect();
     clearTimeout(existing.timeout);
     existing.frame.remove();
   }
   selection.set(id,chosen);
-  const host=$('#demo-'+id);
   host.innerHTML=shell(id);
   const box=host.querySelector('.live-demo'),stage=box.querySelector('.demo-viewport');
   const frame=document.createElement('iframe');
@@ -128,6 +140,15 @@ function mount(id, key) {
   sizeFrame(entry);
   entry.observer=new ResizeObserver(()=>sizeFrame(entry));
   entry.observer.observe(stage);
+  if(view.role==='game' && typeof IntersectionObserver!=='undefined') {
+    entry.visibilityObserver=new IntersectionObserver(records=>{
+      const visible=records.some(record=>record.isIntersecting);
+      entry.visible=visible;
+      if(visible && !document.hidden && !document.body.classList.contains('demo-expanded'))setActive(entry);
+      else if(!visible && active===entry && !box.classList.contains('is-expanded'))setActive(null);
+    },{threshold:0});
+    entry.visibilityObserver.observe(stage);
+  }
   entry.timeout=setTimeout(()=>{
     if(entry.ready || frames.get(id)!==entry)return;
     const loading=stage.querySelector('.demo-loading');
@@ -150,6 +171,7 @@ function choose(id,key) {
   if(expanded&&!entry.box.classList.contains('is-expanded'))expand(true);
 }
 function navigateFrame(entry,view) {
+  if(view.role==='game')return;
   if(demoIsSaving()){entry.pendingView=view;return;}
   send(entry,'mc-proposal:navigate',{role:view.role,page:view.page,...(view.studentId?{studentId:view.studentId}:{})});
 }
@@ -172,7 +194,8 @@ function expand(value) {
 }
 export function activateDemo(id) {
   if (!initialised || demoIsSaving() || document.body.classList.contains('demo-expanded')) return;
-  const entry=scenes[id]?mount(id):null;
+  const scene=id==='system'?'operations':id;
+  const entry=scenes[scene]?mount(scene):null;
   setActive(entry);
   if(entry)sizeFrame(entry);
 }
@@ -251,7 +274,7 @@ export function initDemos(options = {}) {
       entry.ready=true;
       clearTimeout(entry.timeout);
       entry.stage.querySelector('.demo-loading')?.remove();
-      if(active===entry)send(entry,'mc-proposal:activate');
+      if(active===entry&&!document.hidden)send(entry,'mc-proposal:activate');
       if(entry.pendingView){const view=entry.pendingView;entry.pendingView=null;navigateFrame(entry,view);return;}
     }else if(entry.pendingView)return;
     if(entry===active&&['teacher','student'].includes(data.role)&&typeof data.studentId==='string')worksheetStudents.set(entry.view.branch||'tw',data.studentId);
@@ -259,6 +282,9 @@ export function initDemos(options = {}) {
     syncControls(entry);sizeFrame(entry);
   });
   window.addEventListener('resize',()=>{for(const entry of frames.values())sizeFrame(entry);});
+  document.addEventListener('visibilitychange',()=>{
+    if(active?.ready)send(active,document.hidden?'mc-proposal:deactivate':'mc-proposal:activate');
+  });
   window.addEventListener('beforeunload',event=>{
     if(!demoIsSaving())return;
     event.preventDefault();
@@ -268,7 +294,8 @@ export function initDemos(options = {}) {
     if(event.key==='Escape'&&active?.box.classList.contains('is-expanded')){event.preventDefault();expand(false);}
   });
   // Start the requested scene first, then warm the rest without replacing it.
-  const first=scenes[location.hash.slice(1)]?location.hash.slice(1):'student';
+  const chapter=location.hash.slice(1);
+  const first=chapter==='system'?'operations':scenes[chapter]?chapter:'student';
   mount(first);
   setTimeout(()=>{for(const id of Object.keys(scenes))if(!frames.has(id))mount(id);},0);
 }

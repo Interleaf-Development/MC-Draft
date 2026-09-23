@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const source = await readFile(new URL('../dist/proposal/demos.js', import.meta.url), 'utf8');
 const appSource = await readFile(new URL('../dist/proposal/app.js', import.meta.url), 'utf8');
 const origin = 'https://demo.example';
-const scenes = ['system', 'library', 'teacher', 'student', 'operations', 'billing', 'franchise'];
+const scenes = ['library', 'teacher', 'student', 'game', 'operations', 'billing', 'franchise'];
 
 // A DOM/event boundary for the real module: tests use rendered controls and
 // message events, without reaching into its frame map or activation state.
@@ -125,6 +125,7 @@ function harness(hash = '#teacher') {
   };
   const timers = new Map();
   const notices = [];
+  const intersections = new Map();
   let timerId = 0;
   const document = {
     body, addEventListener,
@@ -142,7 +143,12 @@ function harness(hash = '#teacher') {
     setTimeout(callback, delay) { const id = ++timerId; timers.set(id, { callback, delay }); return id; },
     clearTimeout: id => timers.delete(id),
     requestAnimationFrame: callback => callback(),
-    ResizeObserver: class { observe() {} disconnect() {} }
+    ResizeObserver: class { observe() {} disconnect() {} },
+    IntersectionObserver: class {
+      constructor(callback) { this.callback = callback; }
+      observe(element) { intersections.set(element, this.callback); }
+      disconnect() {}
+    }
   });
   vm.runInContext(source.replace(/^import[^\n]+\n/, '').replaceAll('export function ', 'function '), scope);
   const emit = (type, event = {}) => { for (const callback of listeners.get(type) ?? []) callback(event); };
@@ -158,10 +164,13 @@ function harness(hash = '#teacher') {
         body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
       }
       document.getElementById('main').append(new Element('section', { id: 'vision', class: 'chapter' }));
-      const chapterIds = ['vision', 'student', 'teacher', 'library', 'authoring', 'protection', 'system', 'operations', 'billing', 'franchise', 'rollout', 'proposal'];
+      const chapterIds = ['vision', 'student', 'teacher', 'library', 'protection', 'system', 'billing', 'franchise', 'rollout', 'proposal'];
       scope.english = scope.chinese = {
         chapters: chapterIds.map(id => ({ id, title: id })), references: {},
-        chapterHTML: chapter => `<section id="${chapter.id}" class="chapter">${[...scenes, 'rollout'].includes(chapter.id) ? `<div id="demo-${chapter.id}"></div>` : ''}</section>`
+        chapterHTML: chapter => {
+          const ids = chapter.id === 'student' ? ['student', 'game'] : chapter.id === 'system' ? ['operations'] : [...scenes, 'rollout'].includes(chapter.id) ? [chapter.id] : [];
+          return `<section id="${chapter.id}" class="chapter">${ids.map(id => `<div id="demo-${id}"></div>`).join('')}</section>`;
+        }
       };
       scope.language = 'en'; scope.shellText = {};
       scope.proposalLanguageUrl = href => href + '?lang=zh-HK';
@@ -178,6 +187,10 @@ function harness(hash = '#teacher') {
       for (const [id, timer] of [...timers]) if (timer.delay === 0) { timers.delete(id); timer.callback(); }
     },
     activate(id) { scope.activateDemo(id); },
+    intersect(id, visible) {
+      const stage = host(id).querySelector('.demo-viewport');
+      intersections.get(stage)([{ target: stage, isIntersecting: visible }]);
+    },
     choose(id, view) {
       const target = host(id).querySelector('[data-demo-view="' + view + '"]');
       assert.ok(target, 'The requested view must be exposed as a control');
@@ -245,22 +258,23 @@ test('only a known frame from the same origin can clear loading or alter its vie
 });
 
 test('role changes reuse a ready frame and an early selection is delivered when that frame becomes ready', () => {
-  const h = harness('#system'); h.init(); h.warm(); h.activate('system');
-  const frame = h.frame('system');
-  h.choose('system', 'student');
-  assert.equal(h.frame('system'), frame);
+  const h = harness('#billing'); h.init(); h.warm(); h.activate('billing');
+  const frame = h.frame('billing');
+  h.choose('billing', 'parentPayments');
+  assert.equal(h.frame('billing'), frame);
   assert.equal(messages(frame, 'mc-proposal:navigate').length, 0);
-  h.ready('system');
+  h.ready('billing');
   let navigation = messages(frame, 'mc-proposal:navigate').at(-1).data;
-  assert.equal(navigation.role, 'student');
-  assert.equal(navigation.page, 'work');
-  h.message(frame.contentWindow, { type: 'mc-proposal:state', role: 'student', page: 'work' });
-  h.choose('system', 'parent');
-  assert.equal(h.frame('system'), frame);
-  navigation = messages(frame, 'mc-proposal:navigate').at(-1).data;
   assert.equal(navigation.role, 'parent');
-  assert.equal(navigation.page, 'overview');
+  assert.equal(navigation.page, 'payments');
+  h.message(frame.contentWindow, { type: 'mc-proposal:state', role: 'parent', page: 'payments' });
   assert.equal(frame.style.width, '390px');
+  h.choose('billing', 'billing');
+  assert.equal(h.frame('billing'), frame);
+  navigation = messages(frame, 'mc-proposal:navigate').at(-1).data;
+  assert.equal(navigation.role, 'admin');
+  assert.equal(navigation.page, 'billing');
+  assert.equal(frame.style.width, '1440px');
 });
 
 test('switching branches replaces only that scene and ignores messages from its removed frame', () => {
@@ -366,14 +380,14 @@ test('expanded demos cannot close by button or Escape during saving and can clos
 
 test('a view requested before another frame starts saving stays queued until all saving finishes', () => {
   const h = harness('#billing'); h.init(); h.warm(); h.activate('billing'); h.ready('billing', 'admin', 'billing');
-  h.choose('system', 'student');
-  const billing = h.frame('billing'), system = h.frame('system');
+  h.choose('operations', 'parentLessons');
+  const billing = h.frame('billing'), system = h.frame('operations');
   h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: true });
-  h.ready('system');
+  h.ready('operations');
   assert.equal(messages(system, 'mc-proposal:navigate').length, 0);
   h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: false });
   assert.equal(messages(system, 'mc-proposal:navigate').length, 1);
-  assert.equal(messages(system, 'mc-proposal:navigate')[0].data.role, 'student');
+  assert.equal(messages(system, 'mc-proposal:navigate')[0].data.role, 'parent');
 });
 
 test('the proposal shell blocks chapter, language and reading-mode navigation while its payment review saves', () => {
@@ -405,4 +419,72 @@ test('the proposal shell blocks chapter, language and reading-mode navigation wh
   assert.equal(doc.getElementById('chapter-label').textContent, 'teacher');
   assert.equal(h.frame('billing'), billing);
   assert.equal(messages(billing, 'mc-proposal:deactivate').length, 1);
+});
+
+test('the game preloads alongside the student binder and follows viewport, chapter and tab activity without replacing either frame', () => {
+  const h = harness('#student'); h.init(); h.warm(); h.activate('student');
+  h.ready('student', 'student', 'work'); h.ready('game', 'game', 'race');
+  const student = h.frame('student'), game = h.frame('game');
+  assert.equal(new URL(game.src, origin).pathname, '/game1/');
+  assert.equal(game.style.width, '675px');
+  assert.equal(game.style.transform, 'none');
+  assert.equal(h.host('game').querySelector('a').href, '/game1/');
+  assert.equal(messages(game, 'mc-proposal:activate').length, 0);
+
+  h.intersect('game', true);
+  assert.equal(messages(student, 'mc-proposal:deactivate').length, 1);
+  assert.equal(messages(game, 'mc-proposal:activate').length, 1);
+  h.intersect('game', false);
+  assert.equal(messages(game, 'mc-proposal:deactivate').length, 1);
+  h.intersect('game', true);
+  h.document.hidden = true; h.emit('visibilitychange');
+  assert.equal(messages(game, 'mc-proposal:deactivate').length, 2);
+  h.document.hidden = false; h.emit('visibilitychange');
+  assert.equal(messages(game, 'mc-proposal:activate').length, 3);
+  assert.equal(messages(game, 'mc-proposal:navigate').length, 0);
+  h.activate('library');
+  assert.equal(messages(game, 'mc-proposal:deactivate').length, 3);
+  assert.equal(h.frame('game'), game);
+  assert.equal(h.frame('student'), student);
+});
+
+test('a hidden document never starts an embedded game and a narrow frame retains usable controls', () => {
+  const h = harness('#student'); h.init(); h.warm();
+  const game = h.frame('game'), stage = h.host('game').querySelector('.demo-viewport');
+  h.document.hidden = true;
+  h.intersect('game', true);
+  h.ready('game', 'game', 'race');
+  assert.equal(messages(game, 'mc-proposal:activate').length, 0);
+  stage.clientWidth = 360;
+  h.emit('resize');
+  assert.equal(game.style.width, '360px');
+  assert.equal(game.style.height, '600px');
+  assert.equal(game.style.transform, 'none');
+});
+
+test('scrolling within the student chapter keeps the visible game active rather than resetting to its binder', () => {
+  const h = harness('#student'); h.loadApp(); h.warm();
+  h.ready('student', 'student', 'work'); h.ready('game', 'game', 'race');
+  h.document.getElementById('student').getBoundingClientRect = () => ({ top: 100 });
+  h.intersect('game', true);
+  const game = h.frame('game');
+  h.emit('scroll');
+  assert.equal(h.document.getElementById('chapter-label').textContent, 'student');
+  assert.equal(messages(game, 'mc-proposal:activate').length, 1);
+  assert.equal(messages(game, 'mc-proposal:deactivate').length, 0);
+  assert.equal(h.frame('game'), game);
+});
+
+test('legacy chapter links open the merged chapters and reuse their existing demo frames', () => {
+  for (const [legacy, chapter, demo] of [['authoring', 'library', 'library'], ['operations', 'system', 'operations']]) {
+    const h = harness('#' + legacy); h.loadApp(); h.warm();
+    assert.equal(h.address.hash, '#' + chapter);
+    assert.equal(h.document.getElementById('chapter-label').textContent, chapter);
+    const original = h.frame(demo);
+    h.ready(demo, 'admin', 'schedule');
+    h.click(h.document.querySelector('a[href="#student"]'));
+    h.click(h.document.querySelector(`a[href="#${chapter}"]`));
+    assert.equal(h.frame(demo), original);
+    assert.equal(h.document.querySelectorAll('iframe').length, scenes.length);
+  }
 });

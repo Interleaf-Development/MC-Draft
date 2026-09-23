@@ -7,6 +7,8 @@ const laneButtons = [...document.querySelectorAll('[data-lane]')];
 const laneNames = ['左線', '中線', '右線'];
 const symbols = ['←', '↑', '→'];
 const renderer = new KartRenderer(ui.track);
+const proposalEmbed = window.parent !== window && new URLSearchParams(location.search).get('proposal') === '1';
+let proposalActive = !proposalEmbed;
 let race = createRace();
 let lastPhase = 'ready';
 let lastTick = '';
@@ -36,6 +38,9 @@ class GameAudio {
       }
       if (this.ctx.state === 'suspended') await this.ctx.resume();
     } catch { /* Play remains available if this browser blocks audio. */ }
+  }
+  silence() {
+    if (this.ctx?.state === 'running') this.ctx.suspend().catch(() => {});
   }
   note(frequency, duration = .12, delay = 0, type = 'sine', gain = .065, endFrequency = frequency) {
     if (!soundEnabled || !this.ctx || this.ctx.state !== 'running') return;
@@ -137,13 +142,14 @@ function steer(lane) {
   syncUI();
 }
 
-function pause() {
+function pause({ focus = true } = {}) {
   pauseRace(race);
+  audio.silence();
   if (race.paused) {
     audio.drive(race);
     returnFocus = document.activeElement;
     syncUI();
-    ui.resume.focus({ preventScroll: true });
+    if (focus) ui.resume.focus({ preventScroll: true });
     announce('比賽已暫停。');
   }
 }
@@ -329,11 +335,34 @@ ui.track.addEventListener('pointerup', event => {
   pointer = null;
 });
 ui.track.addEventListener('pointercancel', () => { pointer = null; });
-document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
-window.addEventListener('blur', () => { if (!race.paused) pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause({ focus: false }); });
+window.addEventListener('blur', () => pause({ focus: false }));
+if (proposalEmbed) {
+  const notify = type => window.parent.postMessage({ type, role: 'game', page: 'race' }, location.origin);
+  window.addEventListener('message', event => {
+    if (event.origin !== location.origin || event.source !== window.parent) return;
+    if (event.data?.type === 'mc-proposal:deactivate') {
+      proposalActive = false;
+      pause({ focus: false });
+    } else if (event.data?.type === 'mc-proposal:activate') {
+      proposalActive = true;
+      lastFrame = 0;
+      renderer.resize();
+      // Returning to this chapter keeps the race paused until the player resumes.
+    }
+  });
+  document.addEventListener('pointerdown', () => notify('mc-proposal:focused'));
+  document.addEventListener('focusin', () => notify('mc-proposal:focused'));
+  notify('mc-proposal:ready');
+}
 new ResizeObserver(() => renderer.resize()).observe(ui.track);
 
 function frame(now) {
+  if (!proposalActive || document.hidden) {
+    lastFrame = 0;
+    requestAnimationFrame(frame);
+    return;
+  }
   const dt = lastFrame ? Math.min((now - lastFrame) / 1000, .06) : 0;
   lastFrame = now;
   updateRace(race, dt);
@@ -343,4 +372,5 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 syncUI();
+renderer.draw(race, 0);
 requestAnimationFrame(frame);
