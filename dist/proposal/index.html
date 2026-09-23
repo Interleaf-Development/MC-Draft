@@ -1,90 +1,90 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-HK">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#d92535">
-  <meta name="description" content="MathConcept product scope: curriculum management, digital teaching, centre operations and proposed delivery terms.">
-  <title>MathConcept — Product scope and delivery proposal</title>
+  <meta name="description" content="MathConcept 系統建議書，涵蓋數碼學習、教材管理、中心營運，以及建議的交付範圍和安排。">
+  <title>MathConcept — 系統功能及交付建議</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23d92535'/%3E%3Cpath d='M7 24V8l9 8 9-8v16' fill='none' stroke='white' stroke-width='4'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
 <body>
-  <a class="skip" href="#main" data-copy="skip">Skip to proposal</a>
+  <a class="skip" href="#main" data-copy="skip">跳至建議書內容</a>
   <aside class="sidebar" id="sidebar">
     <a class="brand" href="#vision"><img src="assets/mathconcept-logo.png" alt="MathConcept"></a>
-    <div class="nav-label" data-copy="contents">Contents</div>
-    <nav id="chapters" aria-label="Proposal chapters"><a class="active" href="#vision"><span>01</span> Document overview</a></nav>
-    <div class="sidebar-bottom"><span class="draft-mark" data-copy="draftMark">SCOPE PROPOSAL</span><p><span data-copy="draftDate">23 September 2026</span><br><span data-copy="draftNote">Draft for discussion</span></p></div>
+    <div class="nav-label" data-copy="contents">目錄</div>
+    <nav id="chapters" aria-label="建議書章節"><a class="active" href="#vision"><span>01</span> 建議書概覽</a></nav>
+    <div class="sidebar-bottom"><span class="draft-mark" data-copy="draftMark">系統建議書</span><p><span data-copy="draftDate">2026年9月23日</span><br><span data-copy="draftNote">初稿，供討論用</span></p></div>
   </aside>
   <div class="page-shell">
     <header class="topbar">
-      <button class="icon-button mobile-menu" id="menu" aria-label="Open contents" aria-expanded="false">☰</button>
-      <div class="breadcrumb"><span>MathConcept</span><span>/</span><span id="chapter-label">Document overview</span></div>
+      <button class="icon-button mobile-menu" id="menu" aria-label="開啟目錄" aria-expanded="false">☰</button>
+      <div class="breadcrumb"><span>MathConcept</span><span>/</span><span id="chapter-label">建議書概覽</span></div>
       <div class="top-actions">
-        <a class="language-switch" id="language-switch" href="?lang=zh-HK" hreflang="zh-HK" lang="zh-HK">繁體中文</a>
-        <button class="print-button" id="print-document" data-copy="print">Print</button>
-        <button class="mode-switch" id="mode">Section view</button>
-        <button class="icon-button" id="references" aria-label="Open reference documents">≡</button>
+        <a class="language-switch" id="language-switch" href="?lang=eng" hreflang="en" lang="en" aria-label="切換至英文版">English</a>
+        <button class="print-button" id="print-document" data-copy="print">列印</button>
+        <button class="mode-switch" id="mode">逐章閱讀</button>
+        <button class="icon-button" id="references" aria-label="開啟參考文件">≡</button>
       </div>
     </header>
     <main id="main">
       <section class="chapter document-overview" id="vision" data-chapter="0" aria-labelledby="document-title">
         <header class="document-header">
-          <div class="document-type" data-copy="documentType">01 / Product scope and delivery proposal</div>
-          <h1 id="document-title" data-copy="documentTitle">MathConcept Paperless Teaching &amp; Centre Management System</h1>
-          <p class="document-summary" data-copy="documentSummary">A system for student learning, paperless teaching-material management and centre operations, with native apps for students, parents and centre users. The proposal starts with the student experience and a hybrid approach to digital and printed work, followed by existing-material digitisation, new material creation and administration.</p>
+          <div class="document-type" data-copy="documentType">01 / 系統功能及交付建議</div>
+          <h1 id="document-title" data-copy="documentTitle">MathConcept 無紙化教學及中心管理系統</h1>
+          <p class="document-summary" data-copy="documentSummary">為 MathConcept 建立涵蓋學生學習、無紙化教材管理及中心營運的系統，並提供學生、家長及中心使用者專用的原生應用程式。本建議書先介紹學生的學習體驗，說明數碼練習與紙本列印如何配合，再介紹現有教材數碼化、新教材編製及中心行政功能。</p>
           <dl class="document-metadata">
-            <div><dt data-copy="preparedFor">Prepared for</dt><dd>MathConcept</dd></div>
-            <div><dt data-copy="documentLabel">Document</dt><dd data-copy="documentValue">Product scope proposal</dd></div>
-            <div><dt data-copy="dateLabel">Date</dt><dd data-copy="draftDate">23 September 2026</dd></div>
-            <div><dt data-copy="statusLabel">Status</dt><dd data-copy="statusValue">Draft; scope, fees and dates to be agreed</dd></div>
+            <div><dt data-copy="preparedFor">提交對象</dt><dd>MathConcept</dd></div>
+            <div><dt data-copy="documentLabel">文件類別</dt><dd data-copy="documentValue">系統建議書</dd></div>
+            <div><dt data-copy="dateLabel">日期</dt><dd data-copy="draftDate">2026年9月23日</dd></div>
+            <div><dt data-copy="statusLabel">文件狀態</dt><dd data-copy="statusValue">初稿；交付範圍、費用及日期待議</dd></div>
           </dl>
         </header>
         <section class="feature-detail">
-          <h2 data-copy="systemOverview">System overview</h2>
-          <p data-copy="appOverview">The system will include native apps for iOS/iPadOS and Android, plus a web application for desktop browsers. Each role can work across devices, with layouts prioritising portrait tablets for students, phones for parents, tablets and computers for teachers, and computers for centre staff and HQ. Student work keeps a full-page writing area. Supported operating-system versions, browsers, devices and stylus compatibility will be agreed for delivery.</p>
+          <h2 data-copy="systemOverview">系統概覽</h2>
+          <p data-copy="appOverview">系統包括適用於 iOS／iPadOS 及 Android 的原生應用程式，以及供電腦瀏覽器使用的網頁應用程式。各角色可在不同裝置使用系統；介面設計以學生直向平板、家長手機、老師平板及電腦，以及中心職員和總部的電腦操作為主。學生作答時保留完整頁面的書寫空間。支援的作業系統版本、瀏覽器、裝置及觸控筆相容要求，會在確認交付範圍時議定。</p>
           <div class="feature-table-wrap">
             <table class="feature-table">
-              <thead><tr><th scope="col" data-copy="overviewRole">User</th><th scope="col" data-copy="overviewTasks">Main tasks</th></tr></thead>
+              <thead><tr><th scope="col" data-copy="overviewRole">使用者</th><th scope="col" data-copy="overviewTasks">主要用途</th></tr></thead>
               <tbody>
-                <tr><th scope="row" data-copy="studentRole">Students</th><td data-copy="studentTasks">Use a digital binder for assigned classwork, homework, corrections and past work; future work stays locked until released. Write by hand or complete approved interactive exercises with AI-assisted feedback, and keep scanned paper work in the same learning record.</td></tr>
-                <tr><th scope="row" data-copy="parentRole">Parents</th><td data-copy="parentTasks">Use QR attendance, check lessons, request leave, communicate with the centre in the app, view invoices and receipts, and upload payment proof.</td></tr>
-                <tr><th scope="row" data-copy="teacherRole">Teachers</th><td data-copy="teacherTasks">View classes and the teaching schedule, assign work from the progress chart, use AI-assisted marking, follow corrections and progress, and communicate with parents in the app.</td></tr>
-                <tr><th scope="row" data-copy="centreRole">Centre staff</th><td data-copy="centreTasks">Handle enrolment, scheduling and make-up lessons, use AI-assisted payment-proof review, issue receipts, complete final reconciliation and communicate with parents.</td></tr>
-                <tr><th scope="row" data-copy="hqRole">HQ and curriculum team</th><td data-copy="hqTasks">Organise and create materials with AI assistance, approve editions, manage centre permissions and oversee franchise operations.</td></tr>
+                <tr><th scope="row" data-copy="studentRole">學生</th><td data-copy="studentTasks">沿用資料夾概念，在數碼學習冊開啟老師派發的堂課及功課，作答、改正及重溫；日後習作須待老師開放。可手寫或完成互動練習，配合 AI 即時批改及回饋，亦可將紙本作答掃描上載，保留於同一學習紀錄。</td></tr>
+                <tr><th scope="row" data-copy="parentRole">家長</th><td data-copy="parentTasks">使用 QR 碼點名、查看課堂安排、提交請假申請、在應用程式與中心溝通、查閱帳單及收據，並上載付款證明。</td></tr>
+                <tr><th scope="row" data-copy="teacherRole">老師</th><td data-copy="teacherTasks">按班別查看學生及自己的授課日程，從學習進度表選取及派發習作，配合 AI 批改、跟進改正及學習進度，並在應用程式與家長溝通。</td></tr>
+                <tr><th scope="row" data-copy="centreRole">中心職員</th><td data-copy="centreTasks">處理報名、排課及補堂，配合 AI 審核付款證明、發出收據及完成最終對帳，並與家長溝通。</td></tr>
+                <tr><th scope="row" data-copy="hqRole">總部及教材編審團隊</th><td data-copy="hqTasks">整理教材並配合 AI 編製新內容、核准教材版本、管理各中心的使用權限，並監察加盟中心的營運。</td></tr>
               </tbody>
             </table>
           </div>
         </section>
         <section class="feature-detail">
-          <h2 data-copy="scopeOverview">Scope overview</h2>
+          <h2 data-copy="scopeOverview">範圍摘要</h2>
           <div class="feature-table-wrap">
             <table class="feature-table">
-              <thead><tr><th scope="col" data-copy="area">Area</th><th scope="col" data-copy="proposedScope">Proposed scope</th><th scope="col" data-copy="sections">Sections</th></tr></thead>
+              <thead><tr><th scope="col" data-copy="area">項目</th><th scope="col" data-copy="proposedScope">建議範圍</th><th scope="col" data-copy="sections">章節</th></tr></thead>
               <tbody>
-                <tr><th scope="row" data-copy="teaching">Student learning and teaching</th><td data-copy="teachingScope">Digital and paper learning through the student binder, full-page working, teacher assignment, marking and corrections, with linked paper scans and home practice.</td><td><a href="#student">02–03</a></td></tr>
-                <tr><th scope="row" data-copy="materials">Existing and new materials</th><td data-copy="materialsScope">Digitise the existing library, visually create digital worksheets and interactive activities, reuse approved questions, and control access, printing and authorised exports.</td><td><a href="#library">04–05</a></td></tr>
-                <tr><th scope="row" data-copy="operations">Centre and parent operations</th><td data-copy="operationsScope">Enrolment and student records, attendance, scheduling, leave, make-up lessons, temporary or ongoing timetable changes and parent communication.</td><td><a href="#system">06</a></td></tr>
-                <tr><th scope="row" data-copy="billing">Billing and reconciliation</th><td data-copy="billingScope">Invoice queues, staff review and approval of payment proof, receipt issuance, reminders and bank-statement reconciliation.</td><td><a href="#billing">07</a></td></tr>
-                <tr><th scope="row" data-copy="franchise">HQ and franchise management</th><td data-copy="franchiseScope">Centre permissions, approved curriculum, shared operating rules, oversight and access changes when staff or franchises leave.</td><td><a href="#franchise">08</a></td></tr>
-                <tr><th scope="row" data-copy="delivery">Delivery and commercial terms</th><td data-copy="deliveryScope">Pilot scope, responsibilities, acceptance criteria, phased rollout, pricing items, support and ownership.</td><td><a href="#rollout">09–10</a></td></tr>
+                <tr><th scope="row" data-copy="teaching">學生學習及老師教學</th><td data-copy="teachingScope">透過學生學習冊、全頁作答、老師派發及批改習作，銜接數碼與紙本學習，並加入紙本作答上載及課後自學。</td><td><a href="#student">02–03</a></td></tr>
+                <tr><th scope="row" data-copy="materials">現有教材及新教材編製</th><td data-copy="materialsScope">將現有教材數碼化，以拖放方式編製工作紙及互動內容，重用已核准題目，並管理教材取用、列印及授權匯出。</td><td><a href="#library">04–05</a></td></tr>
+                <tr><th scope="row" data-copy="operations">中心及家長事務</th><td data-copy="operationsScope">處理報名及學生紀錄、點名、排課、請假、補堂、臨時或恆常調堂，以及家長溝通。</td><td><a href="#system">06</a></td></tr>
+                <tr><th scope="row" data-copy="billing">收費及對帳</th><td data-copy="billingScope">跟進待處理帳單，由職員審核及批准付款證明後發出收據、發送繳費提醒，並核對銀行月結單。</td><td><a href="#billing">07</a></td></tr>
+                <tr><th scope="row" data-copy="franchise">總部及加盟管理</th><td data-copy="franchiseScope">管理各中心的權限及已核准教材，訂定共同營運規則並監察執行情況；職員離任或加盟合作結束時，按規定調整權限。</td><td><a href="#franchise">08</a></td></tr>
+                <tr><th scope="row" data-copy="delivery">交付及商業安排</th><td data-copy="deliveryScope">試行範圍、責任分工、驗收準則、分階段推展、報價項目、支援及擁有權。</td><td><a href="#rollout">09–10</a></td></tr>
               </tbody>
             </table>
           </div>
         </section>
         <section class="feature-detail">
-          <h2 data-copy="planningBasis">Planning basis</h2>
-          <p data-copy="planningBasisText">The proposal covers the existing teaching-material library and approximately 20,000 students across centres. The materials included in the first release and the pilot group must be confirmed before fees and delivery dates are agreed.</p>
-          <p class="document-note" data-copy="demoBoundary">Interactive examples use the current UI demo. Proposed functions and acceptance conditions are specified in the relevant sections; a demonstration does not establish readiness for live operation.</p>
+          <h2 data-copy="planningBasis">規劃依據</h2>
+          <p data-copy="planningBasisText">本建議書以現有教材庫及各中心約 20,000 名學生的使用需要作規劃。議定費用及交付日期前，須先確認首階段納入的教材和參與試行的中心及使用者。</p>
+          <p class="document-note" data-copy="demoBoundary">頁內互動示範以目前的瀏覽器介面展示操作流程，並非上述原生應用程式的交付版本。建議功能及驗收條件詳見各節；示範可供操作，不代表已通過正式營運驗收。</p>
         </section>
-        <div class="document-links"><a href="#student" data-copy="learningLink">02. Student learning experience</a><a href="#proposal" data-copy="termsLink">10. Scope and commercial terms</a></div>
+        <div class="document-links"><a href="#student" data-copy="learningLink">02. 學生學習體驗</a><a href="#proposal" data-copy="termsLink">10. 範圍及商業安排</a></div>
       </section>
     </main>
-    <footer class="presentation-footer" id="presentation-footer" hidden><button id="prev">← Previous</button><span id="slide-counter">01 / 10</span><button id="next">Next →</button></footer>
+    <footer class="presentation-footer" id="presentation-footer" hidden><button id="prev">← 上一章</button><span id="slide-counter">01 / 10</span><button id="next">下一章 →</button></footer>
   </div>
-  <dialog id="detail-dialog" aria-labelledby="dialog-title"><div class="dialog-heading"><h2 id="dialog-title"></h2><button class="icon-button" id="close-dialog" aria-label="Close dialog">×</button></div><div id="dialog-body"></div></dialog>
+  <dialog id="detail-dialog" aria-labelledby="dialog-title"><div class="dialog-heading"><h2 id="dialog-title"></h2><button class="icon-button" id="close-dialog" aria-label="關閉視窗">×</button></div><div id="dialog-body"></div></dialog>
   <div id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

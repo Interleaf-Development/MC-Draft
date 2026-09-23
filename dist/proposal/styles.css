@@ -151,7 +151,8 @@ p { color: var(--muted); }
 .demo-expand { flex-shrink: 0; padding: 6px 9px; border: 1px solid #ccc; border-radius: 3px; background: #fff; color: #333; font-size: 12px; line-height: 1.5; white-space: nowrap; }
 .demo-window-actions { display: flex; align-items: center; gap: 10px; }
 .demo-full-game { font-size: 12px; white-space: nowrap; }
-.live-demo-game .demo-viewport { background: #edf1ee; }
+.live-demo-game .demo-viewport { min-height: 0; background: #edf1ee; }
+.live-demo-game.is-expanded .actual-demo-frame { top: 50%; translate: -50% -50%; transform-origin: center; }
 .demo-viewport { position: relative; display: flex; justify-content: center; min-height: 240px; overflow: hidden; background: #f2f2f2; }
 .actual-demo-frame { position: absolute; top: 0; left: 50%; display: block; flex-shrink: 0; border: 0; translate: -50% 0; transform-origin: top center; background: #f4f6f9; }
 .demo-loading { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #f6f6f6; }

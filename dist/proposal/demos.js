@@ -27,7 +27,7 @@ const scenes = {
   billing: ['billing','parentPayments'],
   franchise: ['tw','hh']
 };
-const dimensions = {admin:[1440,1000],teacher:[1440,1000],student:[1024,1366],parent:[390,844],game:[675,900]};
+const dimensions = {admin:[1440,1000],teacher:[1440,1000],student:[1024,1366],parent:[390,844],game:[960,540]};
 const selection = new Map();
 const frames = new Map();
 let active = null, initialised = false, phase = 0, notify = () => {};
@@ -68,18 +68,22 @@ function shell(id) {
 function sizeFrame(entry = active) {
   if (!entry || !entry.stage.clientWidth) return;
   const {frame,stage,box,view} = entry;
-  if (box.classList.contains('is-expanded')) {
+  const expanded=box.classList.contains('is-expanded');
+  if(view.role==='game') {
+    // Keep the race in landscape, scaling the whole view on narrow screens.
+    const [minimumWidth,minimumHeight]=dimensions.game;
+    const width=Math.max(minimumWidth,stage.clientWidth);
+    const height=width*minimumHeight/minimumWidth;
+    if(expanded)stage.style.height='';
+    const scale=Math.min(1,stage.clientWidth/width,expanded?stage.clientHeight/height:1);
+    if(!expanded)stage.style.height=Math.ceil(height*scale)+'px';
+    frame.style.width=width+'px';
+    frame.style.height=height+'px';
+    frame.style.transform=`scale(${scale})`;
+  } else if (expanded) {
     stage.style.height='';
     frame.style.width=stage.clientWidth+'px';
     frame.style.height=stage.clientHeight+'px';
-    frame.style.transform='none';
-  } else if(view.role==='game') {
-    // Let the real game respond to this width, keeping touch controls full-size.
-    const width=Math.min(675,stage.clientWidth);
-    const height=Math.max(600,Math.min(900,Math.round(width*4/3)));
-    stage.style.height=height+'px';
-    frame.style.width=width+'px';
-    frame.style.height=height+'px';
     frame.style.transform='none';
   } else {
     const [width,height] = dimensions[view.role]||dimensions.admin;

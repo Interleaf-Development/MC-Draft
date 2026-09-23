@@ -426,8 +426,9 @@ test('the game preloads alongside the student binder and follows viewport, chapt
   h.ready('student', 'student', 'work'); h.ready('game', 'game', 'race');
   const student = h.frame('student'), game = h.frame('game');
   assert.equal(new URL(game.src, origin).pathname, '/game1/');
-  assert.equal(game.style.width, '675px');
-  assert.equal(game.style.transform, 'none');
+  assert.equal(game.style.width, '960px');
+  assert.equal(game.style.height, '540px');
+  assert.equal(game.style.transform, 'scale(0.9375)');
   assert.equal(h.host('game').querySelector('a').href, '/game1/');
   assert.equal(messages(game, 'mc-proposal:activate').length, 0);
 
@@ -448,7 +449,7 @@ test('the game preloads alongside the student binder and follows viewport, chapt
   assert.equal(h.frame('student'), student);
 });
 
-test('a hidden document never starts an embedded game and a narrow frame retains usable controls', () => {
+test('a hidden document never starts an embedded game and a narrow frame preserves landscape without clipping', () => {
   const h = harness('#student'); h.init(); h.warm();
   const game = h.frame('game'), stage = h.host('game').querySelector('.demo-viewport');
   h.document.hidden = true;
@@ -457,9 +458,17 @@ test('a hidden document never starts an embedded game and a narrow frame retains
   assert.equal(messages(game, 'mc-proposal:activate').length, 0);
   stage.clientWidth = 360;
   h.emit('resize');
-  assert.equal(game.style.width, '360px');
-  assert.equal(game.style.height, '600px');
-  assert.equal(game.style.transform, 'none');
+  assert.equal(game.style.width, '960px');
+  assert.equal(game.style.height, '540px');
+  assert.equal(game.style.transform, 'scale(0.375)');
+  assert.equal(stage.style.height, '203px');
+  stage.clientWidth = 900;
+  stage.clientHeight = 400;
+  h.emit('click', { target: h.host('game').querySelector('[data-demo-expand]') });
+  assert.equal(game.style.width, '960px');
+  assert.equal(game.style.height, '540px');
+  assert.equal(game.style.transform, `scale(${400/540})`);
+  assert.equal(stage.style.height, '');
 });
 
 test('scrolling within the student chapter keeps the visible game active rather than resetting to its binder', () => {

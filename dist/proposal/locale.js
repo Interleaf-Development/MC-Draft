@@ -1,18 +1,18 @@
 export function getProposalLanguage(url) {
-  return url.searchParams.get('lang') === 'zh-HK' ? 'zh-HK' : 'en';
+  return ['eng', 'en'].includes(url.searchParams.get('lang')) ? 'en' : 'zh-HK';
 }
 
-export function proposalLanguageUrl(href, nextLanguage, { chapter, present = false } = {}) {
+export function proposalLanguageUrl(href, nextLanguage, { chapter, present } = {}) {
   const url = new URL(href);
-  if (nextLanguage === 'zh-HK') url.searchParams.set('lang', 'zh-HK');
+  if (nextLanguage === 'en' || nextLanguage === 'eng') url.searchParams.set('lang', 'eng');
   else url.searchParams.delete('lang');
-  if (present) url.searchParams.set('view', 'present');
-  else url.searchParams.delete('view');
+  if (present === true) url.searchParams.set('view', 'present');
+  else if (present === false) url.searchParams.delete('view');
   if (chapter) url.hash = chapter;
   return url.pathname + url.search + url.hash;
 }
 
-export const language = typeof location === 'undefined' ? 'en' : getProposalLanguage(new URL(location.href));
+export const language = typeof location === 'undefined' ? 'zh-HK' : getProposalLanguage(new URL(location.href));
 export const t = (en, zh) => language === 'zh-HK' ? zh : en;
 
 // This copy belongs to the proposal. The embedded application keeps its own

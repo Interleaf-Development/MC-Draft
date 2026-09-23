@@ -7,21 +7,35 @@ import * as chinese from '../dist/proposal/content.zh-HK.js';
 
 const base = 'https://mc-draft-rho.vercel.app';
 
+test('the proposal defaults to Hong Kong Traditional Chinese and accepts explicit English links', () => {
+  for (const query of ['', '?lang=zh-HK', '?lang=unknown']) {
+    assert.equal(getProposalLanguage(new URL('/proposal/' + query, base)), 'zh-HK');
+  }
+  for (const query of ['?lang=eng', '?lang=en']) {
+    assert.equal(getProposalLanguage(new URL('/proposal/' + query, base)), 'en');
+  }
+});
+
 test('proposal language links preserve the current chapter, presentation mode and other query parameters', () => {
-  const original = base + '/proposal/?campaign=pilot#operations';
+  const original = base + '/proposal/?lang=eng&campaign=pilot#operations';
   const translated = new URL(proposalLanguageUrl(original, 'zh-HK', { chapter: 'billing', present: true }), base);
   assert.equal(getProposalLanguage(translated), 'zh-HK');
+  assert.equal(translated.searchParams.has('lang'), false);
   assert.equal(translated.hash, '#billing');
   assert.equal(translated.searchParams.get('campaign'), 'pilot');
   assert.equal(translated.searchParams.get('view'), 'present');
   const restored = new URL(proposalLanguageUrl(translated, 'en', { chapter: 'billing', present: true }), base);
   assert.equal(getProposalLanguage(restored), 'en');
+  assert.equal(restored.searchParams.get('lang'), 'eng');
   assert.equal(restored.hash, '#billing');
   assert.equal(restored.searchParams.get('view'), 'present');
-  const reading = new URL(proposalLanguageUrl(restored, 'zh-HK', { chapter: 'student' }), base);
+  const reading = new URL(proposalLanguageUrl(restored, 'zh-HK', { chapter: 'student', present: false }), base);
   assert.equal(reading.searchParams.has('view'), false);
   assert.equal(reading.hash, '#student');
-  assert.equal(getProposalLanguage(new URL('/proposal/?lang=unknown', base)), 'en');
+  const unchangedView = new URL(proposalLanguageUrl(restored, 'zh-HK'), base);
+  assert.equal(unchangedView.searchParams.get('campaign'), 'pilot');
+  assert.equal(unchangedView.searchParams.get('view'), 'present');
+  assert.equal(unchangedView.hash, '#billing');
 });
 
 test('both proposal languages expose the same chapters, live demos and references', () => {
@@ -46,4 +60,9 @@ test('both proposal languages expose the same chapters, live demos and reference
 test('all marked cover and navigation text has a locale entry', async () => {
   const html = await readFile(new URL('../dist/proposal/index.html', import.meta.url), 'utf8');
   for (const [, key] of html.matchAll(/data-copy="([^"]+)"/g)) assert.equal(typeof shellText[key], 'string', key);
+  assert.match(html, /<html lang="zh-HK">/);
+  assert.match(html, /href="\?lang=eng" hreflang="en"/);
+  for (const [, key, text] of html.matchAll(/data-copy="([^"]+)"[^>]*>([^<]*)</g)) {
+    assert.equal(text, shellText[key], key + ' defaults to the approved Chinese copy');
+  }
 });
