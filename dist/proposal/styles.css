@@ -13,7 +13,7 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--proposal-header-height, 112px) + 6px); }
 body { margin: 0; font-size: 14px; line-height: 1.6; }
 button, input, select, textarea { font: inherit; }
 button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
@@ -51,7 +51,8 @@ p { color: var(--muted); }
 .draft-mark { font-size: 10px; font-weight: 600; letter-spacing: .05em; color: var(--muted); }
 .sidebar-bottom p { margin-top: 4px; font-size: 11px; line-height: 1.55; }
 .page-shell { margin-left: var(--nav); min-width: 0; }
-.topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 58px; padding: 10px 32px; background: #fff; border-bottom: 1px solid var(--line); }
+.topbar { position: sticky; top: 0; z-index: 40; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; min-height: 58px; padding: 10px 32px; background: #fff; border-bottom: 1px solid var(--line); }
+.proposal-demo-notice { flex: 0 0 100%; padding-bottom: 8px; border-bottom: 1px solid var(--line); color: #79323a; font-size: 13px; font-weight: 500; line-height: 1.6; }
 .breadcrumb { display: flex; align-items: center; min-width: 0; gap: 10px; color: #777; font-size: 12px; }
 .breadcrumb span:last-child { color: var(--ink); }
 #chapter-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -274,7 +275,7 @@ dialog::backdrop { background: #0006; }
 dialog select, dialog input:not([type=checkbox]), dialog textarea { min-width: 0; max-width: 100%; padding: 8px 10px; border: 1px solid #bbb; border-radius: 3px; background: #fff; color: var(--ink); font-size: 13px; }
 textarea { width: 100%; resize: vertical; }
 .present-mode .chapter { display: none; }
-.present-mode .chapter.current { display: block; min-height: calc(100dvh - 112px); }
+.present-mode .chapter.current { display: block; min-height: calc(100dvh - var(--proposal-header-height, 112px) - 54px); }
 .present-mode main { padding-bottom: 54px; }
 .present-mode .document-footer { display: none; }
 .presentation-footer { position: fixed; bottom: 0; left: var(--nav); right: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 54px; padding: 0 32px; border-top: 1px solid var(--line); background: #fff; }

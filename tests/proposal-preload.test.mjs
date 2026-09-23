@@ -160,6 +160,7 @@ function harness(hash = '#teacher') {
     loadApp() {
       for (const child of [...body.children]) child.remove();
       body.append(new Element('meta', { name: 'description' }));
+      body.append(new Element('header', { class: 'topbar' }));
       for (const id of ['chapters', 'menu', 'references', 'close-dialog', 'prev', 'next', 'language-switch', 'main', 'detail-dialog', 'dialog-title', 'dialog-body', 'toast', 'chapter-label', 'slide-counter', 'mode', 'presentation-footer', 'sidebar', 'print-document']) {
         body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
       }

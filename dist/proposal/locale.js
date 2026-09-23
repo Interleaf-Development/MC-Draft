@@ -23,6 +23,7 @@ export const shellText = {
   draftMark: t('SYSTEM PROPOSAL', '系統建議書'),
   draftDate: t('23 September 2026', '2026年9月23日'),
   draftNote: t('Draft for discussion', '初稿，供討論用'),
+  demoNotice: t('All demos in this proposal are for illustration and discussion only, not the final product. Design, features and workflows are not finalized and will be refined based on mutually agreed requirements.', '本建議書內所有示範僅供說明及討論，並非最終成品；設計、功能及操作流程均未定稿，將按雙方確認的需求調整。'),
   print: t('Print', '列印'),
   documentType: t('System proposal', '系統功能建議'),
   documentTitle: t("1. MathConcept Paperless Teaching & Centre Management System", "1. MathConcept 無紙化教學及中心管理系統"),

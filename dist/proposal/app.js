@@ -8,6 +8,9 @@ const chapterIndex = hash => { const id = hash.replace(/^#/, ''); return chapter
 import { initDemos, activateDemo, demoIsSaving, demoNavigationBlocked } from './demos.js';
 document.documentElement.lang=language;
 for(const element of document.querySelectorAll('[data-copy]'))element.textContent=shellText[element.dataset.copy];
+const topbar=document.querySelector('.topbar');
+const measureHeader=()=>document.documentElement.style.setProperty('--proposal-header-height',topbar.getBoundingClientRect().height+'px');
+measureHeader();new ResizeObserver(measureHeader).observe(topbar);
 document.querySelector('meta[name="description"]').content=t('MathConcept system proposal: digital learning, teaching materials, centre management and the parent app.','MathConcept 系統建議書，涵蓋數碼學習、教材管理、中心營運及家長應用程式。');
 for(const [id,label] of Object.entries({chapters:t('Proposal chapters','建議書章節'),menu:t('Open contents','開啟目錄'),references:t('Open reference documents','開啟參考文件'),'close-dialog':t('Close dialog','關閉視窗')}))document.getElementById(id).setAttribute('aria-label',label);
 document.getElementById('prev').textContent=t('← Previous','← 上一章');
