@@ -6,37 +6,36 @@ const demo = (id,label='MathConcept workflows') => `<div class="demo-wrap"><div 
 export const chapters = [
  {id:'vision',title:'Proposal overview'},
 
- {id:'student',title:'Student learning experience',heading:'Student learning experience',intro:'Students currently keep their paper binders at the centre, with homework and corrections added by their teacher. The digital binder keeps the familiar past, current and future sections. Centres provide tablets for students to sign in, access their work and record attendance. Teachers send worksheets directly to the binder; students use a portrait tablet and stylus to complete them. For validated, straightforward question types, AI-assisted marking can check answers and provide immediate feedback against approved answers. Teachers continue to review work and follow up corrections.',body:
+ {id:'student',title:'Student learning experience',heading:'The student’s digital learning workflow',intro:'Each student’s binder currently stays at the centre for use during lessons, with homework and corrections added by the teacher. After digitisation, students will use their digital binder in the same familiar way. The centre will prepare enough tablets for students to sign in and access their own learning materials when they arrive; the system can also record their attendance at the same time. The digital binder has three sections: past, current and future work. Teachers can send worksheets directly through the system, and students receive them immediately on their tablets. Students mainly use a portrait tablet and stylus to answer. For simple, straightforward questions, the app can use AI on the tablet to mark answers against the reference answers; work can also be passed to the teacher for marking and follow-up corrections.',body:
   demo('student','Student binder and worksheet working')+
-  detail('Paper and digital learning together',`<p>Students who continue using paper can receive authorised printed worksheets. After completing the work, a photograph or scan is uploaded to the student’s learning record, keeping paper work available alongside digital assignments for teacher review and follow-up.</p>`)+
+  detail('Hybrid learning with paper',`<p>If students or parents prefer to keep using paper, photographs or scans can digitise the student’s records and bring them into the system.</p>`)+
   detail('Writing space and retained work',list([
-   'Opening a worksheet prioritises the page and stylus working area. When the student returns, saved handwriting remains aligned with the original questions; teacher marking and student corrections stay with the same assignment and issued edition.',
+   'When a worksheet is reopened, saved handwriting remains aligned with the original questions. Teacher marking and student corrections are retained in the same worksheet.',
    'Automatic marking applies only to validated question types. Teachers remain responsible for judging handwritten reasoning and solution methods.'
   ]))+
-  detail('Learning at home',`<p>Students can sign into their account from home on a computer, tablet or phone. Based on the topics they are learning, the proposed system can use AI to help prepare interactive practice, learning games and supporting explanations. Approved content and agreed teaching rules guide the questions, difficulty and feedback. Future worksheets remain unavailable until the teacher releases them.</p><p>The addition racing game below demonstrates one possible form of practice, using eight single-digit addition questions. Students steer towards an answer box, gaining a speed boost for a correct answer and slowing down after a wrong one. The playable example does not yet adapt to a student’s learning record or generate curriculum content with AI.</p>`)+
+  detail('Learning at home',`<p>Students can also log in to their account at home, with a desktop, iPad or even phone. Based on what they are learning, our system can use AI to generate interactive self-learning games, practice questions or content for them to learn at home.</p><p>The Maths Kart demo below uses eight single-digit addition questions: students steer towards the correct answer to speed up and slow down if they choose incorrectly. This is a playable example of interactive practice; AI content generation based on student progress is part of the proposed delivery scope.</p>`)+
   demo('game','Maths Kart: addition practice')},
 
- {id:'teacher',title:'Teacher assignment and feedback',heading:'Teacher assignment and feedback',intro:'Teachers continue using the familiar progress chart, with digitised materials held in a controlled internal library. They select a scheduled class and student, choose the appropriate worksheets and send them directly to the student’s binder, then use AI-assisted marking, review answers and follow up corrections. There is no need to search personal computer folders or save teaching originals locally. When paper is needed, authorised teachers can request printing directly from the system without first downloading a source file. Normal teaching accounts do not provide original-file downloads.',body:
+ {id:'teacher',title:'Teacher assignment and feedback',heading:'Teacher assignment and feedback',intro:'Teachers continue using the familiar progress chart. Digitised materials will be stored together in the internal system, rather than on an openly accessible shared cloud drive. Teachers will not need to—and cannot—find or save materials on their personal computers. They only need to select the required content on the student’s progress chart, and the system sends it directly to the student. After choosing a class and student, teachers can click worksheets to assign them, then view answers and follow up corrections. When paper is needed, teachers can print materials within their authorised scope, directly from the system, without first creating or downloading a file on their computer.',body:
   demo('teacher','Class selection, progress and assignment')},
 
- {id:'library',title:'Material digitisation and authoring',heading:'Digitising materials and creating new worksheets',intro:'Prepare the existing teaching-material library for digital lessons in stages. First organise the catalogue and make approved original worksheets available for tablet working and marking. Then prepare reusable questions and verified editable content. Alongside this migration, a visual authoring workspace lets approved authors create new worksheets and interactive activities for digital learning and authorised printing.',body:
+ {id:'library',title:'Material digitisation and authoring',heading:'Digitising materials and creating new worksheets',intro:'Existing materials can be converted for digital teaching in stages. First organise the catalogue so the original worksheets can be answered and marked on tablets; then gradually organise questions into reusable, editable content. This allows a pilot with selected materials before expanding the library.',body:
   demo('library','Curriculum catalogue and assignment')+
   detail('Preparing and converting the existing library',table(['Stage','Usable result','Review and acceptance'],[
-   ['1. Catalogue the collection','Organise materials by grade, topic, collection and familiar worksheet codes. Identify formats, condition, duplicates and existing editions.','Confirm the approved source for each worksheet. Preserve intentional revisions and correct catalogue exceptions.'],
-   ['2. Use the original worksheets digitally','Preserve the approved page layout for teacher assignment, student handwriting and marking. Keep the original collection within the controlled library.','Check layout, page count, equations, diagrams and working space on the agreed tablets. A worksheet can be ready for digital teaching without yet being editable.'],
-   ['3. Prepare reusable questions','Make verified questions, diagrams and corresponding answers available for use in new worksheets, retaining their source and curriculum context.','Agree which grades and worksheet families to prioritise. Check question boundaries, related parts and answer associations before reuse.'],
-   ['4. Approve editable content','Let authorised authors edit verified wording, equations, diagrams and answers and publish new editions.','Searchable content is not necessarily suitable for editing. Agree conversion coverage and quality requirements, and verify mathematical accuracy against the original.']
+   ['1. Catalogue the collection','Build the catalogue using the existing grades, topics, collections and worksheet numbers, so teachers can find what they need.','Check the classifications, file completeness, duplicate content and which version to use.'],
+   ['2. Use the original worksheets on tablets','Preserve the layout of approved worksheets for teacher assignment, student handwriting and teacher marking.','Check layout, page count and writing positions. After this step, materials can be used for digital teaching, but may not yet be editable word by word.'],
+   ['3. Prepare reusable questions','Organise verified questions, diagrams and answers as individual items that can later be combined into worksheets.','Choose the grades and collections to prioritise, retaining each question’s source and version.'],
+   ['4. Create editable content','Convert text, equations, diagrams and answers into editable content, ready for future authoring and revisions after checking.','Searchable questions are not necessarily ready for editing. Conversion coverage and quality requirements must be agreed separately.']
   ]))+
   detail('Quality checks and migration acceptance',list([
-   'Check decimal points, fractions, units, diagrams, question parts and corresponding answers against the original materials.',
-   'Retain original editions and revision history, distinguishing duplicate files from intentional versions. Report catalogue coverage, worksheets ready for digital use, verified questions and outstanding items separately.',
+   'Check decimal points, fractions, units, diagrams, question parts and the links between questions and answers, so the converted content is suitable for teaching.',
+   'Retain the original materials and revision history, distinguishing duplicate files from different versions. The report will list usable materials, verified questions and outstanding items.',
    'Keep materials that cannot yet be converted faithfully in their original page form for review. Do not count unverified questions as completed editable content.',
-   'Accept library migration and verified editable conversion as separate outcomes, with separate work scopes and costs.',
+   'Accept two outcomes separately: which materials can be used in the system, and how many questions have been verified and are editable. Agree their work scopes and costs separately.',
    'The catalogue demo uses supplied curriculum indexes, with sample questions for P3 and P6. The other worksheets still require their original files; editable conversion is not yet complete.'
   ]))+
-  detail('Visual worksheet and activity creation',`<p>Authors can start with a blank page and drag text, mathematical symbols, equations, images, diagrams, answer fields and working areas into place. The same material can support online exercises or learning games while retaining a clear printed version. AI can help draft questions, hints, solutions, layouts and interactive content for authors to check and refine.</p>`)+
-  detail('Reuse, review and publication',`<p>Authors can reuse approved questions and layouts, retaining their source and edition. They set handwriting, typed-answer or diagram response areas, with answers and marking guidance. They preview portrait-tablet and A4 versions to check readability, page breaks and writing space. AI output remains a draft: the wording, answers, difficulty and solution methods require review before publication. An approved revision becomes a new edition; work already issued retains the version received by the student.</p><p>The supported response formats, interactive question types and automatic-marking rules are agreed against teaching needs and pilot results.</p>`)+
-  detail('Traditional formats and authorised export',`<p>Existing PDF and other traditional-format materials can remain in the controlled library alongside newly authored content, with access, assignment and printing governed by permissions. Where an established workflow or handover requires it, specifically authorised HQ users can export agreed materials as PDF or Word documents. This export permission is separate from normal teaching access; general teacher accounts do not provide original-file downloads.</p>`)+
+  detail('Creating and approving new materials',`<p>Build a material-editing platform similar to Wix or Canva, where teachers can create and edit worksheets and interactive exercises by dragging and dropping. The platform can gradually add mathematical-symbol entry and formula editing with tools such as MathType. AI can also generate content, layouts, Python code or custom HTML interactive components for teachers to check and adjust. This gives teachers more freedom to design layouts and turn the same material into online interactive exercises or games, while retaining printing. Where needed, materials can also be exported as PDF or Word documents to fit existing workflows. AI can help generate questions, hints, solutions and interactive content for teachers to review and edit.</p>`)+
+  detail('Keeping traditional-format materials',`<p>Existing materials such as PDFs can also be stored in the controlled library and managed alongside new content, with viewing, assignment and printing governed by permissions. Normal teaching accounts do not provide original-file downloads. Originals, answers and student work are managed separately; access and printing must stay within the user’s authorisation.</p>`)+
   detail('Editorial responsibilities and answer access',list([
    'MathConcept names the authors, mathematical reviewers and staff authorised to approve publication.',
    'Student materials, search results and exports must not expose restricted answers or teacher notes.',
@@ -44,8 +43,8 @@ export const chapters = [
   ]))},
 
  {id:'protection',title:'Curriculum access and printing',heading:'Curriculum access and printing',intro:'HQ retains the master collection and approves materials before centres and teachers use them. Permissions follow each user’s role, centre and authorised curriculum. Distribution and printing records help HQ review use of the materials.',body:
-  detail('Curriculum access',`<p>Users receive the approved materials permitted for their role, centre and curriculum. Originals, student work and answer keys are managed separately. HQ determines what can be published and who may access it; teaching access does not grant unrestricted access to the original collection.</p>`)+
-  detail('Authorised printing',`<p>Set which materials may be printed and the permitted volumes, and record whether each request completed, failed or needs follow-up. Agree the printers, printing arrangements and usage policy during the pilot, with named staff responsible for exceptions. Teachers request printing without downloading originals; the centre’s procedures also cover access to printing equipment and the care of printed copies.</p>`)+
+  detail('Curriculum access',`<p>Users receive approved materials according to their role, centre and authorised curriculum. Originals, student work and answers are managed separately. HQ decides what may be published and who may access it.</p>`)+
+  detail('Authorised printing',`<p>Set which materials may be printed and the permitted volumes, and record whether each print completed, failed or needs follow-up. Select the printers, printing arrangements and usage policy during the pilot, and name the staff responsible for exceptions.</p>`)+
   detail('Tracing the source of a copy',`<p>Use worksheet editions, issuing centres, user accounts and printing records to help establish a copy’s distribution history. Test the usefulness of tracing under agreed scan, photograph and photocopy conditions before confirming the achievable identification results.</p>`)+
   detail('Ending access',`<p>Stop further material access when an account or centre is disabled, or a franchise relationship ends. Previously printed, photographed or separately copied material cannot be recalled.</p>`)+
   detail('Protection scope and practical limits',list([
@@ -54,22 +53,23 @@ export const chapters = [
    'A copy trace or unusual usage record is an investigation lead. It does not by itself establish who disclosed material or prove misconduct.'
   ]))},
 
- {id:'system',title:'Centre administration and scheduling',heading:'Centre administration, scheduling and parent communication',intro:'Staff manage enrolment, class arrangements, parent communication and fees in one system, using the relevant student and lesson records. Leave, make-up lessons and timetable changes are handled together, with confirmed arrangements clearly separated from requests still awaiting staff follow-up.',body:
+ {id:'system',title:'Centre administration and scheduling',heading:'Centre administration, scheduling and parent communication',intro:'The centre can manage enrolment, class arrangements, parent communication and fees in one system, reducing repeated checks between different spreadsheets and records. HQ, centre staff, teachers, parents and students each have an appropriate interface and can view and handle information within their authorised scope. Leave, make-up lessons and timetable changes are handled together in the timetable. Parents can submit leave and preferred replacement dates; staff agree the actual make-up time with parents. The system clearly distinguishes confirmed arrangements from requests awaiting follow-up.',body:
   demo('operations','Leave, timetable changes and make-up lessons')+
-  detail('Enrolment and student records',`<p>Staff review applications, maintain student information and arrange assessments and first-enrolment invoices. Approval of the first-enrolment payment activates enrolment. Authorised staff can find remaining lesson dates, lesson remarks and relevant records when following up a student’s case.</p>`)+
-  detail('Timetables and availability',`<p>View teachers’ schedules, unavailable periods and attendance records. Student sign-in or QR check-in supports the centre’s attendance process. Move a lesson to another slot or into the leave bin, and drag an agreed make-up lesson back onto the calendar. Keyboard controls provide an alternative to dragging. Before confirming a move, staff check teacher availability, class capacity and time clashes.</p>`)+
-  detail('Leave and make-up arrangements',`<p>A successful parent leave request marks the original lesson as cancelled and adds a compact student strip to the leave bin. Parents can suggest preferred replacement dates; the app makes clear that staff will contact them to complete the arrangement. Once the time is agreed, staff move the strip to the confirmed calendar slot. The pending item is removed and the original leave record is retained. A suggested date alone never confirms a replacement lesson.</p>`)+
+  detail('Enrolment and follow-up',`<p>Handle enrolment, timetables, leave and make-up lessons, parent enquiries, invoices and receipts. Confirm class arrangements and follow up payment differences and other outstanding work.</p>`)+
+  detail('Timetable operations',`<p>Drag a lesson to another time or into the leave bin, or drag a student awaiting a make-up lesson back onto the timetable. Keyboard controls are also available. Before confirmation, check teacher availability, class capacity and time clashes.</p>`)+
+  detail('Leave and make-up arrangements',`<p>After a successful parent leave request, the original lesson is crossed out and a compact student item appears in the leave bin. Once staff and the parent agree a time, staff can drag the student from the leave bin back onto the timetable to arrange the make-up. The pending item is then removed and the original leave record retained. Submitting a preferred date does not mean the make-up lesson is confirmed.</p>`)+
   detail('One-off, temporary and ongoing timetable changes',`<p>Staff can move one lesson or change the regular timetable from a specified date. Leaving the end date unset makes the change ongoing; setting an end date makes it temporary, with the original arrangement resuming afterwards. Review the affected lessons and compare lesson counts before confirming.</p>`)+
-  detail('Changes to lesson entitlement',`<p>Show additional or fewer lessons resulting from a timetable change. Staff explicitly decide whether to allow an extra lesson or retain a make-up credit for a reduction. Link schedule and receipt amendments, retain the previous records and record the reason for the change. Document revision and date-handling rules are agreed separately.</p>`)+
-  detail('Parent communication and handover',`<p>Parents, teachers and centre staff communicate through the app. Keep messages, lesson remarks and follow-up records with the relevant student and lesson, so an authorised colleague can take over a case with the necessary context.</p>`)+
-  detail('Payment work and outstanding actions',`<p>Staff can use AI to organise information from uploaded payment proof, then check it against the invoice before approving and issuing a receipt. They handle payment reminders and separately complete final bank reconciliation. The billing section below sets out the queues and confirmation rules. Scheduling requests and unresolved payment differences remain visible for follow-up.</p>`)+
+  detail('Changes to lesson counts',`<p>Clearly show the additional or fewer lessons resulting from a timetable change. Staff decide whether to approve extra lessons or retain a corresponding make-up credit when lessons decrease.</p>`)+
+  detail('Student and communication records',`<p>View remaining lesson dates, lesson remarks and parent communications. Records stay with the relevant student and lesson so other staff can take over and follow up.</p>`)+
+  detail('Change records',`<p>Keep the original lesson and receipt records and record the reason for the change. Document revision and date-handling rules must be agreed separately.</p>`)+
+  detail('Payment checks and outstanding work',`<p>Use AI to help review payment proof, issue receipts and complete final reconciliation. The billing section explains the full workflow.</p>`)+
   detail('Records, permissions and demonstration scope',list([
-   'Each role sees only the student records and materials it is permitted to use. Assigned work retains its issued edition, and restricted answers remain available only to authorised staff.',
+   'Assigned work retains the material version used at the time, so students answer and teachers mark the same content. Restricted answers are available only to authorised users.',
    'The demo includes Admin, Teacher, Parent and Student workflows. Demonstration records do not sync across devices; payment checks are simulated.',
    'HQ publishing, curriculum permissions, controlled printing and live operational support are proposed additions. Delivery follows the agreed scope and acceptance conditions.'
   ]))},
 
- {id:'billing',title:'Invoice review and bank reconciliation',heading:'Invoice review and bank reconciliation',intro:'Billing follows one sequence: invoice → parent payment proof → staff approval → receipt. Final audit separately compares issued receipts with bank records and identifies unresolved differences.',body:
+ {id:'billing',title:'Invoice review and bank reconciliation',heading:'Invoice review and bank reconciliation',intro:'Billing follows the sequence: invoice → parent payment proof → staff review and approval → receipt. Bank statements are then checked to confirm whether actual credits match the receipt records. Receipt issuance and bank reconciliation have separate progress records, helping staff follow up unfinished work.',body:
   demo('billing','Payment review, receipts and final audit')+
   detail('Invoice creation and payment deadlines',table(['Charge','When the invoice is issued','Payment or enrolment rule'],[
    ['Paid assessment','Create the assessment invoice when a paid assessment is booked.','Show the assessment date, amount and payment deadline.'],
@@ -85,64 +85,67 @@ export const chapters = [
    ['Successful review','Issue the receipt, close the popup, refresh the current filtered list and briefly show confirmation. Move the invoice to 已發收據.','Approve first-enrolment payment and activate enrolment together; later renewal payments do not repeat activation.'],
    ['Saving and recovery','Block closing the popup or navigating away while saving. If saving fails or the result is uncertain, keep the review open with its contents and recovery action available.','Resolve an uncertain result before issuing another receipt; repeated attempts must not create duplicate receipts.'],
    ['Reminders and archive','Record reminders and prevent repeats within 24 hours. Retain cancelled and void invoices in a separate archive.','Staff can review the reminder and cancellation history.'],
-   ['Final audit','Upload bank statements to compare with issued receipts. Suggest matches, prevent duplicate transaction records and double allocation of a bank credit, and flag missing, extra or ambiguous matches.','Keep final audit separate from payment approval; staff resolve unexplained differences.'],
-   ['Transaction dates','Keep payment initiation, proof submission, receipt issuance and bank posting dates distinct.','Use the relevant date for review and final audit.']
+   ['Final audit','Upload bank statements to match bank credits with issued receipts and list unmatched records, extra payments and uncertain matches.','Avoid counting a transaction twice or using the same credit to confirm payment more than once. Staff follow up unexplained differences.'],
+   ['Other payment arrangements','Cash, cheques, combined payments, partial payments and refunds follow their respective workflows.','Agree the rules separately. Direct bank connections are optional and require bank confirmation before separate assessment.']
   ])+
-  detail('Payment exceptions and validation',list([
-   'Agree handling for cash, cheques, combined payments, partial payments and refunds. An optional direct bank connection is subject to confirmation.',
-   'Payment checks and automatic invoicing in the demonstration are simulated. Validate proof review, billing dates and reconciliation rules against representative records before live use.'
+  detail('Dates and reconciliation records',list([
+   'Record the parent’s payment initiation date, proof submission date, receipt issue date and bank posting date separately; there is no need to assume they are the same.',
+   'Show receipt progress and bank reconciliation progress separately. An issued receipt may still await bank reconciliation.',
+   'The basic reconciliation approach uses bank statements. Confirm available record formats, matching conditions and payment-allocation rules before live use.',
+   'Payment checks and automatic invoicing in the demonstration are simulated. Validate them against representative real records before live use.'
   ]))},
 
- {id:'franchise',title:'Multi-centre management',heading:'Multi-centre management',intro:'HQ manages curriculum publication and common policies. Each centre carries out teaching and administration within its permitted curriculum and student records.',body:
-  `<p class="demo-context">Tsuen Wan and Hang Hau use the same application with their own centre identity, teachers and demonstration records. HQ permissions and network reporting are proposed additions. Ownership, licensing and handover terms are set out in the commercial section.</p>`+
+ {id:'franchise',title:'Multi-centre management',heading:'Multi-centre management',intro:'HQ centrally manages material publication, each centre’s curriculum access and operating policies. Each centre handles teaching, parent communication and fees within its authorised scope. New centres can use the same workflow while keeping their student and operational records separate.',body:
   demo('franchise','Tsuen Wan and Hang Hau')+
   table(['Feature','Included function','Condition or responsibility'],[
-   ['Centre and staff access','Limit access to permitted student records and curriculum, including staff who work across several centres.','Agree roles and responsibilities, then grant and withdraw access accordingly.'],
-   ['Central publication','Control approved editions and curriculum entitlements across the network.','HQ approves publication and centre access.'],
-   ['Access and printing review','Flag unusual access or printing volumes using agreed thresholds.','A flag prompts investigation; it does not establish misconduct.'],
-   ['Operational reporting','Show unresolved scheduling and payment work to HQ and authorised centre staff.','Agree consistent reporting definitions before comparing centres.'],
-   ['Centre rollout and changes','Cover centre onboarding, staff changes, franchise offboarding, support coverage and language requirements.','Confirm the requirements for each expansion stage.']
-  ])},
+   ['Centre and role permissions','Set permitted curricula and access to student and operational records by centre and responsibility.','Switching the centre view does not grant access to unauthorised records.'],
+   ['Material publication and versions','HQ reviews, publishes and manages material versions, and sets each centre’s curriculum access.','Centres can use only the materials they are authorised to access.'],
+   ['Operational reporting and review','Centres view outstanding class and payment work. HQ views agreed reports across centres and unusual access or printing records.','Agree the reporting scope, calculations and review responsibilities in advance. Unusual records are for follow-up and are not proof of misconduct.'],
+   ['New centres and staff changes','Support new centre openings, staff transfers and departures, and changes to access, support and handover when a franchise relationship ends.','Confirm interface languages, responsible staff, and the timing and procedure for ending access.']
+  ])+detail('Demonstration scope and data ownership',list([
+   'Tsuen Wan and Hang Hau use the same workflows with their own centre information, teachers and demonstration records. HQ permissions and cross-centre reporting are proposed additions.',
+   'MathConcept retains ownership of its supplied curriculum and operational data. Software ownership, licensing, data export and handover arrangements must be set out in the formal agreement.'
+  ]))},
 
- {id:'rollout',title:'Delivery, pilot and acceptance',heading:'Delivery, pilot and acceptance',intro:'Use a representative centre, material sample and supported equipment to validate teaching and operational workflows. Each delivery stage ends with review of agreed acceptance measures and outstanding exceptions.',body:
+ {id:'rollout',title:'Delivery, pilot and acceptance',heading:'Delivery, pilot and acceptance',intro:'Choose a centre for a pilot using representative materials, devices and everyday workflows. Both parties assess the results against agreed acceptance criteria before deciding the scope and order of the next rollout stage.',body:
   detail('Delivery responsibilities',table(['Party','Required contribution'],[
-   ['MathConcept','Provide authorised materials and accurate business records, curriculum and operations owners, representative exceptions, pilot users and timely review decisions.'],
-   ['Delivery team','Provide the agreed solution, migration support, acceptance evidence, staff training, operating guidance and support during launch.'],
+   ['MathConcept','Provide authorised materials and source records, name curriculum, operations and acceptance owners, arrange pilot users and devices, supply examples of everyday exceptions, and complete review and confirmation within the agreed times.'],
+   ['Delivery team','Complete the agreed design and development, material and data import, verification reports, staff training and operating documents, and provide launch support.'],
    ['Joint decisions','Agree the pilot coverage, samples and acceptance criteria, resolve work below the required standard, and confirm the scope, cost and schedule of each later stage.']
   ]))+
   detail('Pilot acceptance schedule',table(['Area','Acceptance example'],[
    ['Teaching','A teacher finds the correct approved worksheet, assigns it and reviews the student’s saved work on an agreed device.'],
    ['Student working','A student resumes saved work after an agreed interruption without lost or misplaced handwriting.'],
-   ['Paper and home learning','An uploaded photograph or scan is attached to the correct student and worksheet for review. Agreed home practice follows the student’s learning topics and approved content rules; unreleased work remains inaccessible.'],
    ['Leave and scheduling','A parent leave request updates the original lesson and staff follow-up queue. Staff can drag its leave-bin strip back to a valid calendar slot to confirm the agreed make-up.'],
-   ['Billing','Four teaching-week cycles skip fully closed weeks and issue the next invoice after week three. Payment proof waits for staff approval; first-payment approval activates enrolment once. Failed or uncertain reviews remain recoverable without duplicate receipts. Final audit flags unexplained differences and prevents double allocation.'],
-   ['Access','An unauthorised centre cannot obtain the original-file collection, another centre’s student records or restricted answer keys.'],
+   ['Billing','Four teaching-week cycles skip fully closed weeks and issue the next invoice after week three, due before the next cycle’s first lesson. Payment proof requires staff approval before a receipt is issued; only first-enrolment approval activates enrolment. Staff cannot close the popup or navigate away during saving. Failed or uncertain reviews remain recoverable without duplicate receipts. Bank reconciliation identifies differences and double allocations.'],
+   ['Access','An unauthorised centre cannot obtain originals, another centre’s student records or restricted answers. Disabled accounts cannot continue accessing materials.'],
    ['Printing and tracing','Printing respects permissions and limits, records the outcome and handles failed or repeated attempts clearly. Assess copy-tracing usefulness separately under agreed capture conditions.'],
    ['Migration','Samples preserve the required equations, diagrams and layout. Report and resolve exceptions, or retain the original page form for teaching.'],
    ['Daily operation and recovery','Test core work under agreed normal and interrupted conditions. Confirm recoverable records, expected recovery times, notifications and follow-up responsibilities.']
   ]))+
   demo('rollout','Proposed delivery sequence')},
 
- {id:'proposal',title:'Scope and commercial terms',heading:'Scope and commercial terms',intro:'This document is a scope proposal for review, not a priced quotation. No price or delivery date is committed. A commercial quotation follows confirmation of the material collection, operating rules and pilot requirements.',body:
-  detail('Proposed delivery scope',table(['Work package','Scope','Basis for agreement'],[
-   ['First release','Controlled library, teacher assignment, student binder, centre and parent workflows, invoice review and statement reconciliation for the agreed pilot.','Confirm pilot users, material coverage, supported equipment and acceptance measures.'],
-   ['Staged development','Worksheet authoring, verified editable questions, selected AI assistance for creation and home practice, broader reporting and additional centres.','Prioritise and quote the agreed stages.'],
-   ['Feasibility assessment','Conversion accuracy, approved printing on supported equipment, handwriting continuity and copy tracing.','Use representative materials and pilot evidence to confirm achievable coverage.'],
-   ['Separate assessment','Direct bank connections, additional payment methods, offline work and specialised interactive diagrams.','Confirm demand, relevant third-party cooperation and operating rules before including them in the delivery scope.']
+ {id:'proposal',title:'Scope and commercial terms',heading:'Scope and commercial terms',intro:'This is an initial proposal for the project scope, with no prices yet. After both parties confirm the material preparation scope, operating rules and pilot requirements, a formal quotation and delivery schedule will be prepared.',body:
+  table(['Scope category','Proposed content','How it will be agreed'],[
+   ['Proposed first phase','Controlled library, teacher worksheet assignment, student binder, centre and parent workflows, invoice handling and bank-statement reconciliation.','Select first-phase features based on the pilot centres, materials and workflows.'],
+   ['Later phases','Worksheet authoring, verified editable questions, selected AI assistance, further reporting and use by more centres.','Confirm priorities, quantities and acceptance requirements item by item.'],
+   ['Verification first','Bulk material-conversion quality, printing arrangements, handwriting experience and copy tracing.','Test representative samples and usage conditions before confirming the deliverable outcomes.'],
+   ['Separate assessment','Direct bank connections, other payment methods, offline work and specialised interactive diagrams.','Confirm actual needs, cooperation from the relevant organisations and processing rules before deciding whether to include them.']
+  ])+
+  detail('Quotation items and terms',table(['Item','Arrangements to confirm'],[
+   ['Platform design and development','Quote against the confirmed functions and acceptance scope; this draft contains no amounts.'],
+   ['Material import and content conversion','Quote separately based on the material preparation results, sample tests and agreed quantities.'],
+   ['Daily operation and services','Agree usage, service scope, data retention and recovery requirements.'],
+   ['Support, maintenance and training','Set out support hours, incident follow-up, system updates, security maintenance, training arrangements and each party’s responsibilities.'],
+   ['Payment and delivery dates','Agree payment arrangements, delivery stages and the timetable after confirming scope; this draft makes no price or delivery-date commitment.'],
+   ['Ownership and handover','MathConcept retains ownership of its supplied materials and operational data. Ownership of new software and content, licensing, data export and handover when the relationship ends must be agreed separately.']
   ]))+
-  detail('Quotation structure',table(['Cost component','Basis of quotation','Amount'],[
-   ['Solution design and delivery','Agreed workflows, roles, pilot scope and acceptance requirements.','To be confirmed'],
-   ['Library migration and editable conversion','Confirmed collection and conversion priorities; quoted as separate work scopes.','To be confirmed'],
-   ['Ongoing operation and services','Agreed usage assumptions and ongoing service requirements.','To be confirmed'],
-   ['Support, maintenance and training','Support hours, responsibilities, maintenance coverage and training requirements.','To be confirmed']
-  ]))+
-  detail('Ownership, operation and handover',list([
-   'MathConcept retains ownership of its supplied curriculum and operational data. The agreement defines ownership and licensing of new software and newly created content.',
-   'Agree responsibility for daily operation, authorised administration, continuity during interruptions, recovery of records, data export and handover rights.',
-   'Set support hours, incident response and maintenance responsibilities, together with expectations for ongoing services.',
-   'The commercial quotation will state costs, recurring charges, delivery schedule and service terms after validation of scope and assumptions.'
-  ]))+
-  detail('Information required to prepare the quotation',`<ol class="plain-list"><li>Confirm the pilot centre, participants, decision owners and priority workflows.</li><li>Select representative materials, teaching devices and printing equipment.</li><li>Agree operating rules, responsibilities and measurable acceptance criteria.</li><li>Prepare the delivery plan and quotation from the confirmed scope.</li></ol><div class="button-row"><button class="secondary-button" data-action="reference" data-ref="scope">Detailed scope</button><button class="secondary-button" data-action="reference" data-ref="assumptions">Open decisions and responsibilities</button></div>`)}
+  detail('Items to confirm before quotation',list([
+   'Participating centres and users, and the teaching, operational and billing workflows to prioritise.',
+   'Material samples, import coverage and the content to make editable.',
+   'Pilot tablets, styluses and printing arrangements.',
+   'Decision-makers from both parties, acceptance criteria and responsibility for preparing source records.'
+  ]))+`<div class="button-row"><button class="primary-button" data-action="reference" data-ref="scope">Detailed scope <span>↗</span></button><button class="secondary-button" data-action="reference" data-ref="assumptions">Open decisions and responsibilities</button></div>`}
 ];
 
 export function chapterHTML(c,i){return `<section class="chapter" id="${c.id}" data-chapter="${i}" aria-labelledby="heading-${c.id}"><div class="eyebrow">Section ${String(i+1).padStart(2,'0')}</div><div class="chapter-heading"><h2 id="heading-${c.id}">${c.heading}</h2><p class="section-intro">${c.intro}</p></div>${c.body}</section>`}
@@ -152,18 +155,16 @@ export const references = {
   `<p class="reference-lead">A working scope for agreement. Proposed capabilities describe the intended delivery outcomes; the demonstration does not establish that they are ready for live use.</p><h3>Curriculum & content</h3>${list([
    'HQ controls the original collection, approved editions and access rights. Teachers find permitted materials through familiar worksheet codes, grades, topics and collections.',
    'Existing worksheets remain usable in their original layout. Reusable questions and verified editable content are introduced in agreed stages.',
-   'Authors can use a visual drag-and-drop workspace to create worksheets and interactive exercises with text, equations, diagrams and answer areas, or reuse approved questions and layouts. Preview portrait-tablet and A4 versions and submit materials for review before publication.',
-   'Traditional materials remain in the controlled library. Specifically authorised HQ users can export agreed materials as PDF or Word; normal teaching accounts do not provide original-file downloads.',
-   'AI may help find questions, draft variations, hints, solutions and interactive content, and assist conversion, subject to MathConcept’s content-processing permissions and human approval before publication.'
+   'Authors can arrange content directly on a worksheet, starting from a blank page or reusing approved questions and layouts, and adding equations, diagrams, answers and working space. Preview portrait-tablet and A4 printing before review and publication.',
+   'Existing formats such as PDFs can stay in the controlled library for permitted assignment and use. Normal teaching accounts do not provide original-file downloads.',
+   'AI can help find examples, draft questions and organise content. External processing of materials requires prior approval; designated editors are responsible for checking content and approving publication.'
   ])}<h3>Teaching & learning</h3>${list([
-   'Teachers select scheduled classes and students, review progress and assign appropriate materials across grade levels. Authorised printing starts from the system without requiring a teacher to download the source file.',
-   'The proposed native student app prioritises portrait tablets. Its visual binder groups current classwork, homework and corrections, locked future work, and completed work for review; opening a worksheet prioritises handwriting space.',
-   'Assignments retain the issued edition, with student handwriting, teacher marking and corrections kept with the correct questions.',
-   'Centres can provide tablets for students to sign in, access their learning materials and record attendance; parents can also use QR check-in. Paper work can be photographed or scanned and attached to the correct student and worksheet for teacher review.',
-   'Students can sign in from home on a computer, tablet or phone. Proposed AI-assisted games, practice and explanations follow current learning topics and agreed teaching rules; future assignments remain locked until release.',
-   'The proposed native apps cover iOS/iPadOS and Android, with desktop use through a browser. The pilot verifies writing and saved-work continuity on agreed devices, operating-system versions and styluses. Work without a connection requires separately agreed scope and acceptance measures.'
+   'Teachers select classes and students by teaching time and choose and assign worksheets directly from the progress chart.',
+   'The proposed native student binder prioritises portrait tablets, with current, completed and future work. It supports classwork, homework, handwritten working, teacher marking and student corrections. This page shows a browser-interface demonstration.',
+   'Future work must be released by the teacher. Assigned worksheets retain the version issued for students to answer and teachers to mark.',
+   'Check saved work and resuming after interruptions on agreed devices. Offline support must be confirmed separately.'
   ])}<h3>Centre & parent operations</h3>${list([
-   'Staff arrange assessments, review enrolment applications and manage schedules, teacher availability, attendance records, lesson remarks, remaining lesson dates and student information.',
+   'View timetables, teacher availability, lesson remarks, remaining lesson dates and student information.',
    'Parents receive leave confirmation and may suggest replacement dates. Staff agree the replacement and drag the student strip from the leave bin back onto the calendar to book it, retaining the cancelled original lesson.',
    'Single, temporary and ongoing schedule changes are checked for clashes and changes to lesson entitlement before confirmation.',
    'Parent records and communications remain associated with the appropriate student and lesson.'
@@ -173,13 +174,12 @@ export const references = {
    'Parents see the amount, deadline and copyable FPS details, then upload proof. Staff review every payment before issuing its receipt; queues open on 待中心核對.',
    'Review the invoice and proof in one popup with independent scrolling and zoom. Preserve the filtered list, block closing or navigation during saving and retain failed or uncertain reviews for recovery.',
    'Record reminders, reasons for proof resubmission, receipts and cancellation history. Renewal approval does not repeat enrolment activation.',
-   'Invoices can be found by student or invoice details and filtered by charge type or billing month.',
+   'Search by student name, student number or invoice number and filter by charge type and month. The month is optional; pages contain around 25 invoices.',
    'Bank-statement reconciliation offers matching suggestions, prevents double allocation, highlights exceptions and supports a separate final audit.',
    'Cash, cheques, refunds and combined or partial payments require agreed rules. An optional direct bank connection is subject to confirmation.'
   ])}<h3>HQ & franchises</h3>${list([
-   'Each centre and role receives the permitted curriculum and records. HQ controls publication, access approval and revocation.',
-   'Access and printing records support review; shared reporting highlights unresolved operational work.',
-   'Migration acceptance, training, continuity, support and ownership arrangements are agreed before expansion.'
+   'Set data access, curriculum rights and responsibilities by centre and role. Materials require approval before publication, and disabling an account ends its access.',
+   'Provide access and printing records, agreed operational reports, material and data import reports, training and support.'
   ])}<h3>Demonstration boundaries</h3><p>The embedded screens let reviewers explore the existing MathConcept workflows using demonstration records. Demonstration records do not sync across devices. Tsuen Wan timetable names and slots come from supplied schedules; payment and other workflow records are examples. P3 and P6 contain sample questions; the remaining catalogue requires its original worksheets. Payment checks are simulated. The addition racing game is a playable practice example; it does not yet use a student’s learning record or AI-generated curriculum. Native app delivery, paper-work capture, adaptive home practice, HQ publishing, editable conversion, worksheet authoring, controlled printing and live access controls remain proposed scope.</p>`},
 
  safeguards:{title:'Protection & reliability',body:
@@ -199,7 +199,6 @@ export const references = {
    'The pilot checks that agreed classes and staff can complete their everyday work together without unacceptable delays.'
   ])}<h3>Content quality & confidentiality</h3>${list([
    'Converted and AI-assisted materials require review for mathematical accuracy, answers and teaching suitability before publication. Uncertain conversions remain in their original page form.',
-   'Photographs and scans must be linked to the correct student and assignment. Home practice follows approved content rules and cannot release future worksheets or expose restricted answers.',
    'MathConcept decides whether content may be processed externally and under what purpose, permissions and confidentiality conditions. This proposal gives no permission to process the library externally.'
   ])}<h3>Ownership & accountability</h3>${list([
    'MathConcept retains ownership of its supplied curriculum and operational data. The agreement defines ownership and licensing of newly created software and content.',
@@ -214,11 +213,9 @@ export const references = {
    'Name the people responsible for mathematical accuracy, answer-key review and publication approval.',
    'Agree whether content may be processed externally, for which purposes and under what confidentiality conditions.'
   ])}<h3>Teaching and devices</h3>${list([
-   'Confirm the supported iOS/iPadOS and Android devices and versions, desktop browsers, styluses and printing equipment, with representative users for the pilot.',
-   'Agree who uploads paper work, how it is linked to the student and worksheet, and the image quality required for review. Confirm the topics, difficulty, AI-content checks and feedback rules for home practice.',
-   'Decide whether students must work without a connection, and agree how access and saved work should behave during an interruption.',
-   'Prioritise question types for automatic marking, interactive diagrams and teacher review.',
-   'Agree printing permissions, limits and the capture conditions used to assess copy-tracing usefulness.'
+   'Supported tablets and styluses, printing arrangements and devices for the pilot.',
+   'Whether offline work is needed, which materials can be used offline and how completed work is handled after reconnecting.',
+   'Which question types suit automatic marking or interactive diagrams, which need human review, and the quality requirements for each.'
   ])}<h3>Operations and finance</h3>${list([
    'Confirm leave, make-up expiry, schedule-change and extra-lesson rules.',
    'Confirm the teaching calendar and fully closed weeks used by the four teaching-week billing cycle. Agree receipt wording, the evidence staff review and first-enrolment activation checks. Keep receipt issuance distinct from bank reconciliation.',

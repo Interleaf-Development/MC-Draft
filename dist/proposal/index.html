@@ -34,7 +34,7 @@
         <header class="document-header">
           <div class="document-type" data-copy="documentType">01 / 系統功能及交付建議</div>
           <h1 id="document-title" data-copy="documentTitle">MathConcept 無紙化教學及中心管理系統</h1>
-          <p class="document-summary" data-copy="documentSummary">為 MathConcept 建立涵蓋學生學習、無紙化教材管理及中心營運的系統，並提供學生、家長及中心使用者專用的原生應用程式。本建議書先介紹學生的學習體驗，說明數碼練習與紙本列印如何配合，再介紹現有教材數碼化、新教材編製及中心行政功能。</p>
+          <p class="document-summary" data-copy="documentSummary">為 MathConcept 建立涵蓋學生學習、無紙化教材管理及中心營運的系統，並提供學生、家長及中心專用的原生應用程式（Native Application）。本建議書會先介紹學生無紙化下的學習體驗，支援學生以混合方式學習，既可在線上完成練習，也可列印教材供紙本使用，再說明現有教材的數碼化過程、新教材的編製方式及中心行政功能。</p>
           <dl class="document-metadata">
             <div><dt data-copy="preparedFor">提交對象</dt><dd>MathConcept</dd></div>
             <div><dt data-copy="documentLabel">文件類別</dt><dd data-copy="documentValue">系統建議書</dd></div>
@@ -44,16 +44,16 @@
         </header>
         <section class="feature-detail">
           <h2 data-copy="systemOverview">系統概覽</h2>
-          <p data-copy="appOverview">系統包括適用於 iOS／iPadOS 及 Android 的原生應用程式，以及供電腦瀏覽器使用的網頁應用程式。各角色可在不同裝置使用系統；介面設計以學生直向平板、家長手機、老師平板及電腦，以及中心職員和總部的電腦操作為主。學生作答時保留完整頁面的書寫空間。支援的作業系統版本、瀏覽器、裝置及觸控筆相容要求，會在確認交付範圍時議定。</p>
+          <p data-copy="appOverview">系統會包括原生應用程式（iOS 及 Android，並適用於平板及手機），以及網頁應用程式在電腦上使用。各角色的介面支持在不同設備上運作，但設計方向上，學生以平板為主，家長以手機為主，老師以平板及電腦為主，中心職員和總部的工作介面以電腦為主。學生以直向平板作答，配合完整頁面的書寫空間。完整支援的裝置及作業系統須在確認交付範圍時議定。</p>
           <div class="feature-table-wrap">
             <table class="feature-table">
               <thead><tr><th scope="col" data-copy="overviewRole">使用者</th><th scope="col" data-copy="overviewTasks">主要用途</th></tr></thead>
               <tbody>
-                <tr><th scope="row" data-copy="studentRole">學生</th><td data-copy="studentTasks">沿用資料夾概念，在數碼學習冊開啟老師派發的堂課及功課，作答、改正及重溫；日後習作須待老師開放。可手寫或完成互動練習，配合 AI 即時批改及回饋，亦可將紙本作答掃描上載，保留於同一學習紀錄。</td></tr>
-                <tr><th scope="row" data-copy="parentRole">家長</th><td data-copy="parentTasks">使用 QR 碼點名、查看課堂安排、提交請假申請、在應用程式與中心溝通、查閱帳單及收據，並上載付款證明。</td></tr>
-                <tr><th scope="row" data-copy="teacherRole">老師</th><td data-copy="teacherTasks">按班別查看學生及自己的授課日程，從學習進度表選取及派發習作，配合 AI 批改、跟進改正及學習進度，並在應用程式與家長溝通。</td></tr>
-                <tr><th scope="row" data-copy="centreRole">中心職員</th><td data-copy="centreTasks">處理報名、排課及補堂，配合 AI 審核付款證明、發出收據及完成最終對帳，並與家長溝通。</td></tr>
-                <tr><th scope="row" data-copy="hqRole">總部及教材編審團隊</th><td data-copy="hqTasks">整理教材並配合 AI 編製新內容、核准教材版本、管理各中心的使用權限，並監察加盟中心的營運。</td></tr>
+                <tr><th scope="row" data-copy="studentRole">學生</th><td data-copy="studentTasks">模擬現有的資料夾流程，電子化學習冊可以開啟老師派發的堂課及功課，作答、完成改正及重溫已完成的內容；日後習作須待老師開放後才可取用。作答時可以在平板上手寫，或在配合電子化教材的情況下，以類似互動遊戲的方式完成工作紙和練習，配合 AI 得到簡單的即時批改及回饋。同時亦無縫地配合列印工作紙，完成後掃描上傳的程序。</td></tr>
+                <tr><th scope="row" data-copy="parentRole">家長</th><td data-copy="parentTasks">學生 QR 點名、查看課堂安排、提交請假申請、與中心在 APP 上溝通、查閱帳單及收據，並上載付款證明。</td></tr>
+                <tr><th scope="row" data-copy="teacherRole">老師</th><td data-copy="teacherTasks">按班別查看學生，查看自己日程，從學習進度表選取及派發習作，並配合 AI 批改、跟進改正和查看學習進度、與家長在 APP 上溝通。</td></tr>
+                <tr><th scope="row" data-copy="centreRole">中心職員</th><td data-copy="centreTasks">處理報名、排課及補堂，配合 AI 審核付款證明、發出收據，並完成最終對帳、與家長在 APP 上溝通。</td></tr>
+                <tr><th scope="row" data-copy="hqRole">總部及教材編審團隊</th><td data-copy="hqTasks">整理及配合 AI 編製教材、核准教材版本、管理各中心的使用權限，並監察加盟中心的營運。</td></tr>
               </tbody>
             </table>
           </div>
@@ -64,10 +64,10 @@
             <table class="feature-table">
               <thead><tr><th scope="col" data-copy="area">項目</th><th scope="col" data-copy="proposedScope">建議範圍</th><th scope="col" data-copy="sections">章節</th></tr></thead>
               <tbody>
-                <tr><th scope="row" data-copy="teaching">學生學習及老師教學</th><td data-copy="teachingScope">透過學生學習冊、全頁作答、老師派發及批改習作，銜接數碼與紙本學習，並加入紙本作答上載及課後自學。</td><td><a href="#student">02–03</a></td></tr>
-                <tr><th scope="row" data-copy="materials">現有教材及新教材編製</th><td data-copy="materialsScope">將現有教材數碼化，以拖放方式編製工作紙及互動內容，重用已核准題目，並管理教材取用、列印及授權匯出。</td><td><a href="#library">04–05</a></td></tr>
-                <tr><th scope="row" data-copy="operations">中心及家長事務</th><td data-copy="operationsScope">處理報名及學生紀錄、點名、排課、請假、補堂、臨時或恆常調堂，以及家長溝通。</td><td><a href="#system">06</a></td></tr>
-                <tr><th scope="row" data-copy="billing">收費及對帳</th><td data-copy="billingScope">跟進待處理帳單，由職員審核及批准付款證明後發出收據、發送繳費提醒，並核對銀行月結單。</td><td><a href="#billing">07</a></td></tr>
+                <tr><th scope="row" data-copy="teaching">學生學習及老師教學</th><td data-copy="teachingScope">將紙本習作流程轉為數碼操作，包括學生學習冊、全頁作答、老師派發及批改習作，以及學生改正。</td><td><a href="#student">02–03</a></td></tr>
+                <tr><th scope="row" data-copy="materials">現有教材及新教材編製</th><td data-copy="materialsScope">將現有教材數碼化、編製數碼工作紙、重用已核准題目，以及管理教材使用及列印權限。</td><td><a href="#library">04–05</a></td></tr>
+                <tr><th scope="row" data-copy="operations">中心及家長事務</th><td data-copy="operationsScope">劃分使用者職責，管理相關紀錄，並處理報名、排課、請假、補堂、臨時或恆常調堂及家長溝通。</td><td><a href="#system">06</a></td></tr>
+                <tr><th scope="row" data-copy="billing">收費及對帳</th><td data-copy="billingScope">跟進待處理帳單、審核付款證明、按議定政策發出收據、發送繳費提醒，並核對銀行月結單。</td><td><a href="#billing">07</a></td></tr>
                 <tr><th scope="row" data-copy="franchise">總部及加盟管理</th><td data-copy="franchiseScope">管理各中心的權限及已核准教材，訂定共同營運規則並監察執行情況；職員離任或加盟合作結束時，按規定調整權限。</td><td><a href="#franchise">08</a></td></tr>
                 <tr><th scope="row" data-copy="delivery">交付及商業安排</th><td data-copy="deliveryScope">試行範圍、責任分工、驗收準則、分階段推展、報價項目、支援及擁有權。</td><td><a href="#rollout">09–10</a></td></tr>
               </tbody>
