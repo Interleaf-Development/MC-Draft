@@ -13,7 +13,12 @@ const views = {
   notes: {label:t('Lesson records','課堂紀錄'), role:'teacher', page:'notes'},
   student: {label:t('Student binder','學生學習冊'), role:'student', page:'work'},
   game: {label:t('Maths kart','數學飛車'), role:'game', page:'race'},
-  parent: {label:t('Parent app','家長應用程式'), role:'parent', page:'overview'},
+  parent: {label:t('Parent home','家長主頁'), role:'parent', page:'overview', initialStudentId:'twn-c64262b4d67d'},
+  parentCalendar: {label:t('Lessons','課堂安排'), role:'parent', page:'lessons'},
+  parentReports: {label:t('Lesson reports','課堂報告'), role:'parent', page:'handbook'},
+  parentHomework: {label:t('Homework','功課'), role:'parent', page:'homework'},
+  parentBilling: {label:t('Payments','繳費及收據'), role:'parent', page:'payments'},
+  parentMessages: {label:t('Centre messages','與中心溝通'), role:'parent', page:'messages'},
   parentLessons: {label:t('Parent lessons','子女課堂安排'), role:'parent', page:'lessons', studentId:'twn-c64262b4d67d'},
   parentPayments: {label:t('Parent payments','家長繳費'), role:'parent', page:'payments', studentId:'chloe'},
   tw: {label:t('Tsuen Wan','荃灣'), role:'admin', page:'schedule', branch:'tw'},
@@ -25,12 +30,13 @@ const scenes = {
   teacher: ['teacher','classroom','teacherSchedule','notes'],
   operations: ['schedule','parentLessons','messages','students'],
   billing: ['billing','parentPayments'],
+  parent: ['parent','parentCalendar','parentReports','parentHomework','parentBilling','parentMessages'],
   franchise: ['tw','hh']
 };
 const dimensions = {admin:[1440,1000],teacher:[1440,1000],student:[1024,1366],parent:[390,844],game:[960,540]};
 const selection = new Map();
 const frames = new Map();
-let active = null, initialised = false, phase = 0, notify = () => {};
+let active = null, initialised = false, notify = () => {};
 const worksheetStudents = new Map();
 const $ = selector => document.querySelector(selector);
 
@@ -52,7 +58,8 @@ function sourceURL(view) {
   const base = view.branch === 'hh' ? '/hh/' : '/';
   const path = ['parent','student'].includes(view.role) ? base+view.role+'/' : base;
   const params = new URLSearchParams({proposal:'1',proposalPreload:'1',lang:'zh-HK',role:view.role,page:view.page});
-  if(view.studentId)params.set('studentId',view.studentId);
+  const studentId=view.studentId||view.initialStudentId;
+  if(studentId)params.set('studentId',studentId);
   return path+'?'+params;
 }
 function selectedView(key) {
@@ -203,44 +210,10 @@ export function activateDemo(id) {
   setActive(entry);
   if(entry)sizeFrame(entry);
 }
-const phases=[
-  {
-    label:t('Discover','需求確認'),
-    title:t('Materials and workflow review','教材盤點及流程確認'),
-    body:t('Inventory a representative sample of materials and operational records. Confirm the authoritative versions, essential workflows, device requirements and owners.','以具代表性的教材及營運紀錄作樣本，核對應採用的教材版本、必要流程、裝置要求及各項工作的負責人。'),
-    items:[t('Material formats, page counts and exceptions','教材格式、頁數及待處理項目'),t('Sample schedules, balances and bank exports','時間表、款項結餘及銀行紀錄樣本'),t('Pilot scope, responsibilities and success measures','試行範圍、責任分工及驗收指標')],
-    gate:t('Approve the scope, migration estimate and pilot acceptance criteria.','確認交付範圍、遷移工作量估算及試行驗收準則。')
-  },
-  {
-    label:t('Build the pilot','準備試行'),
-    title:t('Pilot delivery','試行版本交付'),
-    body:t('Implement the agreed library, teaching, student, parent and administration flows. Start with a limited curriculum set and the selected devices.','按議定範圍完成教材庫、老師、學生、家長及中心行政流程，先以選定的教材及裝置試行。'),
-    items:[t('Approved materials available to the right people','獲授權使用者可取用已核准教材'),t('Students can save, resume and correct their work','學生可儲存習作、繼續作答及完成改正'),t('Training, migration checks and support arrangements','職員培訓、遷移結果核對及支援安排')],
-    gate:t('Staff can complete the agreed journeys with validated data.','職員能以已核實的資料完成議定的日常操作。')
-  },
-  {
-    label:t('Validate','試行驗收'),
-    title:t('User acceptance and operating checks','使用者驗收及營運核對'),
-    body:t('Run the pilot with real staff routines. Measure content fidelity, writing behaviour, scheduling consistency and financial exceptions.','讓職員按日常工作流程試用，核對教材內容及版面、學生書寫體驗、課堂安排和特殊收費情況的處理結果。'),
-    items:[t('Approved printing with clear records and error handling','按權限列印，保留列印紀錄並處理失敗個案'),t('Receipts reconcile with money received; discrepancies stand out','核對收據與實收款項，列明差異'),t('Centre privacy, saved work and readiness for daily use','核對中心資料權限、習作儲存及日常操作結果')],
-    gate:t('Named reviewers accept the results and outstanding launch issues are resolved.','指定驗收人員確認結果，並解決所有影響正式使用的問題。')
-  },
-  {
-    label:t('Expand','分階段推展'),
-    title:t('Additional centres and materials','加入更多中心及教材'),
-    body:t('Bring more materials and centres into use at a manageable pace. Extend worksheet creation and AI assistance once their teaching quality is established.','配合實際運作，分批加入更多教材及中心。工作紙編製及 AI 輔助功能須先確認符合教學要求，再擴大使用範圍。'),
-    items:[t('Batch migration with exception reports','分批遷移教材，列明未能處理或須跟進的項目'),t('Centre onboarding and support coverage','中心啟用安排及支援範圍'),t('Overseas policies, languages and curriculum entitlements','海外中心的營運規則、使用語言及教材使用權')],
-    gate:t('Each centre is ready before its access and operations go live.','確認各中心已完成啟用準備，才開放使用權限並正式運作。')
-  }
-];
-function renderRollout() {
-  const item=phases[phase];
-  $('#demo-rollout').innerHTML=`<div class="rollout-interactive"><div class="phase-track" role="group" aria-label="${t('Delivery phases','交付階段')}">${phases.map((p,i)=>`<button type="button" class="${phase===i?'active':''}" data-phase="${i}" aria-pressed="${phase===i}"><span>${i+1}.</span><strong>${p.label}</strong></button>`).join('')}</div><div class="phase-content"><div><h3>${item.title}</h3><p>${item.body}</p></div><ul>${item.items.map(text=>`<li>${text}</li>`).join('')}</ul><div class="phase-gate"><span>${t('Completion requirement','完成條件')}</span><strong>${item.gate}</strong></div></div></div><div class="feature-table-wrap rollout-print"><table class="feature-table"><thead><tr><th scope="col">${t('Phase','階段')}</th><th scope="col">${t('Activities','工作內容')}</th><th scope="col">${t('Completion requirement','完成條件')}</th></tr></thead><tbody>${phases.map((item,i)=>`<tr><th scope="row">${i+1}. ${item.label}</th><td><p>${item.body}</p><ul class="plain-list">${item.items.map(text=>`<li>${text}</li>`).join('')}</ul></td><td>${item.gate}</td></tr>`).join('')}</tbody></table></div>`;
-}
 export function initDemos(options = {}) {
   if (typeof options.notify === 'function') notify=options.notify;
   for (const id of Object.keys(scenes)) {const host=$('#demo-'+id);if(host)host.innerHTML=shell(id);}
-  renderRollout();initialised=true;
+  initialised=true;
   document.addEventListener('click',event=>{
     const box=event.target.closest('[data-live-demo]');
     const view=event.target.closest('[data-demo-view]');
@@ -254,8 +227,6 @@ export function initDemos(options = {}) {
       if(demoIsSaving()&&active?.id!==box.dataset.liveDemo){demoNavigationBlocked();return;}
       setActive(mount(box.dataset.liveDemo));expand();
     }
-    const phaseButton=event.target.closest('[data-phase]');
-    if(phaseButton){phase=Number(phaseButton.dataset.phase);renderRollout();$('#demo-rollout [data-phase="'+phase+'"]').focus({preventScroll:true});}
   });
   window.addEventListener('message',event=>{
     if(event.origin!==location.origin)return;

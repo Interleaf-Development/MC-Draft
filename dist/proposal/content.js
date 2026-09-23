@@ -2,7 +2,7 @@ const feature = (title, intro, body) => `<section class="proposal-feature"><h3>$
 const detail = (title, body) => `<section class="feature-detail"><h3>${title}</h3>${body}</section>`;
 const list = items => `<ul class="plain-list">${items.map(x=>`<li>${x}</li>`).join('')}</ul>`;
 const table = (headers, rows) => `<div class="feature-table-wrap"><table class="feature-table"><thead><tr>${headers.map(x=>`<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map((x,i)=>i===0?`<th scope="row">${x}</th>`:`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-const demo = (id,label='MathConcept workflows') => `<div class="demo-wrap"><div class="demo-caption">${id==='rollout'?'':'Interactive demo: '}${label}</div><div class="demo" data-demo="${id}" id="demo-${id}"></div></div>`;
+const demo = (id,label='MathConcept workflows') => `<div class="demo-wrap"><div class="demo-caption">Interactive demo: ${label}</div><div class="demo" data-demo="${id}" id="demo-${id}"></div></div>`;
 
 export const chapters = [
  {id:'vision',title:'Proposal overview'},
@@ -81,6 +81,16 @@ detail('Creating and approving new materials',`<p>Build a material-editing platf
  detail('Dates and reconciliation records',`<p>Record the parent’s payment date, proof submission date, receipt issue date and bank posting date separately, without assuming they are the same. Confirmation from payment proof and receipt issuance mean the payment has been checked against the submitted evidence; they do not establish that the bank has received the money. Show receipt and bank reconciliation progress separately, and verify actual credits against bank records.</p>`)+
  detail('Other payment arrangements',`<p>Cash, cheques, combined payments, partial payments and refunds follow their respective workflows, with rules to be agreed separately. Bank statements are the basis for reconciliation. A direct bank connection is optional and requires bank confirmation before separate assessment.</p>`)+
  detail('Checks before live use',`<p>Before live use, confirm the centre’s receiving accounts and names, required payment checks, automatic approval conditions, bank-record formats, matching rules and payment-allocation rules. Payment checks, automatic approval and invoicing in the demonstration are simulated; the live functions must be validated against representative real records.</p>`))},
+ {id:'parent',title:'Parent app',heading:'Parent app',intro:'Parents can use a phone app to view their children’s lessons, learning records and payments, and communicate directly with the centre. One account can switch between children, keeping each child’s timetable, homework and invoices together and reducing the need to search old messages or ask the centre for updates.',body:
+ demo('parent','Parent home, lessons, payments and messages')+
+ detail('Home and child switching',`<p>The home screen lists the selected child’s lessons for the next seven days, including dates, times, teachers and make-up arrangements. Parents can switch children or open lesson times, class reports and homework directly.</p>`)+
+ detail('Attendance at the centre',`<p>Parents can open their child’s attendance QR code in the app for centre staff to scan on arrival. The attendance record is linked to that day’s lesson and can be reviewed by the parent and centre.</p>`)+
+ detail('Leave and make-up lessons',`<p>Parents can submit leave against a specific lesson and view leave records and make-up lessons awaiting arrangement. They can suggest dates and add notes for the centre. Suggested dates are not bookings: parents wait for the centre’s confirmation before attending at a new time. Confirmed lessons appear in the child’s timetable.</p>`)+
+ detail('Class reports and homework',`<p>Parents can view published class reports, marked work and released homework to follow their child’s learning and corrections. Teachers continue to control when future worksheets are released; parents cannot open material that has not yet been assigned.</p>`)+
+ detail('Payment notices and proof',`<p>Each invoice shows the charge, amount, deadline and relevant lesson dates. Parents can copy the FPS receiving details, make payment, then upload proof and enter the payer name and payment date. The app shows the invoice’s progress so parents do not need to send a separate message for an update.</p>`)+
+ detail('Review results and electronic receipts',`<p>The centre can choose AI checks followed by staff approval, or automatic approval and receipt issuance when every required check passes. Mismatched, duplicate or uncertain cases go to staff. Parents can view issued receipts and individual lesson dates in the app. If replacement proof is needed, the reason is shown with a clear reminder that a parent who has already paid does not need to pay again. Amended receipts and previous versions remain available after timetable changes.</p>`)+
+ detail('Centre messages and notifications',`<p>Parents can message the centre directly and retain conversations about lessons, leave and payments. The app can also provide notifications for timetable changes, payment reminders, proof follow-up and receipt issuance, keeping centre-related tasks in one place.</p>`)+
+ detail('Demonstration scope',`<p>The interactive demo above uses the existing parent interface, with screens and workflows available to try. Attendance scans, payment checks and notifications use demonstration records. The native phone app, cross-device synchronisation and notification delivery remain proposed functions to develop and validate.</p>`)},
  {id:'franchise',title:'Multi-centre management',heading:'Multi-centre management',intro:'HQ centrally manages material publication, each centre’s curriculum access and operating policies. Each centre handles teaching, parent communication and fees within its authorised scope. New centres can use the same workflow while keeping their student and operational records separate.',body:
   demo('franchise','Tsuen Wan and Hang Hau')+
   table(['Feature','Included function','Condition or responsibility'],[
@@ -93,45 +103,7 @@ detail('Creating and approving new materials',`<p>Build a material-editing platf
    'MathConcept retains ownership of its supplied curriculum and operational data. Software ownership, licensing, data export and handover arrangements must be set out in the formal agreement.'
   ]))},
 
- {id:'rollout',title:'Delivery, pilot and acceptance',heading:'Delivery, pilot and acceptance',intro:'Choose a centre for a pilot using representative materials, devices and everyday workflows. Both parties assess the results against agreed acceptance criteria before deciding the scope and order of the next rollout stage.',body:
-  detail('Delivery responsibilities',table(['Party','Required contribution'],[
-   ['MathConcept','Provide authorised materials and source records, name curriculum, operations and acceptance owners, arrange pilot users and devices, supply examples of everyday exceptions, and complete review and confirmation within the agreed times.'],
-   ['Delivery team','Complete the agreed design and development, material and data import, verification reports, staff training and operating documents, and provide launch support.'],
-   ['Joint decisions','Agree the pilot coverage, samples and acceptance criteria, resolve work below the required standard, and confirm the scope, cost and schedule of each later stage.']
-  ]))+
-  detail('Pilot acceptance schedule',table(['Area','Acceptance example'],[
-   ['Teaching','A teacher finds the correct approved worksheet, assigns it and reviews the student’s saved work on an agreed device.'],
-   ['Student working','A student resumes saved work after an agreed interruption without lost or misplaced handwriting.'],
-   ['Leave and scheduling','A parent leave request updates the original lesson and staff follow-up queue. Staff can drag its leave-bin strip back to a valid calendar slot to confirm the agreed make-up.'],
-   ['Billing','Apply each student’s two-calendar-month period and HK$2,000 nominal eight-lesson fee. The seven, eight or nine lessons naturally occurring in the original timetable do not alter the fee; the schedule averages 48 weeks annually. Invoice on the 20th before the next period, due on the following month’s 20th. Invoices and receipts list each lesson date. If a regular timetable change adds one lesson, the centre approves it at the same fee or excludes it; if it removes one, the centre decides whether to grant make-up credit. Amended receipts retain original payment and receipt dates and paid amounts, record the amendment date and reason, and preserve previous versions. Validate AI extraction and comparison of payment and recipient details, duplicate checks, and the selected staff-approval or automatic-approval mode. Automatic approval and receipt issuance require all checks to pass; exceptions go to staff. Only first-enrolment approval activates enrolment. Staff cannot close the review popup or leave the page during saving. Failed or uncertain saves remain recoverable without duplicate receipts. Bank reconciliation separately verifies credits and identifies missing, extra, duplicate and uncertain matches.'],
-   ['Access','An unauthorised centre cannot obtain originals, another centre’s student records or restricted answers. Disabled accounts cannot continue accessing materials.'],
-   ['Printing and tracing','Printing respects permissions and limits, records the outcome and handles failed or repeated attempts clearly. Assess copy-tracing usefulness separately under agreed capture conditions.'],
-   ['Migration','Samples preserve the required equations, diagrams and layout. Report and resolve exceptions, or retain the original page form for teaching.'],
-   ['Daily operation and recovery','Test core work under agreed normal and interrupted conditions. Confirm recoverable records, expected recovery times, notifications and follow-up responsibilities.']
-  ]))+
-  demo('rollout','Proposed delivery sequence')},
 
- {id:'proposal',title:'Scope and commercial terms',heading:'Scope and commercial terms',intro:'This is an initial proposal for the project scope, with no prices yet. After both parties confirm the material preparation scope, operating rules and pilot requirements, a formal quotation and delivery schedule will be prepared.',body:
-  table(['Scope category','Proposed content','How it will be agreed'],[
-   ['Proposed first phase','Controlled library, teacher worksheet assignment, student binder, centre and parent workflows, invoice handling and bank-statement reconciliation.','Select first-phase features based on the pilot centres, materials and workflows.'],
-   ['Later phases','Worksheet authoring, verified editable questions, selected AI assistance, further reporting and use by more centres.','Confirm priorities, quantities and acceptance requirements item by item.'],
-   ['Verification first','Bulk material-conversion quality, printing arrangements, handwriting experience and copy tracing.','Test representative samples and usage conditions before confirming the deliverable outcomes.'],
-   ['Separate assessment','Direct bank connections, other payment methods, offline work and specialised interactive diagrams.','Confirm actual needs, cooperation from the relevant organisations and processing rules before deciding whether to include them.']
-  ])+
-  detail('Quotation items and terms',table(['Item','Arrangements to confirm'],[
-   ['Platform design and development','Quote against the confirmed functions and acceptance scope; this draft contains no amounts.'],
-   ['Material import and content conversion','Quote separately based on the material preparation results, sample tests and agreed quantities.'],
-   ['Daily operation and services','Agree usage, service scope, data retention and recovery requirements.'],
-   ['Support, maintenance and training','Set out support hours, incident follow-up, system updates, security maintenance, training arrangements and each party’s responsibilities.'],
-   ['Payment and delivery dates','Agree payment arrangements, delivery stages and the timetable after confirming scope; this draft makes no price or delivery-date commitment.'],
-   ['Ownership and handover','MathConcept retains ownership of its supplied materials and operational data. Ownership of new software and content, licensing, data export and handover when the relationship ends must be agreed separately.']
-  ]))+
-  detail('Items to confirm before quotation',list([
-   'Participating centres and users, and the teaching, operational and billing workflows to prioritise.',
-   'Material samples, import coverage and the content to make editable.',
-   'Pilot tablets, styluses and printing arrangements.',
-   'Decision-makers from both parties, acceptance criteria and responsibility for preparing source records.'
-  ]))+`<div class="button-row"><button class="primary-button" data-action="reference" data-ref="scope">Detailed scope <span>↗</span></button><button class="secondary-button" data-action="reference" data-ref="assumptions">Open decisions and responsibilities</button></div>`}
 ];
 
 export function chapterHTML(c,i){return `<section class="chapter" id="${c.id}" data-chapter="${i}" aria-labelledby="heading-${c.id}"><div class="chapter-heading"><h2 id="heading-${c.id}">${i+1}. ${c.heading}</h2>${c.intro ? `<p class="section-intro">${c.intro}</p>` : ''}</div>${c.body}</section>`}
@@ -196,7 +168,7 @@ export const references = {
   ])}`},
 
  assumptions:{title:'Open decisions & responsibilities',body:
-  `<p class="reference-lead">These decisions shape the delivery scope, acceptance measures and cost. MathConcept and the delivery team resolve them during discovery and the pilot.</p><h3>Materials</h3>${list([
+  `<p class="reference-lead">These decisions help confirm the system’s functions and practical operating arrangements. MathConcept and the project team resolve them during discovery and the pilot.</p><h3>Materials</h3>${list([
    'Confirm the file formats, page counts and condition of the collection, and identify the approved editions.',
    'Choose the grades and worksheet families to make reusable or editable first.',
    'Name the people responsible for mathematical accuracy, answer-key review and publication approval.',
@@ -210,10 +182,9 @@ export const references = {
    'Confirm each student’s two-calendar-month billing period, the teaching calendar averaging 48 weeks annually, and approval and make-up credit decisions for regular timetable changes. Agree receipt wording, authorised receiving details, required payment checks, the staff or automatic approval mode, exception rules and first-enrolment activation checks. Keep confirmation from payment proof and receipt issuance distinct from actual bank settlement.',
    'Confirm available bank statements, matching rules, cash and cheque handling, combined or partial payments, refunds and month-end exceptions. An optional direct bank connection is subject to confirmation.',
    'Agree notification channels, message retention and responsibility for parent communication.'
-  ])}<h3>Commercial and rollout</h3>${list([
+  ])}<h3>Pilot and operating arrangements</h3>${list([
    'Choose the pilot centre, participants, representative material sample and decision owners.',
    'Set measurable acceptance criteria and agree who decides whether to expand to further centres or overseas.',
-   'Agree responsibility for preparing accurate records, ownership and licensing, ongoing operation, recovery, support and handover.',
-   'Confirm the price, delivery schedule and recurring costs once the scope and assumptions have been validated.'
+   'Agree responsibility for preparing accurate records, ownership and licensing, ongoing operation, recovery, support and handover.'
   ])}`}
 };

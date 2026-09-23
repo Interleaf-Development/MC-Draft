@@ -39,7 +39,7 @@ test('proposal language links preserve the current chapter, presentation mode an
 });
 
 test('both proposal languages expose the same chapters, live demos and references', () => {
-  assert.deepEqual(chinese.chapters.map(c => c.id), ['vision', 'student', 'teacher', 'library', 'system', 'franchise', 'rollout', 'proposal']);
+  assert.deepEqual(chinese.chapters.map(c => c.id), ['vision', 'student', 'teacher', 'library', 'system', 'parent', 'franchise']);
   assert.deepEqual(chinese.chapters.map(c => c.id), english.chapters.map(c => c.id));
   assert.deepEqual(Object.keys(chinese.references), Object.keys(english.references));
   for (const [index, chapter] of chinese.chapters.entries()) {

@@ -293,3 +293,79 @@ test('real input in an inactive inline frame refreshes it before interaction and
   sandbox.activateProposalInteraction({ isTrusted: true });
   assert.equal(counts.statuses, 2, 'Later input in the same scene does not repeat activation');
 });
+
+test('parent demo keeps its child across views and sibling refreshes, with a round trip to the initial child', async () => {
+  const source = await readFile(new URL('../dist/app.js', import.meta.url), 'utf8');
+  const initialChild = 'twn-c64262b4d67d';
+  const { sandbox, counts, saveSiblingState, readSaved } = await proposalFrameHarness(
+    { version: 4, demoWorksheetStudent: 'mia', marker: 'initial', assessment: { enrolled: false } },
+    { role: 'parent', page: 'overview' }
+  );
+  const host = {}, messages = [];
+  let onMessage;
+  Object.assign(sandbox, {
+    window: { parent: host, addEventListener(type, callback) { if (type === 'message') onMessage = callback; } },
+    location: { origin: url('/').origin },
+    proposalMessage,
+    requestedNavigation: { role: 'parent', studentId: initialChild },
+    studentById: model.studentById,
+    t: (value, chinese) => chinese || value,
+    esc: value => String(value),
+    target: { value: 'chloe' }, type: 'family-student'
+  });
+  host.postMessage = message => messages.push(message);
+  sandbox.billingWorkflowUI.isSaving = () => false;
+  vm.runInContext(source.slice(source.indexOf('function postProposalStatus('), source.indexOf('// A neighbouring inline scene')), sandbox);
+  vm.runInContext(source.slice(source.indexOf("window.addEventListener('message',event=>{"), source.indexOf("if(demoContext.isProposal&&ui.role==='teacher')teacherProgressUI.selectStudent")), sandbox);
+  vm.runInContext(source.slice(source.indexOf('const childSwitch=()=>{'), source.indexOf('function nextLessons(')), sandbox);
+  const childChange = source.slice(source.indexOf(" else if(type==='family-student')"), source.indexOf(" else if(type==='report-month')")).replace('else if', 'if');
+  const navigate = (page, studentId) => onMessage({
+    source: host, origin: url('/').origin,
+    data: { type: 'mc-proposal:navigate', role: 'parent', page, ...(studentId ? { studentId } : {}) }
+  });
+
+  sandbox.followProposalStudent(initialChild);
+  sandbox.activateProposalFrame();
+  assert.equal(sandbox.ui.familyStudent, initialChild);
+  assert.equal(readSaved().demoWorksheetStudent, 'mia', 'Opening a parent preview does not select the teacher’s worksheet pupil');
+  navigate('lessons');
+  assert.equal(sandbox.ui.familyStudent, initialChild);
+
+  vm.runInContext(childChange, sandbox);
+  assert.equal(sandbox.ui.familyStudent, 'chloe');
+  assert.equal(sandbox.ui.thread, 'thread-chloe');
+  assert.equal(readSaved().demoWorksheetStudent, 'mia', 'Changing the parent child does not change the worksheet selection');
+  assert.match(vm.runInContext('childSwitch()', sandbox), new RegExp('value="' + initialChild + '"'), 'The original scheduled child remains selectable');
+  navigate('payments');
+  assert.equal(sandbox.ui.familyStudent, 'chloe');
+  assert.equal(messages.at(-1).studentId, 'chloe', 'Parent status reports the actual displayed child');
+
+  saveSiblingState({ ...sandbox.state, demoWorksheetStudent: 'ethan', marker: 'teacher edit' });
+  navigate('handbook');
+  assert.equal(sandbox.state.marker, 'teacher edit', 'Shared records still refresh');
+  assert.equal(sandbox.state.demoWorksheetStudent, 'ethan');
+  assert.equal(sandbox.ui.familyStudent, 'chloe', 'Refreshing sibling records keeps the parent’s chosen child');
+
+  sandbox.target.value = initialChild;
+  vm.runInContext(childChange, sandbox);
+  navigate('overview');
+  assert.equal(sandbox.ui.familyStudent, initialChild);
+  assert.match(vm.runInContext('childSwitch()', sandbox), new RegExp('value="' + initialChild + '" selected'));
+  assert.equal(messages.at(-1).studentId, initialChild);
+  assert.equal(counts.saves, 0, 'Parent navigation and child switching do not write shared worksheet selection');
+
+  navigate('payments', 'mia');
+  assert.equal(sandbox.ui.familyStudent, 'mia', 'Explicit parent navigation can still choose a different child');
+  assert.equal(sandbox.state.demoWorksheetStudent, 'ethan');
+});
+
+test('student child switching still updates the shared worksheet selection', async () => {
+  const source = await readFile(new URL('../dist/app.js', import.meta.url), 'utf8');
+  const { sandbox, readSaved } = await proposalFrameHarness({ version: 4, demoWorksheetStudent: 'mia' });
+  sandbox.target = { value: 'chloe' };
+  sandbox.type = 'family-student';
+  const childChange = source.slice(source.indexOf(" else if(type==='family-student')"), source.indexOf(" else if(type==='report-month')")).replace('else if', 'if');
+  vm.runInContext(childChange, sandbox);
+  assert.equal(sandbox.ui.familyStudent, 'chloe');
+  assert.equal(readSaved().demoWorksheetStudent, 'chloe');
+});

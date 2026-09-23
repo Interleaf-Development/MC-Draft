@@ -20,11 +20,11 @@ export const t = (en, zh) => language === 'zh-HK' ? zh : en;
 export const shellText = {
   skip: t('Skip to proposal', '跳至建議書內容'),
   contents: t('Contents', '目錄'),
-  draftMark: t('SCOPE PROPOSAL', '系統建議書'),
+  draftMark: t('SYSTEM PROPOSAL', '系統建議書'),
   draftDate: t('23 September 2026', '2026年9月23日'),
   draftNote: t('Draft for discussion', '初稿，供討論用'),
   print: t('Print', '列印'),
-  documentType: t('Product scope and delivery proposal', '系統功能及交付建議'),
+  documentType: t('System proposal', '系統功能建議'),
   documentTitle: t("1. MathConcept Paperless Teaching & Centre Management System", "1. MathConcept 無紙化教學及中心管理系統"),
   documentSummary: t("Build a system for MathConcept covering student learning, paperless teaching-material management and centre operations, with dedicated native applications for students, parents and centres. This proposal first introduces the student learning experience after going paperless, supporting a hybrid approach in which students can complete exercises online or print materials for paper use. It then explains the process of digitising existing materials, creating new materials and handling centre administration.", "為 MathConcept 建立涵蓋學生學習、無紙化教材管理及中心營運的系統，並提供學生、家長及中心專用的原生應用程式（Native Application）。本建議書會先介紹學生無紙化下的學習體驗，支援學生以混合方式學習，既可在線上完成練習，也可列印教材供紙本使用，再說明現有教材的數碼化過程、新教材的編製方式及中心行政功能。"),
   systemOverview: t('System overview', '系統概覽'),
@@ -43,10 +43,10 @@ export const shellText = {
   hqTasks: t("Organise and create teaching materials with AI, approve material versions, manage each centre’s access permissions and oversee franchise operations.", "整理及配合 AI 編製教材、核准教材版本、管理各中心的使用權限，並監察加盟中心的營運。"),
   preparedFor: t('Prepared for', '提交對象'),
   documentLabel: t('Document', '文件類別'),
-  documentValue: t('Product scope proposal', '系統建議書'),
+  documentValue: t('System proposal', '系統建議書'),
   dateLabel: t('Date', '日期'),
   statusLabel: t('Status', '文件狀態'),
-  statusValue: t('Draft; scope, fees and dates to be agreed', '初稿；交付範圍、費用及日期待議'),
+  statusValue: t('Draft for discussion', '初稿，供討論用'),
   learningLink: t('2. Student learning experience', '2. 學生學習體驗'),
-  termsLink: t("8. Scope and commercial terms", "8. 範圍及商業安排")
+  parentLink: t("6. Parent app", "6. 家長應用程式")
 };

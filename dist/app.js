@@ -179,10 +179,11 @@ function persistProposalStudentSelection(studentId) {
  if(!demoContext.isProposal||!proposalIsActive||!students.some(student=>student.id===studentId)||state.demoWorksheetStudent===studentId)return;
  state.demoWorksheetStudent=studentId;persist();
 }
-function followProposalStudent(studentId=state.demoWorksheetStudent) {
+function followProposalStudent(studentId=ui.role==='parent'?ui.familyStudent:state.demoWorksheetStudent) {
  if(!students.some(student=>student.id===studentId))return;
- ui.selectedStudent=studentId;ui.familyStudent=studentId;ui.thread='thread-'+studentId;
- persistProposalStudentSelection(studentId);
+ if(ui.role!=='parent')ui.selectedStudent=studentId;
+ ui.familyStudent=studentId;ui.thread='thread-'+studentId;
+ if(ui.role!=='parent')persistProposalStudentSelection(studentId);
 }
 function refreshProposalState(force=false) {
  if(!demoContext.isProposal)return false;
@@ -227,7 +228,7 @@ function activateProposalInteraction(event) {
  postProposalStatus('mc-proposal:focused');
 }
 function postProposalStatus(type='mc-proposal:state') {
- if(demoContext.isProposal&&window.parent!==window)window.parent.postMessage({type,role:ui.role,page:ui.page,studentId:state.demoWorksheetStudent||ui.familyStudent},location.origin);
+ if(demoContext.isProposal&&window.parent!==window)window.parent.postMessage({type,role:ui.role,page:ui.page,studentId:ui.role==='parent'?ui.familyStudent:state.demoWorksheetStudent||ui.familyStudent},location.origin);
 }
 // A neighbouring inline scene can be clicked before the chapter scroll marker
 // changes. Refresh it synchronously before that click or key can edit records.
@@ -253,7 +254,7 @@ function render() {
   finishScheduleDrag(false);
   closeScheduleColourMenu();
   document.documentElement.lang = 'zh-HK';
-  if(demoContext.isProposal){const url=proposalEntryUrl(ui.role,ui.page,new URL(location.href),state.demoWorksheetStudent);if(url!==location.pathname+location.search+location.hash)history.replaceState(null,'',url);}
+  if(demoContext.isProposal){const url=proposalEntryUrl(ui.role,ui.page,new URL(location.href),ui.role==='parent'?ui.familyStudent:state.demoWorksheetStudent);if(url!==location.pathname+location.search+location.hash)history.replaceState(null,'',url);}
   syncEntryPoint(ui.role);
   const nav = NAV[ui.role]; const user = identity();
   const staffView = ['admin', 'teacher'].includes(ui.role);
@@ -725,7 +726,9 @@ function assessmentOverview(){
 }
 const childSwitch=()=>{
  const demoStudents=ui.role==='student'?getTeacherStudents(state).filter(student=>!['chloe','mia'].includes(student.id)&&(state.assignments.some(assignment=>assignment.studentId===student.id)||student.id===ui.familyStudent)):[];
- if(demoContext.isProposal&&!['chloe','mia'].includes(ui.familyStudent)&&!demoStudents.some(student=>student.id===ui.familyStudent))demoStudents.push(studentById(ui.familyStudent));
+ if(demoContext.isProposal)for(const id of ui.role==='parent'?[requestedNavigation.studentId,ui.familyStudent]:[ui.familyStudent]){
+  if(students.some(student=>student.id===id)&&!['chloe','mia'].includes(id)&&!demoStudents.some(student=>student.id===id))demoStudents.push(studentById(id));
+ }
  return '<select class="btn" data-change="family-student" aria-label="'+t(ui.role==='student'?'Student':'Child',ui.role==='student'?'學生':'子女')+'"><option value="chloe"'+(ui.familyStudent==='chloe'?' selected':'')+'>Chloe Chan · '+t('P3')+'</option><option value="mia"'+(ui.familyStudent==='mia'?' selected':'')+'>Mia Cheung · '+t(state.assessment.enrolled?'P2':'Assessment')+'</option>'+demoStudents.map(student=>'<option value="'+student.id+'"'+(ui.familyStudent===student.id?' selected':'')+'>'+esc(student.name)+(student.level?' · '+t(student.level):'')+'</option>').join('')+'</select>';
 };
 
@@ -1210,7 +1213,7 @@ document.addEventListener('change',e=>{
  if(type==='library-filter'){ui.libraryFilter=target.value;render();}
  else if(type==='class-session'){ui.standaloneFolder=false;const [date,start,tutor]=target.value.split('|');ui.classDate=date;ui.classStart=Number(start);ui.classTutor=tutor;ui.selectedStudent=teachingBookings()[0]?.studentId||'chloe';render();}
  else if(type==='record-student'){ui.selectedStudent=target.value;render();}
- else if(type==='family-student'){ui.familyStudent=target.value;ui.thread='thread-'+target.value;if(demoContext.isProposal&&students.some(student=>student.id===target.value)){state.demoWorksheetStudent=target.value;persist();}render();}
+ else if(type==='family-student'){ui.familyStudent=target.value;ui.thread='thread-'+target.value;if(demoContext.isProposal&&ui.role!=='parent'&&students.some(student=>student.id===target.value)){state.demoWorksheetStudent=target.value;persist();}render();}
  else if(type==='report-month'){collection('matched').page=1;collection('exceptions').page=1;ui.reportMonth=target.value;openBillingReport();}
  else if(target.id==='student-working'&&currentAssignment()&&ui.role==='student'&&canDraw()){currentAssignment().working=target.value;persist();}
  else if(target.id==='work-feedback'&&currentAssignment()&&ui.role==='teacher'){currentAssignment().note=target.value;persist();}

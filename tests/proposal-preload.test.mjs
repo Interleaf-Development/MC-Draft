@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const source = await readFile(new URL('../dist/proposal/demos.js', import.meta.url), 'utf8');
 const appSource = await readFile(new URL('../dist/proposal/app.js', import.meta.url), 'utf8');
 const origin = 'https://demo.example';
-const scenes = [ 'teacher', 'student', 'game', 'operations', 'billing', 'franchise'];
+const scenes = [ 'teacher', 'student', 'game', 'operations', 'billing', 'parent', 'franchise'];
 
 // A DOM/event boundary for the real module: tests use rendered controls and
 // message events, without reaching into its frame map or activation state.
@@ -117,7 +117,7 @@ class Element {
 
 function harness(hash = '#teacher') {
   const body = new Element('body');
-  for (const id of [...scenes, 'rollout']) body.append(new Element('div', { id: 'demo-' + id }));
+  for (const id of scenes) body.append(new Element('div', { id: 'demo-' + id }));
   const listeners = new Map();
   const addEventListener = (type, callback) => {
     if (!listeners.has(type)) listeners.set(type, []);
@@ -164,11 +164,11 @@ function harness(hash = '#teacher') {
         body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
       }
       document.getElementById('main').append(new Element('section', { id: 'vision', class: 'chapter' }));
-      const chapterIds = ['vision', 'student', 'teacher', 'library', 'system', 'franchise', 'rollout', 'proposal'];
+      const chapterIds = ['vision', 'student', 'teacher', 'library', 'system', 'parent', 'franchise'];
       scope.english = scope.chinese = {
         chapters: chapterIds.map(id => ({ id, title: id })), references: {},
         chapterHTML: chapter => {
-          const ids = chapter.id === 'student' ? ['student', 'game'] : chapter.id === 'system' ? ['operations', 'billing'] : [...scenes, 'rollout'].includes(chapter.id) ? [chapter.id] : [];
+          const ids = chapter.id === 'student' ? ['student', 'game'] : chapter.id === 'system' ? ['operations', 'billing'] : scenes.includes(chapter.id) ? [chapter.id] : [];
           return `<section id="${chapter.id}" class="chapter">${ids.map(id => `<div id="demo-${id}"></div>`).join('')}</section>`;
         }
       };
@@ -218,6 +218,30 @@ test('the requested scene starts first and all inline scenes warm without visiti
     assert.equal(url.searchParams.get('proposal'), '1');
     assert.equal(url.searchParams.get('proposalPreload'), '1');
   }
+});
+
+
+test('the parent chapter preloads the actual phone app and switches its views without replacing the frame', () => {
+  const h = harness('#parent'); h.loadApp(); h.warm();
+  const frame = h.frame('parent'), url = new URL(frame.src, origin);
+  assert.equal(url.pathname, '/parent/');
+  assert.equal(url.searchParams.get('role'), 'parent');
+  assert.equal(url.searchParams.get('page'), 'overview');
+  assert.equal(url.searchParams.get('studentId'), 'twn-c64262b4d67d', 'The initial home shows a pupil with actual upcoming lessons');
+  assert.equal(frame.style.width, '390px');
+  assert.equal(frame.style.height, '844px');
+  h.ready('parent', 'parent', 'overview');
+  for (const [view, page] of [['parentCalendar', 'lessons'], ['parentReports', 'handbook'], ['parentHomework', 'homework'], ['parentBilling', 'payments'], ['parentMessages', 'messages'], ['parent', 'overview']]) {
+    h.choose('parent', view);
+    const request = messages(frame, 'mc-proposal:navigate').at(-1).data;
+    assert.equal(request.role, 'parent');
+    assert.equal(request.page, page);
+    assert.equal(request.studentId, undefined, 'The chosen child stays selected when navigating parent views');
+    assert.equal(h.frame('parent'), frame);
+  }
+  assert.equal(h.document.querySelector('#demo-rollout'), null);
+  assert.equal(h.document.querySelector('#rollout'), null);
+  assert.equal(h.document.querySelector('#proposal'), null);
 });
 
 test('background readiness cannot take activation from the visible scene, and revisiting keeps its frame', () => {
@@ -485,7 +509,7 @@ test('scrolling within the student chapter keeps the visible game active rather 
 });
 
 test('legacy chapter links open the merged chapters and reuse their existing demo frames', () => {
-  for (const [legacy, chapter, demo] of [['authoring', 'library', null], ['protection', 'library', null], ['operations', 'system', 'operations'], ['billing', 'system', 'operations']]) {
+  for (const [legacy, chapter, demo] of [['authoring', 'library', null], ['protection', 'library', null], ['operations', 'system', 'operations'], ['billing', 'system', 'operations'], ['rollout', 'vision', null], ['proposal', 'vision', null]]) {
     const h = harness('#' + legacy); h.loadApp(); h.warm();
     assert.equal(h.address.hash, '#' + chapter);
     assert.equal(h.document.getElementById('chapter-label').textContent, chapter);
