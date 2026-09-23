@@ -50,6 +50,7 @@ export function getSchedulePeriods(state, studentId) {
 }
 
 function closureOn(state, date, teachingCycle = false) {
+  if ((state.billingCalendar?.closedDates || []).includes(date)) return { date, closed: true };
   const weekStart = addDays(date, 1 - weekdayOf(date));
   if (teachingCycle && (state.billingCalendar?.closedWeeks || []).some(closed => validDate(closed) && addDays(closed, 1 - weekdayOf(closed)) === weekStart)) return { start: weekStart, end: addDays(weekStart, 6), closed: true };
   return [...(state.centreHolidays || []), ...(state.holidays || []), ...(state.closures || [])].find(item => {
@@ -69,7 +70,7 @@ function invoicePlan(state, invoice, period, rule) {
   const saved = invoice.lessonPlan;
   const explicit = Array.isArray(saved) ? saved : saved?.lessonDates || saved?.lessons || invoice.lessonDates;
   const makeUpLessonCount = Number(saved?.makeUpLessonCount || 0);
-  const expected = Number(saved?.lessonCount ?? invoice.lessonCount ?? String(invoice.description || '').match(/(\d+)\s+lessons?\b/i)?.[1] ?? 8);
+  let expected = Number(saved?.lessonCount ?? invoice.lessonCount ?? String(invoice.description || '').match(/(\d+)\s+lessons?\b/i)?.[1] ?? 8);
   const scheduled = [];
   if (!explicit) {
     for (let date = period.start; date <= period.end; date = addDays(date, 1)) {
@@ -77,10 +78,18 @@ function invoicePlan(state, invoice, period, rule) {
       if (weekdayOf(date) === datedRule.weekday && !closureOn(state, date, Boolean(invoice.teachingCycle))) scheduled.push({ date, start: datedRule.start, duration: datedRule.duration, tutor: datedRule.tutor });
     }
   }
+  // Eight is the package's nominal count. An unsnapshotted two-month calendar
+  // can naturally contain seven, eight or nine lessons at the same fee. Exact
+  // saved dates and previously granted make-up credits remain authoritative.
+  const periodStart = new Date(period.start + 'T00:00:00Z');
+  const twoMonthEnd = iso(new Date(Date.UTC(periodStart.getUTCFullYear(), periodStart.getUTCMonth() + 2, 0)));
+  const calendarPackage = invoice.billingMonths === 2 || period.start.endsWith('-01') && period.end === twoMonthEnd;
+  const useCalendarCount = !explicit && calendarPackage && makeUpLessonCount === 0;
+  if (useCalendarCount) expected = scheduled.length;
   const dates = explicit ? explicit.map(item => {
     const date = typeof item === 'string' ? item : item.date, datedRule = validDate(date) ? getRegularSchedule(state, invoice.studentId, date) : rule;
     return typeof item === 'string' ? { date, start: datedRule.start, duration: datedRule.duration, tutor: datedRule.tutor } : { ...item, duration: item.duration || datedRule.duration, tutor: item.tutor || datedRule.tutor, start: item.start ?? datedRule.start };
-  }) : scheduled.slice(0, Math.max(0, expected - makeUpLessonCount));
+  }) : useCalendarCount ? scheduled : scheduled.slice(0, Math.max(0, expected - makeUpLessonCount));
   const lessons = sortLessons(dates.map(item => {
     const existing = state.bookings.find(booking => booking.studentId === invoice.studentId && (item.bookingId ? booking.id === item.bookingId : !booking.sourceId && key(booking) === key(item)));
     return { ...fields(item), ...(existing ? { bookingId: existing.id, status: existing.status } : {}) };
@@ -155,7 +164,7 @@ export function getRemainingStudentLessons(state, studentId, asOf = TODAY) {
   return { lessons: sortLessons([...lessons.values()]), pendingMinutes, periodLabel: [...labels].join(' · ') || null, hasPaidPeriod: periods.some(period => period.end >= asOf) || lessons.size > 0 || pendingMinutes > 0 };
 }
 function fingerprint(state, input) {
-  const value = JSON.stringify({ input, bookings: state.bookings, invoices: state.invoices.filter(item => item.studentId === input.studentId), receipts: state.receipts.filter(item => item.studentId === input.studentId), staff: state.staff, staffLeave: state.staffLeave, makeups: state.makeups.filter(item => item.studentId === input.studentId), regularSchedules: state.regularSchedules, centreHolidays: state.centreHolidays, holidays: state.holidays, closures: state.closures });
+  const value = JSON.stringify({ input, bookings: state.bookings, invoices: state.invoices.filter(item => item.studentId === input.studentId), receipts: state.receipts.filter(item => item.studentId === input.studentId), staff: state.staff, staffLeave: state.staffLeave, makeups: state.makeups.filter(item => item.studentId === input.studentId), regularSchedules: state.regularSchedules, billingCalendar: state.billingCalendar, centreHolidays: state.centreHolidays, holidays: state.holidays, closures: state.closures });
   let hash = 2166136261;
   for (let index = 0; index < value.length; index++) hash = Math.imul(hash ^ value.charCodeAt(index), 16777619);
   return 'schedule-' + (hash >>> 0).toString(16) + '-' + value.length;
@@ -299,18 +308,21 @@ export function applyRegularScheduleChange(state, input, decisions = {}) {
     makeup = { id: uid('makeup'), kind: 'schedule-shortfall', studentId: preview.input.studentId, scheduleChangeId: changeId, sourceDate, minutes: shortfall * preview.oldRule.duration, duration: preview.oldRule.duration, used: 0, expiry: preview.period.end, originalExpiry: preview.period.end, period: preview.period.label, invoiceId: invoice.id, reason, preferredDates: [], preferencesNote: '', followUpStatus: 'pending', countsTowardRescheduleLimit: false };
     trial.makeups.push(makeup);
   }
-  receipt.originalDocument ??= { description: invoice.description, period: invoice.period, lessonCount: preview.beforeTotalCount, lessonDates: clone(preview.beforeLessons), makeUpLessonCount: preview.makeUpLessonCount, lessonPlan: { lessonCount: preview.beforeTotalCount, lessonDates: clone(preview.beforeLessons), makeUpLessonCount: preview.makeUpLessonCount } };
+  const paymentDate = receipt.paymentDate || invoice.claimedPaymentDate || invoice.proofReview?.extracted?.paymentDate || null;
+  receipt.originalDocument ??= { description: invoice.description, period: invoice.period, receiptDate: receipt.issuedDate, paymentDate, lessonCount: preview.beforeTotalCount, lessonDates: clone(preview.beforeLessons), makeUpLessonCount: preview.makeUpLessonCount, lessonPlan: { lessonCount: preview.beforeTotalCount, lessonDates: clone(preview.beforeLessons), makeUpLessonCount: preview.makeUpLessonCount } };
   const revisions = receipt.revisions || [];
+  const generatedAt = new Date().toISOString();
   const temporaryDetails = preview.temporary ? { temporary: true, endDate: preview.input.endDate, resumeDate: preview.resumeDate, resumeRule: clone(preview.resumeRule) } : {};
-  const revision = { id: receipt.id + '-A' + (revisions.length + 1), receiptDate: receipt.issuedDate, revisedAt: TODAY, effectiveDate: preview.input.effectiveDate, ...temporaryDetails, lessonCount, lessonDates: clone(accepted), makeUpLessonCount, description: 'Regular programme · ' + lessonCount + ' lessons', reason, scheduleChangeId: changeId, decisions: { extra: preview.delta > 0 ? decisions.extra : null, shortfall: preview.delta < 0 ? decisions.shortfall : null }, excludedDates: [...excludedDates] };
+  const revision = { id: receipt.id + '-A' + (revisions.length + 1), originalReceiptId: receipt.id, replacesDocumentId: receipt.activeRevisionId || receipt.id, receiptDate: receipt.issuedDate, paymentDate: Object.hasOwn(receipt.originalDocument, 'paymentDate') ? receipt.originalDocument.paymentDate : paymentDate, revisedAt: generatedAt, generatedAt, effectiveDate: preview.input.effectiveDate, ...temporaryDetails, lessonCount, lessonDates: clone(accepted), makeUpLessonCount, description: 'Regular programme · ' + lessonCount + ' lessons', reason, scheduleChangeId: changeId, decisions: { extra: preview.delta > 0 ? decisions.extra : null, shortfall: preview.delta < 0 ? decisions.shortfall : null }, excludedDates: [...excludedDates] };
   receipt.revisions = [...revisions, revision]; receipt.activeRevisionId = revision.id;
   invoice.lessonPlan = { lessonCount, lessonDates: clone(accepted), makeUpLessonCount };
   invoice.lessonCount = lessonCount; invoice.description = revision.description;
-  const change = { id: changeId, studentId: preview.input.studentId, invoiceId: invoice.id, receiptId: receipt.id, revisionId: revision.id, createdAt: TODAY, effectiveDate: preview.input.effectiveDate, ...temporaryDetails, oldRule: clone(preview.oldRule), newRule: clone(preview.newRule), beforeCount: preview.beforeCount, proposedCount: preview.proposedCount, finalCount: accepted.length, lessonCount, delta: preview.delta, excludedDates, decisions: revision.decisions, reason, createdBookingIds: created, ...(makeup ? { makeupId: makeup.id } : {}) };
+  const change = { id: changeId, studentId: preview.input.studentId, invoiceId: invoice.id, receiptId: receipt.id, revisionId: revision.id, createdAt: generatedAt, effectiveDate: preview.input.effectiveDate, ...temporaryDetails, oldRule: clone(preview.oldRule), newRule: clone(preview.newRule), beforeCount: preview.beforeCount, proposedCount: preview.proposedCount, finalCount: accepted.length, lessonCount, delta: preview.delta, excludedDates, decisions: revision.decisions, reason, createdBookingIds: created, ...(makeup ? { makeupId: makeup.id } : {}) };
   trial.regularScheduleChanges = [...(trial.regularScheduleChanges || []), change];
   trial.regularSchedules = { ...trial.regularSchedules, [preview.input.studentId]: { ...preview.newRule, invoiceId: invoice.id, changeId, previousRule: clone(state.regularSchedules?.[preview.input.studentId] || preview.oldRule) } };
   trial.audit ??= [];
   record(trial, requireStudent(preview.input.studentId).name + ': regular timetable ' + preview.beforeCount + ' → ' + preview.proposedCount + ' lessons. ' + reason + ' Receipt amendment ' + revision.id + ' retains receipt date ' + receipt.issuedDate + '.', centre.manager);
+  Object.assign(trial.audit[0], { recordedAt: generatedAt, scheduleChangeId: changeId, revisionId: revision.id, at: new Intl.DateTimeFormat('zh-HK', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Hong_Kong' }).format(new Date(generatedAt)) });
   Object.assign(state, trial);
   return { change, receipt, revision, ...(makeup ? { makeup } : {}), excludedDates };
 }

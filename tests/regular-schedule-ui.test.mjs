@@ -60,7 +60,9 @@ test('reviewing a permanent 8-to-9 change shows receipt impact without modifying
   reviewExtra(app);
   assert.match(app.modal.body, /8 <span>→<\/span> 9/);
   assert.match(app.modal.body, /維持學費，安排 9 堂/);
-  assert.match(app.modal.body, /維持 8 堂/);
+  assert.match(app.modal.body, /不批准額外課堂，維持 8 堂/);
+  assert.match(app.modal.body, /保留原收據日期及付款日期/);
+  assert.match(app.modal.body, /實際修訂產生時間/);
   assert.match(app.modal.body, /毋須額外付款/);
   assert.match(app.modal.body, /比較上課日期/);
   assert.equal(app.root.querySelector('[data-action="regular-apply"]').disabled, true);
@@ -127,8 +129,9 @@ test('the 8-to-7 review requires staff to choose a make-up credit or the reduced
   assert.equal(app.modal.title, '檢視常規課表更改');
   assert.match(app.modal.body, /8 <span>→<\/span> 7/);
   assert.match(app.modal.body, /提供 1 堂補堂/);
+  assert.match(app.modal.body, /不另補堂或退款/);
   assert.match(app.modal.body, /已安排 7 堂，另有 1 堂由客服安排/);
-  assert.match(app.modal.body, /維持 7 堂，不補堂/);
+  assert.match(app.modal.body, /不提供補堂，維持 7 堂/);
   assert.equal(app.root.querySelector('[data-action="regular-apply"]').disabled, true);
   assert.doesNotMatch(app.modal.body, /type="radio"[^>]*checked/);
   assert.deepEqual(app.state, before, 'Review does not grant a credit or change a lesson');

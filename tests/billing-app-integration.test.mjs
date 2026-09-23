@@ -51,7 +51,8 @@ test('actual enrolment actions separate parent application, staff review and fir
   const invoice = app.state.invoices.find(item => item.enrolmentApplicationId === application.id);
   assert.ok(invoice);
   assert.equal(invoice.amount, 1800);
-  assert.equal(invoice.teachingWeeks, 4);
+  assert.equal(invoice.billingMonths, 2);
+  assert.equal(invoice.packageLessonCount, 8);
   assert.equal(app.state.assessment.enrolled, false);
   submitPaymentProof(app.state, invoice.id, { paymentDate: model.TODAY, reference: 'FIRST-APP-654321', payerName: 'Mandy Cheung' });
   assert.equal(app.state.assessment.enrolled, false);

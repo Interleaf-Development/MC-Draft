@@ -46,6 +46,19 @@ test('legacy unamended receipt retains its description, proof date and single pa
   assert.equal(renderReceiptDocument(state, 'missing'), '');
 });
 
+test('a nominal eight-lesson package receipt displays its actual nine dated lessons consistently', () => {
+  const state = fixture(), invoice = state.invoices[0];
+  const dates = ['2026-10-01', '2026-10-08', '2026-10-15', '2026-10-22', '2026-10-29', '2026-11-05', '2026-11-12', '2026-11-19', '2026-11-26'];
+  Object.assign(invoice, { billingMonths: 2, packageLessonCount: 8, lessonCount: 9, lessonPlan: { lessonCount: 9, lessonDates: dates.map(date => lesson(date)), makeUpLessonCount: 0 } });
+  const before = clone(state), html = renderReceiptDocument(state, 'R-101');
+  assert.match(html, /常規課程 · 9 堂/);
+  assert.match(html, /課堂安排 · 9 堂/);
+  assert.doesNotMatch(html, /常規課程 · 8 堂/);
+  assert.equal((html.match(/<li>/g) || []).length, 9);
+  assert.match(html, /HK\$2,000/);
+  assert.deepEqual(state, before);
+});
+
 test('active receipt amendment displays original receipt date and actual revision date separately', () => {
   const state = amendedFixture(), before = clone(state);
   const html = renderReceiptDocument(state, 'R-101');
@@ -60,6 +73,27 @@ test('active receipt amendment displays original receipt date and actual revisio
   assert.match(html, /data-revision="original"/);
   assert.match(html, /data-revision="R-101-A1" aria-current="true" disabled/);
   assert.equal(html.match(/HK\$2,000/g).length, 1);
+  assert.deepEqual(state, before);
+});
+
+test('replacement receipt shows its original dates, linked document and actual generation timestamp', () => {
+  const state = amendedFixture();
+  state.receipts[0].originalDocument.paymentDate = '2026-09-22';
+  Object.assign(state.receipts[0].revisions[0], {
+    originalReceiptId: 'R-101', replacesDocumentId: 'R-101',
+    paymentDate: '2026-09-22', generatedAt: '2026-10-02T06:07:08.000Z', revisedAt: '2026-10-02T06:07:08.000Z'
+  });
+  state.invoices[0].claimedPaymentDate = '2026-10-05';
+  const before = clone(state), html = renderReceiptDocument(state, 'R-101');
+  assert.match(html, /收據日期<\/dt><dd>2026年9月24日/);
+  assert.match(html, /付款日期<\/dt><dd>2026年9月22日/);
+  assert.match(html, /修訂產生時間 2026年10月2日\s+14:07:08/);
+  assert.match(html, /原收據編號：R-101 · 取代版本：R-101/);
+  assert.match(html, /保留原收據日期、付款日期及付款金額/);
+  assert.doesNotMatch(html, /Invalid Date/);
+  const original = renderReceiptDocument(state, 'R-101', { revisionId: 'original' });
+  assert.match(original, /付款日期<\/dt><dd>2026年9月22日/);
+  assert.match(original, /常規課程 · 8 堂/);
   assert.deepEqual(state, before);
 });
 

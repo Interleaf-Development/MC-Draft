@@ -11,7 +11,7 @@ import { createBillingWorkflowUI } from './billing-workflow-ui.js';
 import { submitEnrolmentApplication, reviewEnrolmentApplication, createAssessmentInvoice, runTuitionBilling } from './billing-cycles.js';
 import { billingText } from './billing-locale.js';
 import { staffText, staffDate, staffContent, staffProfile } from './staff-locale.js';
-import { isFamilyRole } from './family-locale.js';
+import { isFamilyRole, familyDate } from './family-locale.js';
 import { syncEntryPoint } from './entry-points.js';
 import { createDemoContext, demoNavigationFromUrl, proposalEntryUrl, proposalMessage } from './demo-context.js';
 import { createEdgePager } from './schedule-drag.js';
@@ -477,7 +477,7 @@ function moveTo(id, slot) {
   const booking=state.bookings.find(b=>b.id===id),makeup=state.makeups.find(m=>m.id===booking?.caseId);
   // Calendar rows represent hours; moving a :30 start keeps its minute offset.
   if(booking)slot={...slot,start:Math.floor(slot.start/60)*60+booking.start%60};
-  if(booking && slot.date>(makeup?.expiry || cycleForDate(booking.date).expiry) && !slot.approvedExpiry){
+  if(booking && slot.date>(makeup?.expiry || cycleForDate(booking.date,state,booking.studentId).expiry) && !slot.approvedExpiry){
     ui.pendingMove={id,slot};
     modal('Approve a deadline extension','<p class="small muted mb-16">新時段已超出目前補堂期限，請先記錄特別安排，再調動課堂。</p><div class="form-stack">'+field('New deadline','<input type="date" id="extension-date" value="'+slot.date+'" min="'+slot.date+'" aria-label="新期限">')+field('Reason','<input id="extension-reason" aria-label="延長原因" placeholder="延長補堂期限的原因">')+'</div>',action('close-modal','Cancel','btn')+action('confirm-move-extension','Approve & move','btn primary'));return;
   }
@@ -1000,7 +1000,7 @@ function enrolDialog(){
   return;
  }
  const credit=assessmentCredit(state.assessment,TODAY);
- modal(t('Enrol Mia Cheung','為 Mia Cheung 報名'),'<div class="form-stack">'+field(t('Parent / guardian','家長／監護人'),'<input id="enrol-parent" value="Mrs Cheung" aria-label="'+t('Parent name','家長姓名')+'">')+field(t('Contact number','聯絡電話'),'<input id="enrol-phone" inputmode="tel" value="9000 0000" aria-label="'+t('Contact number','聯絡電話')+'">')+'<div class="field-row">'+field(t('First lesson','首次上課日期'),'<input id="enrol-date" type="date" min="'+TODAY+'" value="2026-10-07" aria-label="'+t('First lesson date','首次上課日期')+'">')+field(t('Lesson time','上課時間'),'<select id="enrol-time" aria-label="'+t('First lesson time','首次上課時間')+'"><option value="1020">17:00–18:00</option><option value="960">16:00–17:00</option></select>')+'</div><p class="small">'+t('Four teaching weeks per cycle. First payment: '+money(2000-credit)+'.','每期四個教學週。首次學費：'+money(2000-credit)+'。')+'</p><p class="small muted">'+t('Staff review the application before issuing an invoice. Enrolment activates after payment approval.','中心審核報名申請後會發出繳費通知，核對付款後才會正式啟用學籍。')+'</p></div>',action('close-modal','Cancel','btn')+action('confirm-enrol',t('Submit application','提交報名申請'),'btn primary'));
+ modal(t('Enrol Mia Cheung','為 Mia Cheung 報名'),'<div class="form-stack">'+field(t('Parent / guardian','家長／監護人'),'<input id="enrol-parent" value="Mrs Cheung" aria-label="'+t('Parent name','家長姓名')+'">')+field(t('Contact number','聯絡電話'),'<input id="enrol-phone" inputmode="tel" value="9000 0000" aria-label="'+t('Contact number','聯絡電話')+'">')+'<div class="field-row">'+field(t('First lesson','首次上課日期'),'<input id="enrol-date" type="date" min="'+TODAY+'" value="2026-10-07" aria-label="'+t('First lesson date','首次上課日期')+'">')+field(t('Lesson time','上課時間'),'<select id="enrol-time" aria-label="'+t('First lesson time','首次上課時間')+'"><option value="1020">17:00–18:00</option><option value="960">16:00–17:00</option></select>')+'</div><p class="small">'+t('Eight-lesson package, valid for two months. First payment: '+money(2000-credit)+'.','8 堂課程，有效期兩個月。首次學費：'+money(2000-credit)+'。')+'</p><p class="small muted">'+t('Staff review the application before issuing an invoice. Enrolment activates after payment approval.','中心審核報名申請後會發出繳費通知，核對付款後才會正式啟用學籍。')+'</p></div>',action('close-modal','Cancel','btn')+action('confirm-enrol',t('Submit application','提交報名申請'),'btn primary'));
 }
 
 function downloadText(filename,content,type='text/csv'){

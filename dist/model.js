@@ -546,10 +546,36 @@ export function validateSlot(state, booking, ignoreIds = []) {
 }
 export function record(state, text, actor = 'Centre manager') { state.audit.unshift({ id: uid('audit'), text, actor, at: '30 Sep, '+new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) }); }
 export function usedReschedules(state, studentId, period = 'Aug–Sep 2026') { return state.makeups.filter(m => m.studentId === studentId && m.period === period && m.kind !== 'schedule-shortfall').length; }
-export function cycleForDate(date) {
+export function cycleForDate(date, state, studentId) {
   let year = Number(date.slice(0,4)), month = Number(date.slice(5,7));
   let start = month % 2 === 0 ? month : month - 1;
   if (start === 0) { start = 12; year--; }
+  // A student's confirmed billing plan can start in either odd or even months.
+  // Keep the legacy default only for demo students without a package record.
+  const planCycle = state?.tuitionPlans?.[studentId]?.currentCycle;
+  const periodStartFor = invoice => {
+    const start = invoice.periodStart, end = invoice.periodEnd;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(start || '') && (invoice.billingMonths === 2 || end === new Date(Date.UTC(Number(start.slice(0,4)), Number(start.slice(5,7)) + 1, 0)).toISOString().slice(0,10))) return start.slice(0,7) + '-01';
+    const match = /^([A-Za-z]+)[–—-]([A-Za-z]+) (\d{4})(?:\/(\d{4}))?$/.exec(invoice.period || '');
+    if (!match) return null;
+    const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const first = months.indexOf(match[1].slice(0,3).toLowerCase()), last = months.indexOf(match[2].slice(0,3).toLowerCase());
+    if (first < 0 || last !== (first + 1) % 12) return null;
+    return `${match[3]}-${String(first + 1).padStart(2,'0')}-01`;
+  };
+  const periods = (state?.invoices || []).filter(invoice => invoice.studentId === studentId && invoice.chargeType !== 'assessment' && !invoice.cancelled && !invoice.canceled && !invoice.voided && !invoice.cancelledAt && !invoice.canceledAt && !invoice.voidedAt && !['cancelled', 'canceled', 'void', 'voided'].includes(invoice.status || invoice.lifecycleStatus))
+    .map(invoice => ({ invoice, start: periodStartFor(invoice) })).filter(item => item.start)
+    .map(item => ({ ...item, end: new Date(Date.UTC(Number(item.start.slice(0,4)), Number(item.start.slice(5,7)) + 1, 0)).toISOString().slice(0,10) }))
+    .sort((a,b) => b.start.localeCompare(a.start));
+  const paidPeriod = periods.find(({invoice,start,end}) => start <= date && date <= end && (invoice.receiptId || state?.receipts?.some(receipt => receipt.invoiceId === invoice.id)));
+  const candidate = periods.find(item => item.start <= date) || periods[0];
+  const anchor = paidPeriod?.start || (planCycle?.billingMonths === 2 ? planCycle.periodStart || planCycle.startDate : candidate?.start);
+  if (/^\d{4}-\d{2}-01$/.test(anchor || '')) {
+    const anchorMonth = Number(anchor.slice(0, 4)) * 12 + Number(anchor.slice(5, 7)) - 1;
+    const dateMonth = Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7)) - 1;
+    const pairMonth = anchorMonth + Math.floor((dateMonth - anchorMonth) / 2) * 2;
+    year = Math.floor(pairMonth / 12); start = pairMonth % 12 + 1;
+  }
   const first = new Date(Date.UTC(year,start-1,1)), last = new Date(Date.UTC(year,start+1,0));
   const name = d => d.toLocaleDateString('en-GB',{month:'short',timeZone:'UTC'}).replace('Sept','Sep');
   return { period: name(first) + '–' + name(last) + ' ' + (first.getUTCFullYear() === last.getUTCFullYear() ? first.getUTCFullYear() : first.getUTCFullYear() + '/' + last.getUTCFullYear()), expiry: last.toISOString().slice(0,10) };
@@ -564,7 +590,7 @@ export function moveBooking(state, id, destination) {
   let makeup = state.makeups.find(m => m.id === source.caseId);
   let newCase = false;
   if (!makeup) {
-    const cycle = cycleForDate(source.date);
+    const cycle = cycleForDate(source.date, state, source.studentId);
     if (usedReschedules(state, source.studentId, cycle.period) >= 3) throw new Error('Three reschedules have been used for this block. A manager policy decision is needed.');
     makeup = { id: uid('makeup'), sourceId: source.id, studentId: source.studentId, minutes: source.duration, used: source.duration, expiry: cycle.expiry, originalExpiry: cycle.expiry, reason: '', period: cycle.period };
     newCase = true;
@@ -609,7 +635,7 @@ function inheritMakeupCycle(makeup, parent) {
 }
 function createAbsenceMakeup(state, source, reason) {
   const parent = originatingMakeup(state, source);
-  const cycle = parent || cycleForDate(source.date);
+  const cycle = parent || cycleForDate(source.date, state, source.studentId);
   const policyReviewRequired = usedReschedules(state, source.studentId, cycle.period) >= 3;
   const makeup = pendingMakeupFields({
     id: uid('makeup'), sourceId: source.id, studentId: source.studentId,

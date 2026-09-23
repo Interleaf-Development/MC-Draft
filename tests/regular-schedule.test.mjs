@@ -21,12 +21,21 @@ test('preview is pure and derives eight Wednesdays and nine Thursdays from real 
 
 test('allowing extra lesson creates nine appointments and one revision, with no duplicate cash', () => {
   const value = state(), original = clone(value.receipts.find(item => item.id === 'R-1028')), invoice = clone(value.invoices.find(item => item.id === 'INV-1028')), bank = clone(value.bankTransactions), receiptsCount = value.receipts.length;
+  const startedAt = Date.now(), auditBefore = clone(value.audit);
   const result = apply(value, positive, { extra: 'allow' });
   assert.equal(planned(value).length, 9); assert.equal(result.revision.lessonCount, 9); assert.equal(result.revision.makeUpLessonCount, 0);
   assert.equal(result.receipt.activeRevisionId, 'R-1028-A1'); assert.equal(value.receipts.length, receiptsCount);
   for (const [field, expected] of Object.entries(original)) assert.deepEqual(result.receipt[field], expected, field);
   assert.deepEqual(value.bankTransactions, bank);
-  assert.equal(result.revision.receiptDate, original.issuedDate); assert.equal(result.revision.revisedAt, '2026-09-30');
+  assert.equal(result.revision.receiptDate, original.issuedDate);
+  assert.ok(Date.parse(result.revision.revisedAt) >= startedAt && Date.parse(result.revision.revisedAt) <= Date.now());
+  assert.equal(result.revision.generatedAt, result.revision.revisedAt);
+  assert.equal(result.change.createdAt, result.revision.generatedAt);
+  assert.equal(result.revision.originalReceiptId, original.id);
+  assert.equal(result.revision.replacesDocumentId, original.id);
+  assert.equal(result.revision.paymentDate, invoice.claimedPaymentDate);
+  assert.equal(value.audit[0].recordedAt, result.revision.generatedAt);
+  assert.deepEqual(value.audit.slice(1), auditBefore);
   assert.equal(result.receipt.originalDocument.description, invoice.description);
   assert.equal(result.receipt.originalDocument.lessonDates.length, 8);
   assert.equal(getRegularSchedule(value, 'oliver').weekday, 4);
@@ -97,6 +106,9 @@ test('repeated amendments use stored plan, preserve original snapshot and append
   assert.equal(preview.beforeCount, 9); assert.equal(preview.proposedCount, 8);
   const result = applyRegularScheduleChange(value, next, { shortfall: 'decline', fingerprint: preview.fingerprint });
   assert.equal(result.revision.id, 'R-1028-A2'); assert.deepEqual(result.receipt.revisions[0], oldRevision); assert.deepEqual(result.receipt.originalDocument, originalSnapshot);
+  assert.equal(result.revision.originalReceiptId, 'R-1028');
+  assert.equal(result.revision.replacesDocumentId, oldRevision.id);
+  assert.equal(result.revision.paymentDate, oldRevision.paymentDate);
   assert.equal(planned(value).length, 8); assert.equal(value.receipts.filter(item => item.invoiceId === 'INV-1028').length, 1);
 });
 
@@ -135,14 +147,77 @@ test('permanent change blocks unknown extra bookings and later paid periods inst
   assert.throws(() => applyRegularScheduleChange(value, positive, { extra: 'allow', fingerprint: preview.fingerprint }), /future paid period/); assert.deepEqual(value, before);
 });
 
-test('centre closures change eligible dates and invalid baseline counts need an explicit plan', () => {
+test('calendar closures change actual counts while inconsistent explicit lesson plans remain blocked', () => {
   const value = state(); value.centreHolidays = [{ date: '2026-10-08', name: 'Centre closure' }];
   const preview = previewRegularScheduleChange(value, positive);
   assert.equal(preview.proposedCount, 8); assert.equal(preview.proposedLessons.some(item => item.date === '2026-10-08'), false);
   value.centreHolidays = ['2026-10-07'];
+  const natural = previewRegularScheduleChange(value, positive);
+  assert.equal(natural.beforeCount, 7);
+  assert.equal(natural.proposedCount, 9);
+  assert.equal(natural.delta, 2);
+  assert.ok(!natural.conflicts.some(item => item.type === 'plan'));
+  value.invoices.find(item => item.id === positive.invoiceId).lessonPlan = { lessonCount: 8, lessonDates: natural.beforeLessons };
   const invalid = previewRegularScheduleChange(value, positive), before = clone(value);
   assert.ok(invalid.conflicts.some(item => item.type === 'plan'));
   assert.throws(() => applyRegularScheduleChange(value, positive, { extra: 'allow', fingerprint: invalid.fingerprint }), /exact lesson dates/); assert.deepEqual(value, before);
+});
+
+test('billing-calendar closure dates stay closed when the regular timetable changes', () => {
+  const value = state();
+  value.billingCalendar = { closedDates: ['2026-10-08'] };
+  const preview = previewRegularScheduleChange(value, positive);
+  assert.equal(preview.delta, 0);
+  assert.ok(!preview.proposedLessons.some(lesson => lesson.date === '2026-10-08'));
+  const before = clone(value);
+  value.billingCalendar.closedDates.push('2026-10-15');
+  assert.throws(() => applyRegularScheduleChange(value, positive, { fingerprint: preview.fingerprint }), /Preview the change again/);
+  value.billingCalendar = before.billingCalendar;
+  const result = applyRegularScheduleChange(value, positive, { fingerprint: preview.fingerprint });
+  assert.equal(result.revision.lessonCount, 8);
+  assert.ok(!result.revision.lessonDates.some(lesson => lesson.date === '2026-10-08'));
+  assert.ok(!planned(value).some(lesson => lesson.date === '2026-10-08'));
+  assert.equal(result.receipt.amount, 2000);
+});
+
+test('two-month packages use natural seven, eight or nine dates without changing the HK$2000 fee', () => {
+  for (const count of [7, 8, 9]) {
+    const value = state();
+    value.bookings = value.bookings.filter(item => item.studentId !== 'oliver');
+    value.regularSchedules = { ...value.regularSchedules, oliver: { weekday: count === 9 ? 4 : 3, start: 960, duration: 60, tutor: 'chan' } };
+    if (count === 7) value.centreHolidays = ['2026-10-07'];
+    const invoice = value.invoices.find(item => item.id === positive.invoiceId);
+    const receipt = value.receipts.find(item => item.id === 'R-1028'), before = clone(value);
+    const input = { ...positive, weekday: count === 9 ? 3 : 2, start: 960, tutor: count === 9 ? 'chan' : 'wong' };
+    const preview = previewRegularScheduleChange(value, input);
+    assert.equal(preview.beforeCount, count);
+    assert.equal(preview.proposedCount, 8);
+    assert.equal(preview.delta, 8 - count);
+    assert.deepEqual(value, before);
+    if (count !== 8) {
+      assert.throws(() => applyRegularScheduleChange(value, input, { fingerprint: preview.fingerprint }), /Choose whether/);
+      assert.deepEqual(value, before);
+    }
+    const result = applyRegularScheduleChange(value, input, { fingerprint: preview.fingerprint, extra: 'allow', shortfall: 'decline' });
+    assert.equal(result.revision.lessonDates.length, 8);
+    assert.equal(value.invoices.find(item => item.id === invoice.id).amount, 2000);
+    assert.equal(result.receipt.amount, 2000);
+    assert.equal(result.receipt.issuedDate, receipt.issuedDate);
+    assert.equal(value.receipts.length, before.receipts.length);
+    assert.deepEqual(value.bankTransactions, before.bankTransactions);
+  }
+});
+
+test('an existing eight-date snapshot remains eight when the natural calendar has nine dates', () => {
+  const value = state();
+  value.bookings = value.bookings.filter(item => item.studentId !== 'oliver');
+  value.regularSchedules = { ...value.regularSchedules, oliver: { weekday: 4, start: 840, duration: 60, tutor: 'chan' } };
+  const invoice = value.invoices.find(item => item.id === positive.invoiceId);
+  invoice.lessonPlan = { lessonCount: 8, makeUpLessonCount: 0, lessonDates: ['2026-10-01', '2026-10-08', '2026-10-15', '2026-10-22', '2026-10-29', '2026-11-05', '2026-11-12', '2026-11-19'].map(date => ({ date, start: 840, duration: 60, tutor: 'chan' })) };
+  const before = clone(invoice.lessonPlan), preview = previewRegularScheduleChange(value, { ...positive, weekday: 3 });
+  assert.equal(preview.beforeCount, 8);
+  assert.equal(preview.delta, 0);
+  assert.deepEqual(invoice.lessonPlan, before);
 });
 
 test('period discovery includes issued receipts, explicit dates and cross-year ranges only', () => {

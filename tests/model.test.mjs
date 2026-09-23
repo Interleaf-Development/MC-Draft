@@ -80,3 +80,36 @@ test('holiday overlap credits add to the balance; only recorded leave is deducte
  assert.equal(staffBalance(s,'chan').available,11);assert.equal(staffBalance(s,'chan').pending,0);
  s.staffLeave[0].status='recorded';assert.equal(staffBalance(s,'chan').available,10.5);assert.equal(staffBalance(s,'chan').pending,0);
 });
+
+
+test('make-up periods follow each student’s two-month billing anchor', () => {
+ const state = seed();
+ state.tuitionPlans = { chloe: { currentCycle: { billingMonths: 2, periodStart: '2026-09-01' } } };
+ assert.deepEqual(cycleForDate('2026-10-07', state, 'chloe'), { period: 'Sep–Oct 2026', expiry: '2026-10-31' });
+ assert.deepEqual(cycleForDate('2026-12-07', state, 'chloe'), { period: 'Nov–Dec 2026', expiry: '2026-12-31' });
+ assert.deepEqual(cycleForDate('2027-01-07', state, 'chloe'), { period: 'Jan–Feb 2027', expiry: '2027-02-28' });
+ assert.deepEqual(cycleForDate('2026-10-07', state, 'ethan'), { period: 'Oct–Nov 2026', expiry: '2026-11-30' });
+ const source = state.bookings.find(b => b.studentId === 'chloe' && b.date === '2026-10-07');
+ const result = requestAbsence(state, source.id, 'School event');
+ const makeup = state.makeups.find(item => item.id === result.makeupId);
+ assert.equal(makeup.period, 'Sep–Oct 2026');
+ assert.equal(makeup.expiry, '2026-10-31');
+});
+
+test('two-month invoice anchors work without a plan and ignore void invoices', () => {
+ const state = { invoices: [
+  { studentId: 's', billingMonths: 2, periodStart: '2026-09-01' },
+  { studentId: 's', billingMonths: 2, periodStart: '2026-10-01', voided: true }
+ ] };
+ assert.deepEqual(cycleForDate('2026-10-07', state, 's'), { period: 'Sep–Oct 2026', expiry: '2026-10-31' });
+});
+
+
+test('legacy paid periods retain their own expiry without new billing metadata', () => {
+ const state = { invoices: [{ id: 'old', studentId: 's', period: 'Sep–Oct 2026', receiptId: 'r' }], receipts: [{id:'r',invoiceId:'old'}], tuitionPlans: { s: { currentCycle: { billingMonths:2, periodStart:'2026-10-01' } } } };
+ assert.deepEqual(cycleForDate('2026-10-20',state,'s'),{period:'Sep–Oct 2026',expiry:'2026-10-31'});
+ state.invoices[0] = {id:'old',studentId:'s',periodStart:'2026-09-01',periodEnd:'2026-10-31'};
+ assert.deepEqual(cycleForDate('2026-10-20',state,'s'),{period:'Sep–Oct 2026',expiry:'2026-10-31'});
+ state.invoices[0] = {id:'old',studentId:'s',period:'Dec–Jan 2026/2027',receiptId:'r'};
+ assert.deepEqual(cycleForDate('2027-01-05',state,'s'),{period:'Dec–Jan 2026/2027',expiry:'2027-01-31'});
+});

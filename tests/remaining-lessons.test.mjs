@@ -21,13 +21,13 @@ test('seeded Iris Choi and a primary student get the full paid dates beyond the 
   const iris = students.find(item => item.name === 'Iris Choi');
   const primary = students.find(item => item.id.startsWith('student-') && /^P/.test(item.level) && value.invoices.some(invoice => invoice.studentId === item.id && invoice.receiptId && invoice.period === 'Oct–Nov 2026'));
   const before = clone(value), remaining = getRemainingStudentLessons(value, iris.id);
-  assert.deepEqual(dates(remaining), ['2026-10-03', '2026-10-10', '2026-10-17', '2026-10-24', '2026-10-31', '2026-11-07', '2026-11-14', '2026-11-21']);
+  assert.deepEqual(dates(remaining), ['2026-10-03', '2026-10-10', '2026-10-17', '2026-10-24', '2026-10-31', '2026-11-07', '2026-11-14', '2026-11-21', '2026-11-28']);
   const recorded = value.bookings.find(item => item.studentId === iris.id && item.date === '2026-10-03');
   assert.equal(remaining.lessons[0].bookingId, recorded.id);
   assert.equal(remaining.lessons[0].start, recorded.start, 'actual fixture time wins over directory time');
   assert.equal(remaining.pendingMinutes, 0); assert.equal(remaining.hasPaidPeriod, true);
   const primaryRemaining = getRemainingStudentLessons(value, primary.id);
-  assert.equal(primaryRemaining.lessons.length, 8);
+  assert.equal(primaryRemaining.lessons.length, 9);
   assert.ok(primaryRemaining.lessons.every(item => item.date >= '2026-10-01' && item.date <= '2026-11-30'));
   assert.deepEqual(value, before);
 });
@@ -49,6 +49,7 @@ test('an exhausted current period does not hide the next issued-receipt period',
   const value = state();
   value.invoices.push({ id: 'INV-current', studentId: 'oliver', period: 'Aug–Sep 2026', receiptId: 'R-current', description: 'Regular programme · 8 lessons' });
   value.receipts.push({ id: 'R-current', invoiceId: 'INV-current', studentId: 'oliver', issuedDate: '2026-08-01' });
+  value.bookings.push(lesson('current-final-attended', '2026-09-30', { attendance: 'present' }));
   const remaining = getRemainingStudentLessons(value, 'oliver');
   assert.equal(remaining.lessons.length, 8);
   assert.equal(remaining.lessons[0].date, '2026-10-07');
