@@ -1,5 +1,6 @@
-import { TODAY, allStudents, billingPayerName, issueReceipt, record, uid } from './model.js';
+import { TODAY, centre, allStudents, billingPayerName, issueReceipt, record, uid } from './model.js';
 import { normalizeTeachingBilling, prepareFirstEnrolmentActivation, activateFirstEnrolment } from './billing-cycles.js';
+import { enrichNewFixtureBundle, firstTuitionFixture } from './billing-fixture-lessons.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const studentsById = new Map(allStudents.map(student => [student.id, student]));
@@ -155,7 +156,7 @@ function getInvoice(state, id) {
   return invoice;
 }
 
-export function confirmInvoicePayment(state, id, { now } = {}) {
+export function confirmInvoicePayment(state, id, { now, approvalMode = 'staff' } = {}) {
   const invoice = getInvoice(state, id), existing = invoiceReceipt(state, invoice);
   if (existing) return { invoice, receipt: existing, createdReceipt: false };
   if (billingStage(state, invoice) !== 'review') throw new Error('Review a current payment proof before confirming payment.');
@@ -180,8 +181,8 @@ export function confirmInvoicePayment(state, id, { now } = {}) {
     invoice.receiptId = candidate;
     if (state.audit[0]?.text?.startsWith('Issued ' + originalId + ' ')) state.audit[0].text = state.audit[0].text.replace('Issued ' + originalId + ' ', 'Issued ' + candidate + ' ');
   }
-  Object.assign(receipt, { documentType: 'receipt', issuedAt: clock.timestamp, sentAt: clock.timestamp, issuedBy: 'Centre review', deliveryMode: 'demo' });
-  Object.assign(invoice, { proofDisposition: 'confirmed', proofConfirmedAt: clock.timestamp });
+  Object.assign(receipt, { documentType: 'receipt', issuedAt: clock.timestamp, sentAt: clock.timestamp, issuedBy: approvalMode === 'automatic' ? 'Automatic proof check (demo)' : 'Centre review', approvalMode, deliveryMode: 'demo' });
+  Object.assign(invoice, { proofDisposition: 'confirmed', proofConfirmedAt: clock.timestamp, proofApprovalMode: approvalMode });
   const activatedEnrolment = activateFirstEnrolment(state, invoice, activation, { now: clock.date });
   if (invoice.chargeType === 'assessment' && state.assessment?.studentId === invoice.studentId && state.assessment.assessmentDate === invoice.assessmentDate) state.assessment.paid = true;
   return { invoice, receipt, createdReceipt: true, activatedEnrolment };
@@ -228,23 +229,32 @@ export function remindInvoiceParent(state, id, { now } = {}) {
   return { invoice, event };
 }
 
+export function getProofApprovalMode(state) {
+  // A legacy autoSent flag is not consent to the newer all-checks-pass policy.
+  return state.billingSettings?.proofApprovalMode === 'automatic' ? 'automatic' : 'staff';
+}
+
+export function setProofApprovalMode(state, mode) {
+  if (!['staff', 'automatic'].includes(mode)) throw new Error('Choose staff approval or automatic proof approval.');
+  state.billingSettings ??= {};
+  Object.assign(state.billingSettings, { proofApprovalMode: mode, autoSent: mode === 'automatic', approvalRequired: mode === 'staff' });
+  return mode;
+}
+
 export function setBillingAutoSent(state, enabled) {
   if (typeof enabled !== 'boolean') throw new Error('Choose whether automatic sending is enabled.');
-  state.billingSettings ??= {};
-  // Kept as a compatibility adapter for old saved views. All new proofs need
-  // staff approval; a legacy toggle must never silently bypass that decision.
-  state.billingSettings.autoSent = false;
-  state.billingSettings.approvalRequired = true;
-  return false;
+  setProofApprovalMode(state, enabled ? 'automatic' : 'staff');
+  return enabled;
 }
 
 function seedWorkflowExamples(state) {
   const hasFixture = (id, studentId) => state.invoices.some(invoice => invoice.id === id && invoice.studentId === studentId);
   if (!hasFixture('INV-1024', 'chloe')) return;
+  const paidExample = firstTuitionFixture(billingPayerName(state, 'chloe'));
   const examples = [
     { id: 'INV-8001', studentId: 'chloe', amount: 2000, chargeType: 'recurring', period: 'Aug–Sep 2026', periodStart: '2026-08-01', issued: '2026-07-20', due: '2026-08-20', description: 'Regular programme · 8 lessons', proof: false, receiptId: null },
     { id: 'INV-8002', studentId: 'chloe', amount: 2000, chargeType: 'recurring', period: 'Sep–Oct 2026', periodStart: '2026-09-01', issued: '2026-08-20', due: '2026-09-20', description: 'Regular programme · 8 lessons', proof: true, proofDate: '2026-09-28', proofSubmittedAt: '2026-09-28T10:15:00+08:00', receiptId: null },
-    { id: 'INV-8003', studentId: 'chloe', amount: 1800, chargeType: 'first-tuition', period: 'Jul–Aug 2026', periodStart: '2026-07-01', issued: '2026-06-20', due: '2026-07-01', description: 'First tuition · assessment credit included', proof: true, proofDate: '2026-06-23', proofSubmittedAt: '2026-06-23T11:30:00+08:00', receiptId: 'R-8003', proofDisposition: 'confirmed' },
+    paidExample.invoice,
     { id: 'INV-8005', studentId: 'chloe', amount: 2000, chargeType: 'recurring', period: 'Jun–Jul 2026', periodStart: '2026-06-01', issued: '2026-05-20', due: '2026-06-01', description: 'Cancelled duplicate invoice', proof: false, receiptId: null, status: 'cancelled', cancelledAt: '2026-05-21T09:00:00+08:00' },
     { id: 'INV-8006', studentId: 'chloe', amount: 2000, chargeType: 'recurring', period: 'May–Jun 2026', periodStart: '2026-05-01', issued: '2026-04-20', due: '2026-05-01', description: 'Regular programme · 8 lessons', proof: true, proofDate: '2026-05-01', proofSubmittedAt: '2026-05-01T12:10:00+08:00', receiptId: null, proofDisposition: 'returned', proofReturnReason: 'The transfer reference is cut off. Please upload the full confirmation.', proofReturnedAt: '2026-05-01T14:00:00+08:00' }
   ];
@@ -252,22 +262,29 @@ function seedWorkflowExamples(state) {
   for (const invoice of examples) {
     if (state.invoices.some(saved => saved.id === invoice.id) || state.receipts.some(saved => saved.invoiceId === invoice.id || invoice.receiptId && saved.id === invoice.receiptId)) continue;
     invoice.workflowFixture = true;
-    if (invoice.proof) {
+    if (invoice.proof && invoice !== paidExample.invoice) {
       const confirmed = invoice.proofDisposition === 'confirmed';
       Object.assign(invoice, { claimedPaymentDate: invoice.proofDate, proofPayer: billingPayerName(state, invoice.studentId), proofReference: 'DEMO ' + invoice.id, paymentMethod: 'fps', proofDisposition: invoice.proofDisposition || 'pending' });
       invoice.proofReview = { id: 'fixture-proof-' + invoice.id, mode: 'demo', fixture: true, scenario: confirmed ? 'pass' : 'unreadable', status: confirmed ? 'passed' : 'needs-review', submittedDate: invoice.proofDate, submittedAt: invoice.proofSubmittedAt,
         checks: [{ key: 'isPaymentProof', label: 'Payment proof', status: confirmed ? 'pass' : 'uncertain', detail: confirmed ? 'Fictional transfer confirmation.' : 'Please confirm the transfer details.' }],
         extracted: { recipient: 'MathConcept', amount: invoice.amount, payer: invoice.proofPayer, reference: invoice.proofReference, paymentDate: invoice.claimedPaymentDate }, reasons: confirmed ? [] : ['Please confirm the transfer details.'] };
+      if (['INV-8002', 'INV-8004'].includes(invoice.id)) {
+        const matches = invoice.id === 'INV-8002', details = state.paymentDetails || { recipient: centre.name, fpsId: 'DEMO-' + centre.code };
+        Object.assign(invoice.proofReview, { scenario: matches ? 'pass' : 'wrong-amount', status: matches ? 'passed' : 'needs-review', payerName: invoice.proofPayer, paymentMethod: 'fps', paymentDate: invoice.claimedPaymentDate, reference: invoice.proofReference,
+          checks: [{ key: 'isPaymentProof', label: 'Payment proof', status: 'pass', detail: 'Fictional transfer confirmation.' }], reasons: matches ? [] : ['The payment amount is lower than the invoice amount.'] });
+        Object.assign(invoice.proofReview.extracted, { recipient: details.recipient, recipientAccount: details.recipientAccount || details.fpsId || null, paymentMethod: 'fps', amount: matches ? invoice.amount : 100 });
+      }
+    }
+    if (invoice === paidExample.invoice) {
+      enrichNewFixtureBundle(paidExample, studentsById.get(invoice.studentId));
+      state.receipts.push(paidExample.receipt);
     }
     state.invoices.push(invoice);
-    if (invoice.receiptId) state.receipts.push({ id: invoice.receiptId, invoiceId: invoice.id, studentId: invoice.studentId, amount: invoice.amount, proofDate: invoice.proofDate, issuedDate: invoice.proofDate, issuedAt: invoice.proofSubmittedAt, documentType: 'receipt', issuedBy: 'Centre review', bankId: null, note: '', workflowFixture: true });
   }
 }
 
 export function normalizeBillingWorkflow(state) {
-  state.billingSettings ??= {};
-  state.billingSettings.autoSent = false;
-  state.billingSettings.approvalRequired = true;
+  setProofApprovalMode(state, getProofApprovalMode(state));
   state.invoices ??= [];
   state.receipts ??= [];
   state.billingReminderEvents ??= [];

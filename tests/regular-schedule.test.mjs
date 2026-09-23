@@ -7,6 +7,12 @@ import { getRegularSchedule, getSchedulePeriods, previewRegularScheduleChange, a
 const positive = { studentId: 'oliver', invoiceId: 'INV-1028', effectiveDate: '2026-10-01', weekday: 4, start: 840, tutor: 'chan' };
 const negative = { ...positive, effectiveDate: '2026-10-07', weekday: 2, start: 960, tutor: 'wong' };
 function state() { const value = seed(); seedTeacherSchedules(value); seedBusyAfternoons(value); return value; }
+function legacyUnplannedState() {
+  const value = state(), invoice = value.invoices.find(item => item.id === positive.invoiceId);
+  delete invoice.lessonPlan; delete invoice.lessonCount;
+  delete value.receipts.find(item => item.id === invoice.receiptId).originalDocument;
+  return value;
+}
 function apply(value, input, decisions) { const preview = previewRegularScheduleChange(value, input); return applyRegularScheduleChange(value, input, { ...decisions, fingerprint: preview.fingerprint }); }
 const planned = value => value.bookings.filter(booking => booking.studentId === 'oliver' && booking.invoiceId === 'INV-1028' && activeBooking(booking));
 
@@ -148,7 +154,7 @@ test('permanent change blocks unknown extra bookings and later paid periods inst
 });
 
 test('calendar closures change actual counts while inconsistent explicit lesson plans remain blocked', () => {
-  const value = state(); value.centreHolidays = [{ date: '2026-10-08', name: 'Centre closure' }];
+  const value = legacyUnplannedState(); value.centreHolidays = [{ date: '2026-10-08', name: 'Centre closure' }];
   const preview = previewRegularScheduleChange(value, positive);
   assert.equal(preview.proposedCount, 8); assert.equal(preview.proposedLessons.some(item => item.date === '2026-10-08'), false);
   value.centreHolidays = ['2026-10-07'];
@@ -182,7 +188,7 @@ test('billing-calendar closure dates stay closed when the regular timetable chan
 
 test('two-month packages use natural seven, eight or nine dates without changing the HK$2000 fee', () => {
   for (const count of [7, 8, 9]) {
-    const value = state();
+    const value = legacyUnplannedState();
     value.bookings = value.bookings.filter(item => item.studentId !== 'oliver');
     value.regularSchedules = { ...value.regularSchedules, oliver: { weekday: count === 9 ? 4 : 3, start: 960, duration: 60, tutor: 'chan' } };
     if (count === 7) value.centreHolidays = ['2026-10-07'];

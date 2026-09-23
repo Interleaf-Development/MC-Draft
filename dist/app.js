@@ -18,6 +18,7 @@ import { createEdgePager } from './schedule-drag.js';
 import { centreConfig } from './branch-config.js';
 import { createRegularScheduleUI } from './regular-schedule-ui.js';
 import { getRegularSchedule, getRemainingStudentLessons } from './regular-schedule.js';
+import { renderInvoiceDocument } from './invoice-document.js';
 import { renderReceiptDocument, isPaymentAcknowledgement } from './receipt-document.js';
 import { normalizeP6Progress, getTeacherStudents } from './teacher-progress.js';
 import { createTeacherProgressUI } from './teacher-progress-ui.js';
@@ -1150,7 +1151,7 @@ function handleAction(a,id,button){
  }
  else if(a==='report-exceptions'){billingWorkflowUI.openAudit();bankCheckUI.reset();render();bankCheckUI.openReviewQueue();}
  else if(a==='view-invoice'){
-  const i=state.invoices.find(i=>i.id===id);modal(t('Invoice '+id,'繳費通知 '+id),'<div class="receipt-paper"><div class="wordmark"><img class="brand-logo" src="/brand/mathconcept-logo.png" width="2172" height="724" alt="MathConcept"></div><p class="small muted mt-16">'+t(centre.name)+'</p><dl class="detail-grid"><div><dt>' + t('Student','學生') + '</dt><dd>'+studentById(i.studentId).name+'</dd></div><div><dt>' + t('Tuition period','學費期數') + '</dt><dd>'+content(i.period)+'</dd></div><div><dt>' + t('Issued','發出日期') + '</dt><dd>'+dateLabel(i.issued)+'</dd></div><div><dt>' + t('Payment due','繳費限期') + '</dt><dd>'+dateLabel(i.due)+'</dd></div></dl><p class="small">'+esc(content(i.description))+'</p><div class="receipt-total"><span>' + t('Total','總額') + '</span><span>'+money(i.amount)+'</span></div></div>',action('close-modal','Close','btn')+(i.proof?action('view-proof','Payment proof','btn','data-id="'+id+'"'):'')+(i.receiptId?action('view-receipt',paymentDocumentLabel(i.receiptId),'btn primary','data-id="'+i.receiptId+'"'):billingStage(state,i)==='review'?'':action('submit-proof',i.proofDisposition==='returned'?t('Replace proof','重新提交付款證明'):t('Add payment proof','上載付款證明'),'btn primary','data-id="'+id+'"')));
+  const i=state.invoices.find(i=>i.id===id);modal(t('Invoice '+id,'繳費通知 '+id),renderInvoiceDocument(state,i,{role:ui.role}),action('close-modal','Close','btn')+(i.proof?action('view-proof','Payment proof','btn','data-id="'+id+'"'):'')+(i.receiptId?action('view-receipt',paymentDocumentLabel(i.receiptId),'btn primary','data-id="'+i.receiptId+'"'):billingStage(state,i)==='review'?'':action('submit-proof',i.proofDisposition==='returned'?t('Replace proof','重新提交付款證明'):t('Add payment proof','上載付款證明'),'btn primary','data-id="'+id+'"')));
  }else if(a==='submit-proof')proofUI.openSubmit(id);
  else if(a==='view-proof')openProof(id);
  else if(a==='view-receipt')receiptDialog(id);

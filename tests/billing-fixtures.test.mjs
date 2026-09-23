@@ -128,6 +128,9 @@ test('migration preserves edited invoices, proof uploads, receipt notes, manual 
 
 test('the in-session v1 upgrade spreads pending payments, adds current invoices, and preserves edits', () => {
   const state = fresh(), oldAwaitingIds = new Set(students.slice(8).filter(student => student.status === 'active').slice(-104).map(student => student.id));
+  // Reconstruct the pre-snapshot release rather than changing a current paid plan.
+  for (const invoice of state.invoices) { delete invoice.lessonPlan; delete invoice.lessonCount; }
+  for (const receipt of state.receipts) delete receipt.originalDocument;
   const restored = state.invoices.find(invoice => oldAwaitingIds.has(invoice.studentId) && invoice.receiptId);
   const receiptId = restored.receiptId, bankId = state.receipts.find(receipt => receipt.id === receiptId).bankId;
   state.receipts = state.receipts.filter(receipt => receipt.id !== receiptId); state.bankTransactions = state.bankTransactions.filter(bank => bank.id !== bankId);

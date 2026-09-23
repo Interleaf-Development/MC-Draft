@@ -9,9 +9,9 @@ import { isPaymentAcknowledgement } from '../dist/receipt-document.js';
 const setup = () => normalizeBillingWorkflow(normalizeBillingAutomation(seed()));
 const options = { scenario: 'pass', reference: 'FPS 910277', paymentDate: '2026-09-30', payerName: 'Elaine Chan', paymentMethod: 'fps' };
 
-test('staff approval is required with either legacy Auto-sent setting', () => {
+test('legacy Auto-sent settings require staff approval; enabling the new policy never processes an old submission', () => {
   for (const autoSent of [true, false]) {
-    const state = setup(); setBillingAutoSent(state, autoSent);
+    const state = setup(); state.billingSettings = { autoSent }; normalizeBillingWorkflow(state);
     const result = submitPaymentProof(state, 'INV-1024', options);
     assert.equal(billingStage(state, result.invoice), 'review');
     assert.equal(result.receipt, null);
@@ -19,6 +19,7 @@ test('staff approval is required with either legacy Auto-sent setting', () => {
     if (!autoSent) {
       setBillingAutoSent(state, true);
       assert.equal(result.invoice.receiptId, null, 'setting does not retroactively issue');
+      assert.equal(submitPaymentProof(state, 'INV-1024', options).receipt, null, 'An identical retry does not retroactively approve the proof');
     }
     const confirmed = confirmInvoicePayment(state, 'INV-1024');
     assert.equal(isPaymentAcknowledgement(state, confirmed.receipt), false);

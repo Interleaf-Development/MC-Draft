@@ -1,6 +1,6 @@
 import { TODAY, centre, allStudents as students, uid, matchReceipt, record, seedBillingLedger, billingPayerName } from './model.js';
 
-import { billingStage, demoNow, invoiceReceipt } from './billing-workflow.js';
+import { billingStage, demoNow, invoiceReceipt, getProofApprovalMode, confirmInvoicePayment } from './billing-workflow.js';
 
 export const MATCH_DATE_WINDOW_DAYS = 7;
 export const PROOF_SCENARIOS = [
@@ -73,7 +73,65 @@ function fileMetadata(file) {
   return metadata;
 }
 
-export function previewPaymentProof(state, invoiceId, { scenario = 'pass', reference, paymentDate = TODAY, payerName, paymentMethod, file } = {}) {
+export function paymentDetailsFor(state) {
+  return { ...(state.paymentDetails || { recipient: centre.name, fpsId: 'DEMO-' + centre.code }) };
+}
+
+function recipientAccountFor(details, method) {
+  if (details.recipientAccount) return details.recipientAccount;
+  if (method === 'fps') return details.fpsId;
+  if (method === 'bank-transfer') return details.bankAccount || details.accountNumber;
+  if (method === 'payme') return details.paymeAccount;
+  if (method === 'alipayhk') return details.alipayhkAccount;
+  return null;
+}
+
+/** Read-only comparison: unknown OCR fields stay unknown, including old uploads. */
+export function paymentProofChecks(state, invoice, review = invoice?.proofReview) {
+  if (typeof invoice === 'string') { invoice = state.invoices.find(item => item.id === invoice); review ??= invoice?.proofReview; }
+  if (!invoice) throw new Error('Invoice not found.');
+  const extracted = review?.extracted || {}, details = paymentDetailsFor(state);
+  const payer = review?.payerName || invoice.proofPayer;
+  const paymentDate = review?.paymentDate || invoice.claimedPaymentDate;
+  const method = review?.paymentMethod || invoice.paymentMethod;
+  const reference = review?.reference || invoice.proofReference;
+  const account = recipientAccountFor(details, method);
+  const compare = (actual, expected) => !canonical(actual) || !canonical(expected) ? 'uncertain' : canonical(actual) === canonical(expected) ? 'pass' : 'fail';
+  const duplicate = review?.scenario === 'duplicate' || (state.invoices || []).some(other => {
+    if (other.id === invoice.id || !other.proof) return false;
+    const previous = other.proofReview;
+    if (review?.fileFingerprint && previous?.fileFingerprint === review.fileFingerprint) return true;
+    const receipt = invoiceReceipt(state, other);
+    return extracted.amount != null && sameReference(extracted.reference, previous?.extracted?.reference || other.proofReference)
+      && extracted.paymentDate === (previous?.extracted?.paymentDate || other.claimedPaymentDate || other.proofDate || receipt?.proofDate)
+      && cents(extracted.amount) === cents(previous?.extracted?.amount ?? other.amount);
+  });
+  const recordedProofCheck = review?.checks?.find(check => check.key === 'isPaymentProof');
+  const proofStatus = review?.scenario === 'unreadable' ? 'uncertain' : review?.scenario === 'not-proof' ? 'fail'
+    : recordedProofCheck?.status || (PROOF_SCENARIOS.some(item => item.id === review?.scenario) ? 'pass' : 'uncertain');
+  const amountStatus = extracted.amount == null || !Number.isFinite(Number(extracted.amount)) ? 'uncertain'
+    : cents(extracted.amount) === cents(invoice.amount) ? 'pass' : 'fail';
+  const dateStatus = !extracted.paymentDate || !paymentDate ? 'uncertain'
+    : validDate(extracted.paymentDate) && extracted.paymentDate === paymentDate && extracted.paymentDate <= TODAY && (!invoice.issued || extracted.paymentDate >= invoice.issued) ? 'pass' : 'fail';
+  const methodStatus = !extracted.paymentMethod || !method ? 'uncertain'
+    : !PAYMENT_METHODS.includes(extracted.paymentMethod) || extracted.paymentMethod !== method ? 'fail'
+      : ['cash', 'cheque'].includes(method) ? 'uncertain' : 'pass';
+  const check = (key, label, status, shown, expected, missing) => ({ key, label, status,
+    detail: status === 'uncertain' ? missing : expected === undefined ? String(shown) : `${shown} shown; ${expected} expected.` });
+  return [
+    check('isPaymentProof', 'Payment proof', proofStatus, proofStatus === 'fail' ? 'The example is not a transfer confirmation.' : 'The demonstration contains transfer details.', undefined, 'Payment proof type could not be verified.'),
+    check('recipient', 'Recipient matches centre', compare(extracted.recipient, details.recipient), extracted.recipient, details.recipient, 'Recipient could not be compared.'),
+    check('recipientAccount', 'Recipient account matches centre', compare(extracted.recipientAccount, account), extracted.recipientAccount, account, 'Recipient account could not be compared.'),
+    check('amount', 'Amount matches invoice', amountStatus, 'HK$' + extracted.amount, 'HK$' + invoice.amount, 'Amount could not be read.'),
+    check('payer', 'Payer matches submitted name', compare(extracted.payer, payer), extracted.payer, payer, 'Payer name could not be compared.'),
+    check('paymentDate', 'Payment date matches submission', dateStatus, extracted.paymentDate, paymentDate, 'Payment date could not be compared.'),
+    check('paymentMethod', 'Payment method matches submission', methodStatus, extracted.paymentMethod, method, ['cash', 'cheque'].includes(method) ? 'Cash and cheque require staff review.' : 'Payment method could not be compared.'),
+    check('reference', 'Payment reference matches submission', compare(extracted.reference, reference), extracted.reference, reference, 'Payment reference could not be compared.'),
+    check('duplicate', 'Proof has not been used', duplicate ? 'fail' : extracted.reference || review?.fileFingerprint ? 'pass' : 'uncertain', duplicate ? 'This proof or payment reference has already been used.' : 'No duplicate found in the demonstration records.', undefined, 'There is not enough evidence to check for a duplicate.')
+  ];
+}
+
+export function previewPaymentProof(state, invoiceId, { scenario = 'pass', reference, paymentDate = TODAY, payerName, paymentMethod, file, extracted: extractedOverride, sample = false } = {}) {
   const invoice = state.invoices.find(item => item.id === invoiceId);
   if (!invoice) throw new Error('Invoice not found.');
   if (!PROOF_SCENARIOS.some(item => item.id === scenario)) throw new Error('Choose a demonstration scenario.');
@@ -85,26 +143,22 @@ export function previewPaymentProof(state, invoiceId, { scenario = 'pass', refer
   reference ??= invoice.id === 'INV-1024' ? '910277' : 'DEMO ' + invoice.id;
   if (typeof reference !== 'string' || !reference.trim() || reference.length > 160) throw new Error('Enter a payment reference.');
   const attached = fileMetadata(file), fileFingerprint = attached?.dataUrl ? hash(attached.dataUrl) : undefined;
-  const extracted = { recipient: scenario === 'wrong-recipient' ? 'Demo Other Learning Centre' : centre.name, amount: scenario === 'wrong-amount' ? Math.max(1, invoice.amount - 200) : invoice.amount, payer: payerName.trim(), paymentMethod, reference: reference.trim(), paymentDate };
-  if (scenario === 'unreadable') Object.assign(extracted, { recipient: null, amount: null, payer: null, reference: null });
+  const details = paymentDetailsFor(state);
+  const extracted = { recipient: scenario === 'wrong-recipient' ? 'Demo Other Learning Centre' : details.recipient, recipientAccount: scenario === 'wrong-recipient' ? 'DEMO-WRONG-ACCOUNT' : recipientAccountFor(details, paymentMethod) || null, amount: scenario === 'wrong-amount' ? Math.max(1, invoice.amount - 200) : invoice.amount, payer: payerName.trim(), paymentMethod, reference: reference.trim(), paymentDate };
+  if (scenario === 'unreadable') Object.assign(extracted, { recipient: null, recipientAccount: null, amount: null, payer: null, reference: null, paymentMethod: null, paymentDate: null });
   if (scenario === 'not-proof') extracted.recipient = 'Demo retail receipt';
-  const duplicated = scenario === 'duplicate' || state.invoices.some(other => {
-    if (other.id === invoice.id || !other.proof) return false;
-    const previous = other.proofReview;
-    if (previous && previous.status !== 'passed' && other.proofDisposition !== 'confirmed' && !invoiceReceipt(state, other)) return false;
-    if (fileFingerprint && previous?.fileFingerprint === fileFingerprint) return true;
-    const receipt = state.receipts.find(item => item.invoiceId === other.id);
-    return sameReference(extracted.reference, previous?.extracted.reference || other.proofReference) && paymentDate === (previous?.extracted.paymentDate || other.claimedPaymentDate || other.proofDate || receipt?.proofDate) && cents(extracted.amount) === cents(previous?.extracted.amount ?? other.amount);
-  });
-  const uncertain = scenario === 'unreadable';
-  const checks = [
-    { key: 'isPaymentProof', label: 'Payment proof', status: uncertain ? 'uncertain' : scenario === 'not-proof' ? 'fail' : 'pass', detail: uncertain ? 'Payment details cannot be read.' : scenario === 'not-proof' ? 'The example is not a transfer confirmation.' : 'The demonstration contains transfer details.' },
-    { key: 'recipient', label: 'Recipient is MathConcept', status: uncertain ? 'uncertain' : ['wrong-recipient', 'not-proof'].includes(scenario) ? 'fail' : 'pass', detail: uncertain ? 'Recipient could not be read.' : String(extracted.recipient) },
-    { key: 'amount', label: 'Amount matches invoice', status: uncertain ? 'uncertain' : scenario === 'wrong-amount' ? 'fail' : 'pass', detail: uncertain ? 'Amount could not be read.' : 'HK$' + extracted.amount + ' shown; HK$' + invoice.amount + ' expected.' },
-    { key: 'duplicate', label: 'Proof has not been used', status: duplicated ? 'fail' : 'pass', detail: duplicated ? 'This proof or payment reference has already been used.' : 'No duplicate found in the demonstration records.' }
-  ];
+  if (extractedOverride !== undefined) {
+    if (!extractedOverride || typeof extractedOverride !== 'object' || Array.isArray(extractedOverride)) throw new Error('Use valid simulated payment details.');
+    for (const key of Object.keys(extracted)) if (Object.hasOwn(extractedOverride, key)) {
+      const value = extractedOverride[key];
+      if (value !== null && (key === 'amount' ? typeof value !== 'number' || !Number.isFinite(value) : typeof value !== 'string')) throw new Error('Use valid simulated payment details.');
+      extracted[key] = value;
+    }
+  }
+  const review = { id: 'preview', mode: 'demo', scenario, extracted, submittedDate: TODAY, payerName: payerName.trim(), paymentDate, paymentMethod, reference: reference.trim(), ...(sample ? { sample: true } : {}), ...(attached ? { file: attached } : {}), ...(fileFingerprint ? { fileFingerprint } : {}), fingerprint: hash(JSON.stringify({ scenario, reference: reference.trim(), paymentDate, payerName: payerName.trim(), paymentMethod, extracted, file: attached })) };
+  const checks = paymentProofChecks(state, invoice, review), duplicated = checks.find(check => check.key === 'duplicate').status === 'fail';
   const reasons = checks.filter(check => check.status !== 'pass').map(check => check.detail);
-  return { id: 'preview', mode: 'demo', scenario, status: duplicated ? 'duplicate' : reasons.length ? 'needs-review' : 'passed', checks, extracted, reasons, submittedDate: TODAY, payerName: payerName.trim(), paymentMethod, ...(attached ? { file: attached } : {}), ...(fileFingerprint ? { fileFingerprint } : {}), fingerprint: hash(JSON.stringify({ scenario, reference: reference.trim(), paymentDate, payerName: payerName.trim(), paymentMethod, file: attached })) };
+  return { ...review, status: duplicated ? 'duplicate' : reasons.length ? 'needs-review' : 'passed', checks, reasons };
 }
 
 export function submitPaymentProof(state, invoiceId, options) {
@@ -127,12 +181,23 @@ export function submitPaymentProof(state, invoiceId, options) {
   invoice.paymentMethod = review.paymentMethod;
   invoice.proofReference = options?.reference?.trim() || review.extracted.reference;
   invoice.proofReview = review;
+  let approval = { receipt: null, createdReceipt: false };
+  if (getProofApprovalMode(state) === 'automatic' && review.status === 'passed' && review.checks.every(check => check.status === 'pass')) {
+    try {
+      approval = confirmInvoicePayment(state, invoiceId, { now, approvalMode: 'automatic' });
+    } catch (error) {
+      // Validation (for example first-enrolment capacity) leaves the uploaded
+      // proof in the staff queue. Changing the setting never retries old proofs.
+      review.automaticApprovalError = error.message;
+      approval.approvalError = error.message;
+    }
+  }
   invoice.proofReviewHistory ??= [];
   const history = { ...review };
   if (history.file) { const { dataUrl, ...metadata } = history.file; history.file = metadata; }
   invoice.proofReviewHistory.push(history);
   record(state, 'Demonstration proof check for ' + invoiceId + ': ' + review.status, 'Payment proof demo');
-  return { invoice, review, receipt: null, createdReceipt: false };
+  return { invoice, review, ...approval };
 }
 
 function evidence(state, receipt, bank) {

@@ -1,0 +1,36 @@
+.sample-transfer { max-width: 540px; margin: 0 auto; background: #fff; border: 1px solid #e1e5e8; color: #303738; font-family: Arial, "Noto Sans TC", sans-serif; overflow: hidden; }
+.sample-transfer-demo { padding: 8px 16px; background: #faf4ed; color: #825f35; text-align: center; font-size: 11px; letter-spacing: .04em; }
+.sample-transfer-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 19px 22px; font-weight: 700; font-size: 17px; border-bottom: 1px solid #f1f1f1; }
+.sample-transfer-header > span:last-child { color: #667576; font-size: 11px; font-weight: 400; }
+.sample-transfer-success { padding: 29px 20px 22px; text-align: center; }
+.sample-transfer-tick { display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; border-radius: 50%; margin: 0 auto 16px; background: #008782; color: #fff; font-size: 35px; line-height: 1; font-weight: 700; }
+.sample-transfer .sample-transfer-success h3 { margin: 0 0 12px; font-size: 28px; font-weight: 700; color: #303738; }
+.sample-transfer-success p { margin: 0; font-size: 13px; line-height: 1.85; }
+.sample-transfer-fields { margin: 0; padding: 0 22px; }
+.sample-transfer-fields > div { display: grid; grid-template-columns: minmax(74px, .65fr) minmax(0, 1.35fr); gap: 15px; align-items: center; padding: 17px 0; border-bottom: 1px solid #e5e7e8; }
+.sample-transfer-fields dt { font-size: 12px; color: #677274; }
+.sample-transfer-fields dd { margin: 0; text-align: right; font-size: 14px; line-height: 1.6; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.sample-transfer-fields dd strong { font-size: 20px; }
+.sample-transfer-account { font-size: 12px; color: #596466; }
+.sample-transfer-note { margin: 0; padding: 20px 22px; font-size: 10px; color: #7c8586; line-height: 1.7; text-align: center; }
+.sample-transfer-obscured { filter: blur(2px); }
+.sample-transfer-invalid h3, .sample-transfer-invalid > p { margin: 25px; }
+.proof-preview > .sample-transfer { width: 100%; }
+.billingflow-ai-review { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 16px; }
+.billingflow-ai-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.billingflow-ai-heading h3 { margin: 0; font-size: 14px; }
+.billingflow-ai-heading > span { font-size: 12px; color: #657287; }
+.billingflow-ai-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 12px 0 0; gap: 0 22px; }
+.billingflow-ai-fields > div { padding: 10px 0; border-bottom: 1px solid #eef0f3; min-width: 0; }
+.billingflow-ai-fields dt { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+.billingflow-ai-fields dd { display: flex; align-items: start; justify-content: space-between; gap: 10px; margin: 0; font-size: 12px; line-height: 1.5; }
+.billingflow-ai-fields dd > span:first-child { overflow-wrap: anywhere; }
+.billingflow-ai-result { flex-shrink: 0; font-size: 11px; }
+.billingflow-ai-result.pass { color: #27745d; }
+.billingflow-ai-result.fail { color: #b83d49; }
+.billingflow-ai-result.uncertain { color: #8a6928; }
+.billingflow-ai-note { color: var(--muted); font-size: 11px; line-height: 1.65; margin: 10px 0 0; }
+.billingflow-policy { display: flex; justify-content: flex-end; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+.billingflow-policy select { width: auto; max-width: 100%; font-size: 12px; padding: 7px 28px 7px 10px; }
+@media (max-width: 760px) { .billingflow-ai-fields { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 14px; } .billingflow-ai-heading { align-items: flex-start; flex-direction: column; gap: 5px; } .billingflow-policy { align-items: flex-start; flex-direction: column; gap: 6px; } .sample-transfer-fields { padding: 0 15px; } }
+@media print { .sample-transfer { break-inside: avoid; } }

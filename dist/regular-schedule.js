@@ -1,4 +1,5 @@
 import { TODAY, WEEK, tutors, allStudents as students, activeBooking, validateSlot, uid, clone, record, centre, resolveRegularScheduleRule } from './model.js';
+import { FIXTURE_LESSON_SOURCE } from './billing-fixture-lessons.js';
 
 const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const monthNumbers = new Map(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((name, index) => [name.toLowerCase(), index + 1]));
@@ -94,7 +95,16 @@ function invoicePlan(state, invoice, period, rule) {
     const existing = state.bookings.find(booking => booking.studentId === invoice.studentId && (item.bookingId ? booking.id === item.bookingId : !booking.sourceId && key(booking) === key(item)));
     return { ...fields(item), ...(existing ? { bookingId: existing.id, status: existing.status } : {}) };
   }));
-  return { lessons, makeUpLessonCount, expected, explicit: Boolean(explicit) };
+  const receipt = state.receipts.find(item => item.id === invoice.receiptId && item.invoiceId === invoice.id);
+  const original = receipt?.originalDocument;
+  // Initial fictional plans preserve the static timetable on the receipt. The
+  // representative booked week can use a different time, and still consumes
+  // that date's entitlement. Amended or edited explicit plans keep exact matching.
+  const fixtureDates = saved?.source === FIXTURE_LESSON_SOURCE && invoice.proofReview?.fixture === true && !invoice.proofReview.file
+    && !receipt?.revisions?.length && !receipt?.activeRevisionId && !state.regularSchedules?.[invoice.studentId]
+    && original?.period === invoice.period && original.lessonCount === saved.lessonCount
+    && original.makeUpLessonCount === makeUpLessonCount && JSON.stringify(original.lessonDates) === JSON.stringify(explicit);
+  return { lessons, makeUpLessonCount, expected, explicit: Boolean(explicit), matchRecordedDate: !explicit || fixtureDates };
 }
 
 // The demo calendar only seeds a representative week. Paid invoice plans supply
@@ -119,7 +129,7 @@ export function getRemainingStudentLessons(state, studentId, asOf = TODAY) {
       let booking = bookingById.get(lesson.bookingId);
       // Unamended fixture dates sometimes use a different time from the directory
       // rule. A unique recorded original on that date still consumes that lesson.
-      if (!booking && !plan.explicit) {
+      if (!booking && plan.matchRecordedDate) {
         const sameDate = bookings.filter(item => !item.sourceId && item.date === lesson.date);
         if (sameDate.length === 1) booking = sameDate[0];
       }

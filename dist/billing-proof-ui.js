@@ -1,3 +1,5 @@
+import { billingText } from './billing-locale.js';
+import { renderDemoPaymentProof } from './payment-proof-sample.js';
 import { renderPaymentPdf } from './billing-pdf-preview.js';
 import { money, studentById, centre, TODAY, billingPayerName } from './model.js';
 import { PROOF_SCENARIOS, previewPaymentProof, submitPaymentProof } from './billing-automation.js';
@@ -106,7 +108,7 @@ const safeAttachment = file => file && MIME_TYPES.has(file.mimeType) && typeof f
 /** Payment evidence UI. The host owns persistence, application rendering and modals. */
 export function createProofUI({ getState, getViewer, change, modal, closeModal, toast, openReceipt }) {
   let draft = null, cancelPdf = null;
-  const t = (value, zh) => zh ?? COPY[value] ?? familyText(value, 'parent');
+  const t = (value, zh) => zh ?? COPY[value] ?? billingText(familyText(value, 'parent'));
   const content = value => familyContent(value, 'parent');
   const safeDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(Date.parse(value)) ? familyDate(value, 'parent') : t('Not readable');
   const detailText = value => {
@@ -150,11 +152,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
   }
 
   function samplePreview(review, invoice) {
-    if (review.scenario === 'not-proof') {
-      return `<div class="proof-sample proof-not-payment"><span class="proof-sample-label">${t('Fictional sample')}</span><h3>${t('Shopping list')}</h3><p>${t('Notebooks')}<br>${t('Pencils')}<br>${t('School bag')}</p></div>`;
-    }
-    const extracted = review.extracted || {};
-    return `<div class="proof-sample${review.scenario === 'unreadable' ? ' proof-unreadable' : ''}"><span class="proof-sample-label">${t('Fictional transfer confirmation')}</span><div class="proof-sample-content">${icons.pass}<h3>${Number.isFinite(extracted.amount) ? money(extracted.amount) : money(invoice.amount)}</h3><p>${t('Transfer submitted')}</p><dl class="detail-grid"><div><dt>${t('To')}</dt><dd>${esc(detailText(extracted.recipient || centre.name))}</dd></div><div><dt>${t('Reference')}</dt><dd>${esc(extracted.reference || t('Not readable'))}</dd></div><div><dt>${t('Date')}</dt><dd>${safeDate(extracted.paymentDate)}</dd></div>${extracted.payer ? `<div><dt>${t('Payer')}</dt><dd>${esc(extracted.payer)}</dd></div>` : ''}</dl></div></div>`;
+    return renderDemoPaymentProof(invoice, review, getState().paymentDetails);
   }
 
   function attachmentPreview(file, review, invoice, isSample = false) {
@@ -179,7 +177,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
 
   function draftOptions() {
     return {
-      scenario: draft.scenario, reference: draft.reference || undefined, paymentDate: draft.paymentDate, payerName: draft.payerName, paymentMethod: draft.paymentMethod,
+      sample: draft.sample, scenario: draft.scenario, reference: draft.reference || undefined, paymentDate: draft.paymentDate, payerName: draft.payerName, paymentMethod: draft.paymentMethod,
       ...(draft.file ? { file: draft.file } : {})
     };
   }
@@ -241,6 +239,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
       draft = null;
       let body = invoiceSummary(invoice);
       if (!review) {
+        body += `<div class="proof-preview">${samplePreview({}, invoice)}</div>`;
         if (invoice.proofDisposition === 'returned') body += `<div class="notice"><strong>${t('Waiting for replacement proof')}</strong><p>${esc(invoice.proofReturnReason || '')}</p><p>${t('Please upload a replacement proof. You do not need to pay again.')}</p></div>`;
         body += `<div class="proof-result uncertain">${icons.uncertain}<div><h3>${t(acknowledgement ? 'Payment acknowledgement issued' : 'Proof received · not reviewed')}</h3><p>${t('This earlier demo record has no saved attachment or automated check result.')}</p></div></div><dl class="detail-grid"><div><dt>${t('Received')}</dt><dd>${invoice.proofDate ? safeDate(invoice.proofDate) : t('Not recorded')}</dd></div><div><dt>${t('Reference')}</dt><dd>${esc(invoice.proofReference || t('Not recorded'))}</dd></div></dl>`;
       } else {
@@ -293,7 +292,7 @@ export function createProofUI({ getState, getViewer, change, modal, closeModal, 
       catch (error) { throw new Error(t(error.message)); }
     })) {
       openProof(invoiceId);
-      toast(t('Proof submitted for review.'));
+      toast(invoiceFor(invoiceId).receiptId ? 'AI 示範核對完成，收據已自動發出。' : t('Proof submitted for review.'));
     }
   }
 

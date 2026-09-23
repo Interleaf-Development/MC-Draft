@@ -15,6 +15,23 @@ const copy = {
   'Wait 24 hours after the last reminder before sending another.': '請於上次提醒 24 小時後再發出提醒。',
   'Choose whether automatic sending is enabled.': '請選擇是否啟用自動發送。',
   'Payment proof': '付款證明', 'Recipient is MathConcept': '收款人是 MathConcept',
+  'Recipient matches centre': '收款人名稱',
+  'Recipient account matches centre': '收款戶口／FPS',
+  'Payer matches submitted name': '付款人姓名',
+  'Payment date matches submission': '交易日期',
+  'Payment method matches submission': '付款方式',
+  'Payment reference matches submission': '交易參考編號',
+  'Payment proof type could not be verified.': '未能辨識為有效付款證明。',
+  'Recipient could not be compared.': '收款人資料不足，須覆核。',
+  'Recipient account could not be compared.': '收款戶口資料不足，須覆核。',
+  'Payer name could not be compared.': '付款人姓名資料不足，須覆核。',
+  'Payment date could not be compared.': '交易日期資料不足，須覆核。',
+  'Payment method could not be compared.': '付款方式資料不足，須覆核。',
+  'Payment reference could not be compared.': '交易參考編號資料不足，須覆核。',
+  'Cash and cheque require staff review.': '現金及支票由職員另行核對。',
+  'There is not enough evidence to check for a duplicate.': '資料不足，未能排除重複付款。',
+  'Choose staff approval or automatic proof approval.': '請選擇職員批准或全部相符後自動批准。',
+  'fps': 'FPS 轉數快', 'bank-transfer': '銀行轉帳',
   'Amount matches invoice': '金額與繳費通知相符', 'Proof has not been used': '付款證明未曾使用',
   'Payment details cannot be read.': '無法讀取付款資料。',
   'The amount is not readable.': '無法讀取金額。',
@@ -68,6 +85,8 @@ export function billingText(value) {
   if (row && Object.hasOwn(copy, row[2])) return `第 ${row[1]} 行：${copy[row[2]]}`;
   const amount = /^HK\$(.+) shown; HK\$(.+) expected\.$/.exec(value);
   if (amount) return `證明金額：HK$${amount[1]}；應付金額：HK$${amount[2]}。`;
+  const comparison = /^(.+) shown; (.+) expected\.$/.exec(value);
+  if (comparison) return comparison[1] === comparison[2] ? billingText(comparison[1]) : `辨識：${billingText(comparison[1])}；對照：${billingText(comparison[2])}。`;
   const method = /^Use the (cash|cheque) payment workflow for this record\.$/.exec(value);
   if (method) return `請透過${method[1] === 'cash' ? '現金' : '支票'}付款流程處理此紀錄。`;
   const month = /^(\d{4})-(\d{2})$/.exec(value);

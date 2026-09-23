@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { seed, clone } from '../dist/model.js';
-import { normalizeBillingWorkflow, billingStage, invoiceReceipt, queryBillingInvoices, confirmInvoicePayment, returnInvoiceProof, remindInvoiceParent, setBillingAutoSent } from '../dist/billing-workflow.js';
+import { normalizeBillingWorkflow, billingStage, invoiceReceipt, queryBillingInvoices, confirmInvoicePayment, returnInvoiceProof, remindInvoiceParent, setBillingAutoSent, setProofApprovalMode, getProofApprovalMode } from '../dist/billing-workflow.js';
 
 const NOW = '2026-09-30T10:00:00+08:00';
 const invoice = (id, overrides = {}) => ({ id, studentId: 'chloe', period: 'Sep–Oct 2026', issued: '2026-08-20', due: '2026-09-20', amount: 2000, proof: false, receiptId: null, ...overrides });
@@ -31,11 +31,30 @@ test('normalization preserves saved settings and invoice records, and seeds only
   assert.equal(actual.invoices.length, 1);
   assert.equal(actual.billingSettings.autoSent, false);
   setBillingAutoSent(actual, true);
-  assert.equal(actual.billingSettings.autoSent, false, 'The current policy requires staff approval');
+  assert.equal(actual.billingSettings.autoSent, true, 'An explicit setting change enables automatic proof approval');
+  assert.equal(getProofApprovalMode(actual), 'automatic');
+  normalizeBillingWorkflow(actual);
+  assert.equal(getProofApprovalMode(actual), 'automatic', 'The explicit choice survives normalization');
   setBillingAutoSent(actual, false);
   normalizeBillingWorkflow(actual);
   assert.equal(actual.billingSettings.autoSent, false);
   assert.throws(() => setBillingAutoSent(actual, 'false'));
+  assert.throws(() => setProofApprovalMode(actual, 'anything'));
+});
+
+test('legacy auto-send flags never enable proof approval, and changing mode leaves pending invoices untouched', () => {
+  const state = stateFor([proof('INV-LEGACY')]);
+  state.billingSettings = { autoSent: true, otherSetting: 'keep' };
+  const pending = clone(state.invoices);
+  normalizeBillingWorkflow(state);
+  assert.equal(getProofApprovalMode(state), 'staff');
+  setProofApprovalMode(state, 'automatic');
+  const restored = JSON.parse(JSON.stringify(state));
+  normalizeBillingWorkflow(restored);
+  assert.equal(getProofApprovalMode(restored), 'automatic');
+  assert.deepEqual(restored.invoices, pending);
+  assert.deepEqual(restored.receipts, []);
+  assert.equal(restored.billingSettings.otherSetting, 'keep');
 });
 
 test('stage precedence archives cancelled/void invoices, resolves either receipt link, and keeps returned proofs out of review', () => {

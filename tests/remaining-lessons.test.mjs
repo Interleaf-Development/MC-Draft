@@ -32,6 +32,45 @@ test('seeded Iris Choi and a primary student get the full paid dates beyond the 
   assert.deepEqual(value, before);
 });
 
+test('a dated fictional baseline follows the actual booked lesson through leave without rewriting the receipt', () => {
+  const value = seed(); seedCentreVolume(value); seedTeacherSchedules(value); seedBusyAfternoons(value);
+  const iris = students.find(item => item.name === 'Iris Choi');
+  const recorded = value.bookings.find(item => item.studentId === iris.id && item.date === '2026-10-03');
+  const invoice = value.invoices.find(item => item.studentId === iris.id && item.period === 'Oct–Nov 2026');
+  const receipt = value.receipts.find(item => item.id === invoice.receiptId), original = clone(receipt.originalDocument);
+  assert.notEqual(invoice.lessonPlan.lessonDates[0].start, recorded.start);
+  const absence = requestAbsence(value, recorded.id, 'School activity');
+  const remaining = getRemainingStudentLessons(value, iris.id), before = clone(value);
+  assert.equal(remaining.lessons.length, 8);
+  assert.ok(!dates(remaining).includes('2026-10-03'));
+  assert.equal(remaining.pendingMinutes, 60);
+  assert.ok(value.makeups.some(item => item.id === absence.makeupId));
+  assert.deepEqual(receipt.originalDocument, original);
+  getRemainingStudentLessons(value, iris.id);
+  assert.deepEqual(value, before);
+});
+
+test('an edited, uploaded or amended explicit fixture plan cannot adopt another time on the same date', () => {
+  const fresh = seed(); seedCentreVolume(fresh); seedTeacherSchedules(fresh); seedBusyAfternoons(fresh);
+  const iris = students.find(item => item.name === 'Iris Choi');
+  const edits = [
+    (_value, invoice) => { invoice.lessonPlan.lessonDates[0].start = 1080; },
+    (_value, invoice) => { invoice.proofReview.file = { name: 'parent-transfer.png' }; },
+    (_value, invoice) => { delete invoice.lessonPlan.source; },
+    (_value, _invoice, receipt) => { receipt.revisions = [{ id: receipt.id + '-A1' }]; },
+    (value) => { value.regularSchedules = { [iris.id]: { weekday: 6, start: 540, duration: 60, tutor: iris.tutor } }; }
+  ];
+  for (const edit of edits) {
+    const value = clone(fresh), invoice = value.invoices.find(item => item.studentId === iris.id && item.period === 'Oct–Nov 2026');
+    const receipt = value.receipts.find(item => item.id === invoice.receiptId);
+    edit(value, invoice, receipt);
+    const before = clone(value), remaining = getRemainingStudentLessons(value, iris.id);
+    assert.equal(remaining.lessons[0].start, invoice.lessonPlan.lessonDates[0].start, edit.toString());
+    assert.equal(remaining.lessons[0].bookingId, undefined, edit.toString());
+    assert.deepEqual(value, before);
+  }
+});
+
 test('unpaid invoices and payment proofs without an issued receipt do not create paid dates', () => {
   const value = state();
   assert.deepEqual(getRemainingStudentLessons(value, 'chloe'), { lessons: [], pendingMinutes: 0, periodLabel: null, hasPaidPeriod: false });

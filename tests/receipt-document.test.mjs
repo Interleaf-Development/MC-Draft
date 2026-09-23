@@ -290,3 +290,32 @@ test('remote legacy proofs are acknowledgements while cash and cheque keep recei
   }
   assert.equal(isPaymentAcknowledgement(state, null), false);
 });
+
+test('the redesigned receipt keeps its student number, source invoice and saved due date independent of the current invoice', () => {
+  const state = amendedFixture();
+  state.receipts[0].originalDocument.due = '2026-09-20';
+  state.invoices[0].due = '2026-12-20';
+  const before = clone(state), html = renderReceiptDocument(state, 'R-101');
+  assert.match(html, /class="receipt-paper billing-document"/);
+  assert.match(html, /<dt>學生編號<\/dt><dd>MC-\d+<\/dd>/);
+  assert.match(html, /<dt>繳費通知編號<\/dt><dd>INV-101<\/dd>/);
+  assert.match(html, /<dt>繳費限期<\/dt><dd>2026年9月20日<\/dd>/);
+  assert.doesNotMatch(html, /2026年12月20日/);
+  assert.deepEqual(state, before);
+});
+
+test('receipt date-only lesson snapshots and assessment appointments do not invent lesson times', () => {
+  const state = amendedFixture();
+  state.receipts[0].originalDocument.lessonDates = ['2026-10-07'];
+  const original = renderReceiptDocument(state, 'R-101', { revisionId: 'original' });
+  assert.match(original, /2026年10月7日/);
+  assert.match(original, /時間待確認/);
+  assert.doesNotMatch(original, /16:00|Invalid Date/);
+  state.receipts[0].originalDocument = { chargeType: 'assessment', assessmentDate: '2026-09-26', description: 'Entrance assessment' };
+  const assessment = renderReceiptDocument(state, 'R-101', { revisionId: 'original' });
+  assert.match(assessment, /評估安排 · 1 次/);
+  assert.match(assessment, /2026年9月26日/);
+  assert.match(assessment, /<dt>評估日期<\/dt><dd>2026年9月26日<\/dd>/);
+  assert.doesNotMatch(assessment, /2026 年 10 至 11 月/);
+  assert.match(assessment, /時間待確認/);
+});

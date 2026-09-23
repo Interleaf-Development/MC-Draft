@@ -1,7 +1,10 @@
 import { billingText } from './billing-locale.js';
 import { renderPaymentPdf } from './billing-pdf-preview.js';
-import { centre, money } from './model.js';
-import { billingStage, invoiceReceipt, queryBillingInvoices, confirmInvoicePayment, returnInvoiceProof, remindInvoiceParent } from './billing-workflow.js';
+import { money } from './model.js';
+import { renderInvoiceDocument } from './invoice-document.js';
+import { renderDemoPaymentProof } from './payment-proof-sample.js';
+import { paymentProofChecks, paymentDetailsFor } from './billing-automation.js';
+import { billingStage, invoiceReceipt, queryBillingInvoices, confirmInvoicePayment, returnInvoiceProof, remindInvoiceParent, getProofApprovalMode, setProofApprovalMode } from './billing-workflow.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const button = (action, label, attrs = '', className = 'btn') => `<button type="button" class="${className}" data-action="billingflow-${action}" ${attrs}>${label}</button>`;
@@ -92,9 +95,10 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
     const navigation = `<nav class="billingflow-tabs" aria-label="繳費階段">${stages.map(([id, label]) => button('stage', `${label}${id === 'audit' ? '' : ` <span class="billingflow-count">${result.counts[id]}</span>`}`, `data-id="${id}" aria-pressed="${stage === id}"${id === 'audit' ? '' : ` aria-label="${label}：${result.counts[id]} 張繳費通知"`}`, `billingflow-tab${stage === id ? ' active' : ''}`)).join('')}</nav>`;
     if (stage === 'audit') return `<div class="billing-workspace billingflow-workspace">${navigation}${renderAudit?.() || ''}${renderReport ? `<div class="billing-secondary-actions">${button('report', '繳費報表', '', 'btn ghost small')}</div>` : ''}</div>`;
     const archive = stage === 'archive';
+    const policy = `<div class="billingflow-policy"><label for="billingflow-approval-mode">收據發出方式</label><select id="billingflow-approval-mode"><option value="staff"${getProofApprovalMode(getState()) === 'staff' ? ' selected' : ''}>AI 核對後，由職員批准</option><option value="automatic"${getProofApprovalMode(getState()) === 'automatic' ? ' selected' : ''}>全部相符自動發出；例外交職員</option></select></div>`;
     const toolbar = `<div class="billing-toolbar billingflow-toolbar"><input id="billingflow-search" type="search" value="${esc(query)}" placeholder="姓名、學生編號或繳費通知" aria-label="搜尋姓名、學生編號或繳費通知"><select id="billingflow-charge" aria-label="收費類別">${charges.map(([id, label]) => `<option value="${id}"${chargeType === id ? ' selected' : ''}>${label}</option>`).join('')}</select><select id="billingflow-month" aria-label="收費月份"><option value=""${month ? '' : ' selected'}>所有收費月份</option>${result.months.map(value => `<option value="${esc(value)}"${month === value ? ' selected' : ''}>${esc(monthText(value))}</option>`).join('')}</select>${button(archive ? 'back' : 'archive', archive ? '返回繳費' : `封存紀錄（${result.counts.archive}）`, '', 'btn ghost small')}</div>`;
     const archiveHeading = archive ? '<h2 class="billingflow-archive-title">封存紀錄</h2>' : '';
-    return `<div class="billing-workspace billingflow-workspace">${navigation}${toolbar}${archiveHeading}${renderQueue(result)}</div>`;
+    return `<div class="billing-workspace billingflow-workspace">${navigation}${policy}${toolbar}${archiveHeading}${renderQueue(result)}</div>`;
   }
   function reviewRow(id) {
     requireAdmin();
@@ -126,8 +130,14 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
     }
   }
   function invoicePreview(row) {
-    const { invoice, student } = row;
-    return documentPanel('invoice', '繳費通知', `<div class="billingflow-invoice-paper"><p class="billingflow-document-brand">${esc(billingText(centre.name))}</p><div class="billingflow-document-title"><strong>${esc(invoice.id)}</strong><span>${esc(billingText(row.chargeLabel))}</span></div><dl class="billingflow-details">${detail('學生', student.name)}${student.number ? detail('學生編號', student.number) : ''}${detail(row.chargeType === 'assessment' ? '評估日期' : '學費涵蓋時段', billingText(row.periodLabel))}${detail('發出日期', dateText(invoice.issued))}${detail('繳費期限', dateText(invoice.due))}</dl><div class="billingflow-invoice-total"><span>應付金額</span><strong>${money(invoice.amount)}</strong></div></div>`);
+    return documentPanel('invoice', '繳費通知', renderInvoiceDocument(getState(), row.invoice, { student: row.student, chargeLabel: row.chargeLabel }));
+  }
+  function aiReview(row) {
+    const checks = paymentProofChecks(getState(), row.invoice);
+    const failed = checks.filter(check => check.status !== 'pass').length;
+    const fields = checks.map(check => `<div><dt>${esc(billingText(check.label))}</dt><dd><span>${esc(billingText(check.detail || '未有紀錄'))}</span><span class="billingflow-ai-result ${['pass', 'fail', 'uncertain'].includes(check.status) ? check.status : 'uncertain'}">${esc({pass:'✓ 相符',fail:'不相符',uncertain:'待覆核'}[check.status] || '待覆核')}</span></dd></div>`).join('');
+    const approvalError = row.invoice.proofReview?.automaticApprovalError;
+    return `<section class="billingflow-ai-review" aria-label="AI 付款核對"><div class="billingflow-ai-heading"><h3>AI 核對（示範）</h3><span>${failed ? `${failed} 項需要職員覆核` : '所有核對項目相符'}</span></div><dl class="billingflow-ai-fields">${fields}</dl>${approvalError ? `<p class="billingflow-proof-unavailable">未能自動發出收據，須由職員跟進：${esc(billingText(approvalError))}</p>` : ''}<p class="billingflow-ai-note">示範結果以模擬資料產生；付款證明核對與銀行實際入帳分開處理。</p></section>`;
   }
   function proofPreview(row) {
     const { invoice } = row, review = invoice.proofReview || {}, file = review.file, extracted = review.extracted || {};
@@ -137,13 +147,12 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
     } else if (file) {
       evidence = '<p class="billingflow-proof-unavailable">未能顯示已儲存的證明，請家長重新上載。</p>';
     } else {
-      evidence = `<div class="billingflow-sample"><strong>示範付款證明</strong><p>虛構付款資料 · 未有儲存附件</p><dl class="billingflow-details">${detail('收款人', billingText(extracted.recipient))}${detail('金額', Number.isFinite(extracted.amount) ? money(extracted.amount) : null)}${detail('付款日期', extracted.paymentDate ? dateText(extracted.paymentDate) : null)}${detail('參考編號', extracted.reference)}</dl></div>`;
+      evidence = renderDemoPaymentProof(invoice, review, paymentDetailsFor(getState()));
     }
     const details = `<dl class="billingflow-details billingflow-proof-details">${detail('上載日期', dateText(row.proofSubmittedAt))}${detail('付款戶口姓名', invoice.proofPayer || extracted.payer)}${detail('交易日期', invoice.claimedPaymentDate ? dateText(invoice.claimedPaymentDate) : null)}${detail('參考編號', invoice.proofReference)}</dl>`;
-    const reasons = review.reasons?.length ? `<ul class="billingflow-proof-reasons">${review.reasons.map(reason => `<li>${esc(billingText(reason))}</li>`).join('')}</ul>` : '';
-    const checks = review.checks?.length ? `<details class="billing-help billingflow-checks"><summary>示範核對詳情</summary><p>核對結果均為模擬，並非由 AI 讀取上載檔案得出。</p><ul>${review.checks.map(check => `<li><span>${esc(billingText(check.label))}</span><strong>${esc({ pass: '已通過', fail: '未通過', uncertain: '待覆核' }[check.status] || '待覆核')}</strong></li>`).join('')}</ul></details>` : '';
-    return documentPanel('proof', '付款證明', `${evidence}${details}${reasons}${checks}`);
+    return documentPanel('proof', '付款證明', `${evidence}${details}`);
   }
+
   function renderReview() {
     cancelPdf?.(); cancelPdf = null;
     const row = reviewRow(draft?.invoiceId);
@@ -151,7 +160,7 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
     const reason = draft.returning ? `<div class="field billingflow-return-field"><label for="billingflow-return-reason">重新提交原因</label><textarea id="billingflow-return-reason" rows="3" maxlength="500" required placeholder="請告知家長需要更換哪些資料。">${esc(draft.reason)}</textarea></div>` : '';
     const footer = button('close', '取消', '', 'btn ghost') + button('return', '退回證明並要求重新提交', `data-id="${esc(row.invoice.id)}"`) + button('confirm', '確認並發出收據', `data-id="${esc(row.invoice.id)}"`, 'btn primary');
     const recoveryDemo = `<details class="billingflow-save-demo"><summary>示範儲存結果</summary><label for="billingflow-save-outcome">下次提交</label><select id="billingflow-save-outcome">${[['success', '成功'], ['failed', '儲存失敗'], ['uncertain', '確認程序中斷']].map(([value, label]) => `<option value="${value}"${draft.saveOutcome === value ? ' selected' : ''}>${label}</option>`).join('')}</select></details>`;
-    modal('核對付款', `<div class="billingflow-review" data-billingflow-review="${esc(row.invoice.id)}"><div class="billingflow-review-columns">${invoicePreview(row)}${proofPreview(row)}</div>${reason}<p id="billingflow-save-status" class="billingflow-save-status" role="status" hidden></p><div id="billingflow-recovery"></div>${recoveryDemo}</div>`, footer, true);
+    modal('核對付款', `<div class="billingflow-review" data-billingflow-review="${esc(row.invoice.id)}"><div class="billingflow-review-columns">${invoicePreview(row)}${proofPreview(row)}</div>${aiReview(row)}${reason}<p id="billingflow-save-status" class="billingflow-save-status" role="status" hidden></p><div id="billingflow-recovery"></div>${recoveryDemo}</div>`, footer, true);
     findNode('.modal')?.classList.add('billingflow-review-modal');
     const file = row.invoice.proofReview?.file, pdfTarget = findNode('#billingflow-pdf-preview');
     if (pdfTarget && file?.mimeType === 'application/pdf' && safeFile(file)) cancelPdf = renderPaymentPdf(pdfTarget, file.dataUrl);
@@ -292,10 +301,16 @@ export function createBillingWorkflowUI({ getState, getViewer, save, render, mod
   }
   function onChange(event) {
     const target = event.target;
-    if (!['billingflow-charge', 'billingflow-month', 'billingflow-save-outcome'].includes(target.id)) return false;
+    if (!['billingflow-charge', 'billingflow-month', 'billingflow-save-outcome', 'billingflow-approval-mode'].includes(target.id)) return false;
     safely(() => {
       requireAdmin();
       if (saving) return;
+      if (target.id === 'billingflow-approval-mode') {
+        const selected = target.value;
+        saved(() => setProofApprovalMode(getState(), selected), () => { refresh(target.id); toast(selected === 'automatic' ? '新提交的證明全部相符時自動發出收據；現有待核對項目保留。' : '新提交的證明由 AI 核對，再交職員批准。'); });
+        target.value = getProofApprovalMode(getState());
+        return;
+      }
       if (target.id === 'billingflow-save-outcome') {
         if (!draft || !['success', 'failed', 'uncertain'].includes(target.value)) throw new Error('請選擇有效的示範儲存結果。');
         draft.saveOutcome = target.value;

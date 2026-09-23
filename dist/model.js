@@ -4,6 +4,7 @@ import { p3Worksheets } from './p3-curriculum.js';
 import { progressRecordWorksheets } from './progress-records.js';
 import { twnRoster } from './twn-roster.js';
 import { twnTutorOffTimes } from './twn-availability.js';
+import { enrichNewFixtureBundle, fixtureLessonDocument, firstTuitionFixture } from './billing-fixture-lessons.js';
 
 export const TODAY = '2026-09-30';
 export const centre = { ...centreConfig.centre };
@@ -102,6 +103,9 @@ export const twnStudents = centre.code === 'TWN' ? twnRoster.map(student => {
   };
 }) : [];
 export const allStudents = [...students, ...twnStudents];
+// Capture the original fictional timetable once, independently of saved rules,
+// imported pupils, profile edits, and later changes to the exported directory.
+const billingFixtureStudents = new Map(students.map(student => [student.id, structuredClone(student)]));
 const studentsById = new Map(allStudents.map(student => [student.id, student]));
 export const studentById = id => studentsById.get(id) || students[0];
 
@@ -211,6 +215,7 @@ function coreBillingBundles() {
   ];
 }
 function appendBillingBundle(state, bundle) {
+  enrichNewFixtureBundle(bundle, billingFixtureStudents.get(bundle.invoice.studentId));
   state.invoices.push(bundle.invoice);
   if (bundle.receipt) state.receipts.push(bundle.receipt);
   if (bundle.bank) state.bankTransactions.push(bundle.bank);
@@ -238,6 +243,31 @@ function legacyCoreBillingBundles() {
 }
 function sameFixture(a, b) {
   return a === b || Boolean(a && b && typeof a === 'object' && typeof b === 'object' && Object.keys(a).length === Object.keys(b).length && Object.keys(b).every(key => sameFixture(a[key], b[key])));
+}
+
+// Display-only support for unchanged paid examples saved before lesson snapshots
+// were introduced. Exact fixture matching rejects uploaded or edited records.
+export function legacyFixtureReceiptDocument(state, receipt) {
+  const invoice = state.invoices?.find(item => item.id === receipt?.invoiceId);
+  if (!invoice?.proofReview?.fixture || invoice.proofReview.file || !receipt
+    || receipt.originalDocument || receipt.revisions || receipt.activeRevisionId
+    || invoice.lessonPlan || invoice.lessonDates || invoice.lessonCount
+    || state.regularSchedules?.[invoice.studentId]
+    || state.regularScheduleChanges?.some(change => change.studentId === invoice.studentId || change.invoiceId === invoice.id)
+    || state.bookings?.some(booking => booking.studentId === invoice.studentId && booking.regularScheduleChangeId)) return null;
+  const index = Number(/^INV-(\d+)$/.exec(invoice.id)?.[1]) - 5001;
+  const student = billingFixtureStudents.get(invoice.studentId);
+  const baseline = invoice.id === 'INV-8003' ? firstTuitionFixture(billingPayerName(null, 'chloe'))
+    : Number.isInteger(index) && index >= 0 && index < students.length - 8
+      ? generatedBillingBundle(billingFixtureStudents.get(students[index + 8].id), index)
+      : coreBillingBundles().find(bundle => bundle.invoice.id === invoice.id);
+  if (!baseline?.receipt || !student) return null;
+  const comparableInvoice = { ...invoice, proofReview: { ...invoice.proofReview } };
+  if (comparableInvoice.proofReview.file === null) delete comparableInvoice.proofReview.file;
+  // Bank matching is independent of the original tuition timetable.
+  const comparableReceipt = { ...receipt, bankId: baseline.receipt.bankId };
+  if (!sameFixture(comparableInvoice, baseline.invoice) || !sameFixture(comparableReceipt, baseline.receipt)) return null;
+  return fixtureLessonDocument(student, invoice, receipt);
 }
 function normalizeBillingMessages(state) {
   for (const thread of state.messages || []) {
@@ -377,15 +407,16 @@ export function seed() {
     { id: 'assignment-chloe-3', studentId: 'chloe', worksheetId: 'numbers-01', status: 'completed', homework: false, strokes: [], feedback: [], note: 'Great work identifying the pattern.', working: '4, 8, 12, 16, 20', assignedDate: '2026-09-16' },
     ...students.slice(1, 6).map((s, i) => ({ id: 'assignment-' + s.id, studentId: s.id, worksheetId: originalWorksheets[(i + 2) % originalWorksheets.length].id, status: i === 1 ? 'corrections' : 'upcoming', homework: false, strokes: [], feedback: [], note: i === 1 ? 'Please show your working for question 2.' : '', working: '', assignedDate: TODAY }))
   ];
+  const billing = coreBillingBundles().map(bundle => enrichNewFixtureBundle(bundle, billingFixtureStudents.get(bundle.invoice.studentId)));
   return normalizeParentLeave({
     version: 4, bookings, assignments,
     makeups: [{ id: 'makeup-chloe', studentId: 'chloe', sourceId: missedId, minutes: 60, used: 0, expiry: '2026-10-14', originalExpiry: '2026-09-30', reason: 'Approved extension for school activity.', period: 'Aug–Sep 2026' }],
     leaveRequests: [],
     lessonNotes: [{ id: 'note-chloe-sep16', studentId: 'chloe', date: '2026-09-16', topics: 'Number patterns and multiplication', performance: 'Working confidently', comment: 'Chloe explained her number patterns clearly today. We will build on this with equivalent fractions next lesson.', homework: 'Complete Number patterns, question 4.', published: true }],
     billingFixtureVersion: BILLING_FIXTURE_VERSION,
-    invoices: coreBillingBundles().map(bundle => bundle.invoice),
-    receipts: coreBillingBundles().flatMap(bundle => bundle.receipt ? [bundle.receipt] : []),
-    bankTransactions: coreBillingBundles().flatMap(bundle => bundle.bank ? [bundle.bank] : []),
+    invoices: billing.map(bundle => bundle.invoice),
+    receipts: billing.flatMap(bundle => bundle.receipt ? [bundle.receipt] : []),
+    bankTransactions: billing.flatMap(bundle => bundle.bank ? [bundle.bank] : []),
     assessment: { studentId: 'mia', bookedDate: '2026-09-26', assessmentDate: '2026-09-26', paid: true, status: 'report-ready', enrolled: false, creditDays: 7, report: 'Strong number sense. Further support with word problems and explaining mathematical reasoning would be useful.' },
     messages: [
       { id: 'thread-chloe', studentId: 'chloe', assignedTo: tutors[0].name, followUp: true, messages: [{ author: 'parent', text: 'Could Chloe make up her missed lesson as two half-hour extensions?', time: '09:12' }, { author: 'centre', text: 'Yes, we can arrange that. I will check the available times for you.', time: '09:18' }] },
