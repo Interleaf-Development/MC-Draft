@@ -1,0 +1,209 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  GAME_CONFIG, createQuestion, createRace, startRace, setLane,
+  updateRace, pauseRace, resumeRace
+} from '../dist/game1/engine.js';
+
+function randomSeed(seed = 12345) {
+  return () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+}
+
+function advance(state, seconds, step = 0.1) {
+  let remaining = seconds;
+  while (remaining > 1e-9) {
+    const delta = Math.min(step, remaining);
+    updateRace(state, delta);
+    remaining -= delta;
+  }
+  return state;
+}
+
+function atQuestion(state = createRace(randomSeed())) {
+  if (state.phase === 'ready') { startRace(state); advance(state, 3); }
+  advance(state, GAME_CONFIG.driveDistance / GAME_CONFIG.baseSpeed);
+  assert.equal(state.phase, 'question');
+  return state;
+}
+
+function answer(state, correct = true) {
+  advance(state, GAME_CONFIG.thinkSeconds);
+  const lane = state.question.options.findIndex(option => (option === state.question.answer) === correct);
+  setLane(state, lane);
+  advance(state, GAME_CONFIG.approachDistance / GAME_CONFIG.baseSpeed);
+  assert.equal(state.phase, 'feedback');
+  return state;
+}
+
+const closeTo = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-7, `${actual} ≈ ${expected}`);
+
+test('single-digit addition always has three distinct valid choices including the correct answer once', () => {
+  for (const random of [randomSeed(), () => 0, () => 0.5, () => 1]) {
+    for (let index = 0; index < 100; index++) {
+      const question = createQuestion(random);
+      assert.ok(Number.isInteger(question.a) && question.a >= 0 && question.a <= 9);
+      assert.ok(Number.isInteger(question.b) && question.b >= 0 && question.b <= 9);
+      assert.equal(question.answer, question.a + question.b);
+      assert.equal(question.options.length, 3);
+      assert.equal(new Set(question.options).size, 3);
+      assert.equal(question.options.filter(option => option === question.answer).length, 1);
+      assert.ok(question.options.every(option => Number.isInteger(option) && option >= 0 && option <= 18));
+    }
+  }
+});
+
+test('the car stops for exactly three seconds before the answer approach, without changing its question', () => {
+  const state = createRace(randomSeed());
+  const question = state.question;
+  assert.equal(state.phase, 'ready');
+  updateRace(state, 0.1);
+  assert.equal(state.elapsed, 0);
+  startRace(state);
+  advance(state, 2.9);
+  assert.equal(state.phase, 'countdown');
+  assert.equal(state.distance, 0);
+  advance(state, 0.1);
+  assert.equal(state.phase, 'driving');
+  advance(state, GAME_CONFIG.driveDistance / GAME_CONFIG.baseSpeed);
+  assert.equal(state.phase, 'question');
+  const stoppedAt = state.distance;
+  closeTo(stoppedAt, GAME_CONFIG.driveDistance);
+  const lane = state.lane;
+  setLane(state, lane === 0 ? 2 : 0);
+  assert.equal(state.lane, lane, 'Steering waits until the answer approach');
+  advance(state, 2.99);
+  assert.equal(state.phase, 'question');
+  assert.equal(state.speed, 0);
+  assert.equal(state.distance, stoppedAt);
+  assert.equal(state.gateDistance, GAME_CONFIG.approachDistance);
+  advance(state, 0.01);
+  assert.equal(state.phase, 'answer');
+  assert.equal(state.distance, stoppedAt);
+  assert.equal(state.question, question);
+  assert.equal(state.speed, GAME_CONFIG.baseSpeed);
+  updateRace(state, 0.1);
+  closeTo(state.gateDistance, GAME_CONFIG.approachDistance - GAME_CONFIG.baseSpeed * 0.1);
+});
+
+test('a correct crossing records one answer and gives a timed boost before the next round', () => {
+  const state = answer(atQuestion());
+  const question = state.question;
+  assert.equal(state.correct, 1);
+  assert.equal(state.streak, 1);
+  assert.equal(state.bestStreak, 1);
+  assert.deepEqual(state.lastResult, { correct: true, chosen: question.answer, answer: question.answer, round: 1 });
+  assert.equal(state.results.length, 1);
+  assert.equal(state.gateDistance, Infinity);
+  assert.equal(state.speed, GAME_CONFIG.boostSpeed);
+  const before = state.distance;
+  advance(state, GAME_CONFIG.boostSeconds - 0.01);
+  assert.equal(state.phase, 'feedback');
+  assert.equal(state.results.length, 1);
+  closeTo(state.distance - before, (GAME_CONFIG.boostSeconds - 0.01) * GAME_CONFIG.boostSpeed);
+  advance(state, 0.01);
+  assert.equal(state.phase, 'driving');
+  assert.equal(state.questionIndex, 1);
+  assert.equal(state.speed, GAME_CONFIG.baseSpeed);
+  assert.equal(state.boostRemaining, 0);
+  assert.notEqual(state.question, question);
+  assert.equal(state.results.length, 1);
+});
+
+test('a wrong crossing spins without movement or steering, then recovers slowly and resets the streak', () => {
+  const state = answer(atQuestion());
+  advance(state, GAME_CONFIG.boostSeconds);
+  atQuestion(state);
+  answer(state, false);
+  assert.equal(state.correct, 1);
+  assert.equal(state.streak, 0);
+  assert.equal(state.bestStreak, 1);
+  assert.equal(state.lastResult.correct, false);
+  assert.notEqual(state.lastResult.chosen, state.lastResult.answer);
+  assert.equal(state.lastResult.round, 2);
+  const position = state.distance;
+  const lane = state.lane;
+  setLane(state, (lane + 1) % 3);
+  assert.equal(state.lane, lane);
+  assert.equal(state.speed, 0);
+  advance(state, GAME_CONFIG.spinSeconds);
+  assert.equal(state.distance, position);
+  assert.equal(state.phase, 'feedback');
+  assert.equal(state.speed, GAME_CONFIG.slowSpeed);
+  setLane(state, (lane + 1) % 3);
+  assert.equal(state.lane, (lane + 1) % 3, 'Steering returns during slow recovery');
+  advance(state, GAME_CONFIG.recoverySeconds);
+  closeTo(state.distance - position, GAME_CONFIG.slowSpeed * GAME_CONFIG.recoverySeconds);
+  assert.equal(state.phase, 'driving');
+  assert.equal(state.results.length, 2);
+  assert.equal(state.questionIndex, 2);
+});
+
+test('pausing freezes the question timer, driving and answer effects until resumed', () => {
+  const states = [atQuestion(), answer(atQuestion()), answer(atQuestion(), false)];
+  const driving = createRace(randomSeed()); startRace(driving); advance(driving, 3); states.push(driving);
+  for (const state of states) {
+    pauseRace(state);
+    const snapshot = structuredClone(state);
+    advance(state, 10);
+    setLane(state, (state.lane + 1) % 3);
+    assert.deepEqual(state, snapshot);
+    resumeRace(state);
+    assert.equal(state.paused, false);
+    updateRace(state, 0.1);
+    assert.ok(state.elapsed > snapshot.elapsed);
+  }
+});
+
+test('a race finishes eight unique questions once, even with a constant random source; restarting is independent', () => {
+  const state = createRace(() => 0);
+  const seen = new Set();
+  for (let round = 0; round < GAME_CONFIG.rounds; round++) {
+    atQuestion(state);
+    const key = [state.question.a, state.question.b].sort((a, b) => a - b).join('+');
+    assert.equal(seen.has(key), false, 'Commutative duplicates must not appear in one race');
+    seen.add(key);
+    answer(state);
+    assert.equal(state.questionIndex, round);
+    advance(state, GAME_CONFIG.boostSeconds);
+  }
+  assert.equal(state.phase, 'finished');
+  assert.equal(state.speed, 0);
+  assert.equal(state.correct, 8);
+  assert.equal(state.bestStreak, 8);
+  assert.equal(state.results.length, 8);
+  assert.deepEqual(state.results.map(result => result.round), [1, 2, 3, 4, 5, 6, 7, 8]);
+  const final = structuredClone(state);
+  updateRace(state, 0.25); setLane(state, 0); startRace(state);
+  assert.deepEqual(state, final);
+  const restarted = createRace(() => 0);
+  startRace(restarted);
+  assert.equal(restarted.phase, 'countdown');
+  assert.equal(restarted.correct, 0);
+  assert.equal(restarted.distance, 0);
+  assert.equal(restarted.elapsed, 0);
+  assert.equal(restarted.lastResult, null);
+  assert.deepEqual(restarted.results, []);
+  assert.equal(state.results.length, 8);
+});
+
+test('updates ignore invalid input, cap tab-resume jumps and give the same outcome at different frame rates', () => {
+  const state = createRace(randomSeed()); startRace(state);
+  const initial = structuredClone(state);
+  for (const delta of [NaN, Infinity, -1, 0, '1']) updateRace(state, delta);
+  assert.deepEqual(state, initial);
+  updateRace(state, 10000);
+  assert.equal(state.phase, 'countdown');
+  closeTo(state.elapsed, 0.25);
+  for (const lane of [-1, 3, NaN, 0.5, '2']) setLane(state, lane);
+  assert.equal(state.lane, 1);
+  const fast = createRace(randomSeed()), slow = createRace(randomSeed());
+  startRace(fast); startRace(slow);
+  advance(fast, 15, 1 / 120);
+  advance(slow, 15, 0.2);
+  assert.equal(fast.phase, slow.phase);
+  assert.equal(fast.questionIndex, slow.questionIndex);
+  assert.deepEqual(fast.results, slow.results);
+  closeTo(fast.distance, slow.distance);
+  closeTo(fast.phaseTime, slow.phaseTime);
+  closeTo(fast.elapsed, slow.elapsed);
+});

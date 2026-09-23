@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#d8efdf">
+  <meta name="description" content="數學飛車：想一想，駛進答案箱，答啱就加速！">
+  <title>數學飛車 · MathConcept</title>
+  <link rel="icon" href="/icons/mathconcept-favicon.png">
+  <link rel="stylesheet" href="/game1/styles.css">
+</head>
+<body>
+  <main id="game" class="game is-ready">
+    <canvas id="track" aria-label="三條車道的賽道。使用下方車道按鈕或鍵盤左右鍵操控賽車。"></canvas>
+    <header class="topbar">
+      <div class="brand"><span class="brand-flag" aria-hidden="true"></span><span>MathConcept<small>數學飛車</small></span></div>
+      <div class="race-hud" id="race-hud" hidden>
+        <span class="lap-label">答案箱 <strong id="round-label">1 / 8</strong></span>
+        <div class="progress-dots" id="progress-dots" aria-label="答題進度"></div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-button" id="sound" aria-label="關閉音效" aria-pressed="false" title="關閉音效"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4Z"/><path class="sound-waves" d="M17 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path class="sound-off" d="m17 9 5 6m0-6-5 6"/></svg></button>
+        <button class="icon-button" id="pause" aria-label="暫停比賽" title="暫停比賽" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button>
+      </div>
+    </header>
+
+    <div class="question-card" id="question-card" hidden>
+      <div class="question-copy"><span id="question-prompt">停一停，想一想</span><strong id="equation">3 + 4 = ?</strong></div>
+      <div class="thinking-clock" id="thinking-clock" aria-label="思考時間"><svg viewBox="0 0 56 56" aria-hidden="true"><circle class="clock-track" cx="28" cy="28" r="24"/><circle class="clock-progress" id="clock-ring" cx="28" cy="28" r="24"/></svg><b id="think-count">3</b></div>
+    </div>
+    <div class="start-countdown" id="start-countdown" hidden aria-live="polite">3</div>
+    <div class="feedback" id="feedback" hidden><span id="feedback-icon" aria-hidden="true">✦</span><div><strong id="feedback-title"></strong><small id="feedback-detail"></small></div></div>
+
+    <div class="driving-ui" id="driving-ui" hidden>
+      <div class="speed-readout"><strong id="speed">0</strong><span>km/h</span><span id="speed-effect"></span></div>
+      <div class="steering">
+        <span class="steering-prompt" id="steering-prompt">揀一條車道</span>
+        <div class="lane-buttons" role="group" aria-label="選擇車道">
+          <button class="lane-button lane-0" data-lane="0" aria-label="左線" aria-pressed="false"><span class="lane-symbol">←</span><small>左線</small></button>
+          <button class="lane-button lane-1" data-lane="1" aria-label="中線" aria-pressed="true"><span class="lane-symbol">↑</span><small>中線</small></button>
+          <button class="lane-button lane-2" data-lane="2" aria-label="右線" aria-pressed="false"><span class="lane-symbol">→</span><small>右線</small></button>
+        </div>
+        <span class="control-hint"><span class="keyboard-hint">← → 或 A D 轉線 · </span>亦可點選車道</span>
+      </div>
+      <div class="score-readout"><span>答啱</span><strong id="score">0<span> / 8</span></strong><small id="streak"></small></div>
+    </div>
+
+    <section class="overlay" id="welcome" aria-labelledby="welcome-title">
+      <div class="menu-card welcome-card">
+        <span class="course-tag"><span aria-hidden="true">✦</span> 海風賽道</span>
+        <h1 id="welcome-title">數學<span>飛車</span></h1>
+        <p class="tagline">答啱，衝刺！</p>
+        <div class="how-to" aria-label="玩法">
+          <div><b class="rule-icon rule-think">3<span>秒</span></b><span>停車想一想</span></div><i aria-hidden="true">→</i>
+          <div><b class="rule-icon rule-box">?</b><span>駛進答案箱</span></div><i aria-hidden="true">→</i>
+          <div><b class="rule-icon rule-boost">ϟ</b><span>答啱就加速</span></div>
+        </div>
+        <button class="play-button" id="start">開始比賽 <span aria-hidden="true">→</span></button>
+        <p class="menu-hint">自動前進 · 8 道加數題<br><span class="keyboard-hint">鍵盤 ← → 或 A D · </span>觸控點選／左右滑動</p>
+      </div>
+    </section>
+
+    <section class="overlay pause-overlay" id="paused" role="dialog" aria-modal="true" hidden aria-labelledby="pause-title">
+      <div class="menu-card compact-card"><span class="course-tag">稍作休息</span><h2 id="pause-title">休息一下</h2><p>準備好，就繼續衝線。</p><button class="play-button" id="resume">繼續比賽 <span aria-hidden="true">→</span></button><button class="text-button" id="restart">重新開始</button></div>
+    </section>
+
+    <section class="overlay finish-overlay" id="finished" role="dialog" aria-modal="true" hidden aria-labelledby="finish-title">
+      <div class="menu-card finish-card"><span class="course-tag">海風賽道 · 完成</span><div class="finish-stars" id="finish-stars" aria-hidden="true">★ ★ ★</div><h2 id="finish-title">衝線喇！</h2><p id="finish-message">做得好！再跑一圈？</p><div class="finish-score"><strong id="finish-score">8<span> / 8</span></strong><span>題答啱</span></div><div class="finish-facts"><span>賽事時間 <b id="finish-time"></b></span><span>最長連續答啱 <b id="finish-streak"></b></span></div><div id="review" class="answer-review" hidden><span>一齊記住這些答案</span><div id="review-answers"></div></div><button class="play-button" id="play-again">再玩一次 <span aria-hidden="true">↻</span></button></div>
+    </section>
+    <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
+    <noscript><div class="no-script">請啟用 JavaScript 以開始遊戲。</div></noscript>
+  </main>
+  <script type="module" src="/game1/game.js"></script>
+</body>
+</html>
