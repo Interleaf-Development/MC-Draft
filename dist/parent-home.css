@@ -199,3 +199,5 @@
 .makeup-followup-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .makeup-followup-actions .btn { flex: 1 1 auto; }
 .role-parent .parent-preferences-form input[type="date"] { width: 100%; min-width: 0; }
+.parent-schedule-preferences summary, .parent-schedule-pending summary { cursor: pointer; padding: 12px 0; font-size: 14px; font-weight: 600; }
+.parent-schedule-pending { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 4px; }

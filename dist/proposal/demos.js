@@ -11,8 +11,8 @@ const views = {
   classroom: {label:t('My classroom','我的課堂'), role:'teacher', page:'classroom'},
   teacherSchedule: {label:t('My schedule','我的時間表'), role:'teacher', page:'schedule'},
   notes: {label:t('Reports & stamps','課堂報告及印章'), role:'teacher', page:'notes'},
-  student: {label:t('Student binder','學生學習冊'), role:'student', page:'work'},
-  studentStamps: {label:t('My stamps','我的印章'), role:'student', page:'stamps'},
+  student: {label:t('Student binder','學生學習冊'), role:'student', page:'work', studentId:'chloe'},
+  studentStamps: {label:t('My stamps','我的印章'), role:'student', page:'stamps', studentId:'chloe'},
   game: {label:t('Maths kart','數學飛車'), role:'game', page:'race'},
   parent: {label:t('Parent home','家長主頁'), role:'parent', page:'overview', initialStudentId:'twn-c64262b4d67d'},
   parentCalendar: {label:t('Lessons','課堂安排'), role:'parent', page:'lessons'},
@@ -68,7 +68,7 @@ function sourceURL(view) {
 function selectedView(key) {
   const view={...views[key]};
   const studentId=worksheetStudents.get(view.branch||'tw');
-  if(studentId&&['teacher','student'].includes(view.role))view.studentId=studentId;
+  if(studentId&&!view.studentId&&['teacher','student'].includes(view.role))view.studentId=studentId;
   return view;
 }
 function shell(id) {
@@ -250,7 +250,9 @@ export function initDemos(options = {}) {
       if(active===entry&&!document.hidden)send(entry,'mc-proposal:activate');
       if(entry.pendingView){const view=entry.pendingView;entry.pendingView=null;navigateFrame(entry,view);return;}
     }else if(entry.pendingView)return;
-    if(entry===active&&['teacher','student'].includes(data.role)&&typeof data.studentId==='string')worksheetStudents.set(entry.view.branch||'tw',data.studentId);
+    // The student chapter demonstrates one account. Its fixed learner must not
+    // replace the teacher's selected learner or an explicit student preview.
+    if(entry.id!=='student'&&entry===active&&['teacher','student'].includes(data.role)&&typeof data.studentId==='string')worksheetStudents.set(entry.view.branch||'tw',data.studentId);
     entry.view={...entry.view,role:data.role,page:typeof data.page==='string'?data.page:entry.view.page};
     syncControls(entry);sizeFrame(entry);
   });

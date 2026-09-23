@@ -244,6 +244,40 @@ test('the parent chapter preloads the actual phone app and switches its views wi
   assert.equal(h.document.querySelector('#proposal'), null);
 });
 
+test('the student chapter keeps Chloe through loading and tab changes without changing the teacher selection', () => {
+  const h = harness('#teacher'); h.init(); h.activate('teacher'); h.ready('teacher', 'teacher', 'progress');
+  const teacher = h.frame('teacher');
+  h.message(teacher.contentWindow, { type: 'mc-proposal:state', role: 'teacher', page: 'progress', studentId: 'twn-c64262b4d67d' });
+  h.warm();
+  const student = h.frame('student');
+  assert.equal(new URL(student.src, origin).searchParams.get('studentId'), 'chloe');
+  h.ready('student', 'student', 'work');
+  h.choose('student', 'studentStamps');
+  let navigation = messages(student, 'mc-proposal:navigate').at(-1).data;
+  assert.equal(navigation.studentId, 'chloe');
+  assert.equal(navigation.page, 'stamps');
+  h.message(student.contentWindow, { type: 'mc-proposal:state', role: 'student', page: 'stamps', studentId: 'chloe' });
+  h.choose('teacher', 'classroom');
+  assert.equal(messages(teacher, 'mc-proposal:navigate').at(-1).data.studentId, 'twn-c64262b4d67d');
+  h.choose('student', 'student');
+  navigation = messages(student, 'mc-proposal:navigate').at(-1).data;
+  assert.equal(navigation.studentId, 'chloe');
+  assert.equal(navigation.page, 'work');
+  assert.equal(h.frame('student'), student);
+});
+
+test('a teacher can still preview another student and return to that same learner in teacher views', () => {
+  const h = harness('#teacher'); h.init(); h.warm(); h.activate('teacher'); h.ready('teacher', 'teacher', 'progress');
+  const teacher = h.frame('teacher');
+  h.message(teacher.contentWindow, { type: 'mc-proposal:state', role: 'student', page: 'work', studentId: 'lucas' });
+  h.choose('teacher', 'notes');
+  const navigation = messages(teacher, 'mc-proposal:navigate').at(-1).data;
+  assert.equal(navigation.role, 'teacher');
+  assert.equal(navigation.page, 'notes');
+  assert.equal(navigation.studentId, 'lucas');
+  assert.equal(h.frame('teacher'), teacher);
+});
+
 test('background readiness cannot take activation from the visible scene, and revisiting keeps its frame', () => {
   const h = harness(); h.init(); h.warm();
   const teacher = h.frame('teacher');

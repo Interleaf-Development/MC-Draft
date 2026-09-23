@@ -43,11 +43,12 @@ function renderer() {
 const booking = (id, date, start, extra = {}) => ({ id, studentId: 'chloe', date, start, duration: 60, tutor: 'chan', status: 'scheduled', attendance: 'unmarked', ...extra });
 const plain = value => JSON.parse(JSON.stringify(value));
 
-test('Parent home groups only this child’s active lessons from today through day six', () => {
+test('Parent home groups all this child’s upcoming active lessons chronologically across months', () => {
   const app = renderer();
   app.state.bookings = [
     booking('last-day', '2026-10-06', 960),
     booking('next-week', '2026-10-07', 960),
+    booking('year-end', '2026-12-30', 960),
     booking('today-late', model.TODAY, 1020),
     booking('yesterday', '2026-09-29', 960),
     booking('other-child', model.TODAY, 960, { studentId: 'mia' }),
@@ -58,8 +59,8 @@ test('Parent home groups only this child’s active lessons from today through d
   ];
   const before = model.clone(app.state);
   const groups = plain(app.call('parentLessonGroups', 'chloe'));
-  assert.deepEqual(groups.map(group => group.date), [model.TODAY, '2026-10-06']);
-  assert.deepEqual(groups.map(group => group.lessons.map(lesson => lesson.id)), [['today-early', 'today-late'], ['last-day']]);
+  assert.deepEqual(groups.map(group => group.date), [model.TODAY, '2026-10-06', '2026-10-07', '2026-12-30']);
+  assert.deepEqual(groups.map(group => group.lessons.map(lesson => lesson.id)), [['today-early', 'today-late'], ['last-day'], ['next-week'], ['year-end']]);
   assert.deepEqual(app.state, before, 'Rendering must not reorder or rewrite shared bookings');
 });
 
@@ -81,7 +82,8 @@ test('same-day split make-ups remain separate from the regular lesson and checke
 test('the Parent home keeps usable report, homework and timetable routes with a central check-in action', () => {
   const app = renderer(), before = model.clone(app.state);
   const home = app.call('parentOverview');
-  for (const page of ['lessons', 'handbook', 'homework']) assert.match(home, new RegExp('data-page="' + page + '"'));
+  for (const page of ['handbook', 'homework']) assert.match(home, new RegExp('data-page="' + page + '"'));
+  assert.match(home, /data-action="parent-schedule-change"/);
   const navigation = app.call('parentBottomNav');
   assert.deepEqual([...navigation.matchAll(/data-page="([^"]+)"/g)].map(match => match[1]), ['overview', 'lessons', 'messages', 'payments']);
   assert.equal([...navigation.matchAll(/data-action="show-checkin"/g)].length, 1);
@@ -127,7 +129,7 @@ test('Mia’s assessment and enrolment remain available before she has regular l
   app.state.bookings.push(booking('mia-first', model.TODAY, 1020, { studentId: 'mia' }));
   const enrolledHome = app.call('parentOverview');
   assert.doesNotMatch(enrolledHome, /data-action="enrol-mia"/);
-  assert.match(enrolledHome, /data-page="lessons"/);
+  assert.match(enrolledHome, /data-action="parent-schedule-change"/);
   assert.deepEqual(plain(app.call('parentLessonGroups', 'mia')).flatMap(group => group.lessons.map(lesson => lesson.id)), ['mia-first']);
 });
 

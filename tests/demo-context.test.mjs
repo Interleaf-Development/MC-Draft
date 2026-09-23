@@ -360,13 +360,34 @@ test('parent demo keeps its child across views and sibling refreshes, with a rou
   assert.equal(sandbox.state.demoWorksheetStudent, 'ethan');
 });
 
-test('student child switching still updates the shared worksheet selection', async () => {
+test('student account has a fixed name and ignores removed child-switch controls', async () => {
   const source = await readFile(new URL('../dist/app.js', import.meta.url), 'utf8');
   const { sandbox, readSaved } = await proposalFrameHarness({ version: 4, demoWorksheetStudent: 'mia' });
-  sandbox.target = { value: 'chloe' };
+  sandbox.target = { value: 'mia' };
   sandbox.type = 'family-student';
   const childChange = source.slice(source.indexOf(" else if(type==='family-student')"), source.indexOf(" else if(type==='report-month')")).replace('else if', 'if');
   vm.runInContext(childChange, sandbox);
   assert.equal(sandbox.ui.familyStudent, 'chloe');
-  assert.equal(readSaved().demoWorksheetStudent, 'chloe');
+  assert.equal(readSaved().demoWorksheetStudent, 'mia');
+  Object.assign(sandbox, { studentById: model.studentById, esc: String, t: String });
+  vm.runInContext(source.slice(source.indexOf('const childSwitch=()=>{'), source.indexOf('function nextLessons(')), sandbox);
+  const html = vm.runInContext('childSwitch()', sandbox);
+  assert.match(html, /Chloe Chan/);
+  assert.doesNotMatch(html, /<select|<option|family-student/);
+});
+
+test('dedicated student preview keeps Chloe while shared teacher records refresh', async () => {
+  const { sandbox, saveSiblingState, readSaved, counts } = await proposalFrameHarness(
+    { version: 4, demoWorksheetStudent: 'mia', marker: 'initial' },
+    { fixedStudentDemo: true }
+  );
+  sandbox.followProposalStudent('mia');
+  sandbox.activateProposalFrame();
+  assert.equal(sandbox.ui.familyStudent, 'chloe');
+  assert.equal(readSaved().demoWorksheetStudent, 'mia');
+  saveSiblingState({ ...sandbox.state, demoWorksheetStudent: 'ethan', marker: 'updated' });
+  sandbox.refreshProposalState(true);
+  assert.equal(sandbox.state.marker, 'updated');
+  assert.equal(sandbox.ui.familyStudent, 'chloe');
+  assert.equal(counts.saves, 0, 'Student preview never overwrites the teacher’s selected pupil');
 });
