@@ -15,8 +15,9 @@
     <header class="topbar">
       <div class="brand"><span class="brand-flag" aria-hidden="true"></span><span>MathConcept<small>數學飛車</small></span></div>
       <div class="race-hud" id="race-hud" hidden>
-        <span class="lap-label">答案箱 <strong id="round-label">1 / 8</strong></span>
+        <div class="race-hud-heading"><strong class="race-position" id="position-label">第 2 名</strong><span class="lap-label">答案箱 <strong id="round-label">1 / 8</strong></span></div>
         <div class="progress-dots" id="progress-dots" aria-label="答題進度"></div>
+        <div class="rival-scores" id="rival-scores" role="group" aria-label="對手答啱題數"></div>
       </div>
       <div class="top-actions">
         <button class="icon-button" id="sound" aria-label="關閉音效" aria-pressed="false" title="關閉音效"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4Z"/><path class="sound-waves" d="M17 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path class="sound-off" d="m17 9 5 6m0-6-5 6"/></svg></button>
@@ -56,7 +57,7 @@
           <div><b class="rule-icon rule-boost">ϟ</b><span>答啱就加速</span></div>
         </div>
         <button class="play-button" id="start">開始比賽 <span aria-hidden="true">→</span></button>
-        <p class="menu-hint">自動前進 · 8 道加數題<br><span class="keyboard-hint">鍵盤 ← → 或 A D · </span>觸控點選／左右滑動</p>
+        <p class="menu-hint">3 車同場 · 自動前進 · 8 道加數題<br><span class="keyboard-hint">鍵盤 ← → 或 A D · </span>觸控點選／左右滑動</p>
       </div>
     </section>
 
@@ -65,9 +66,10 @@
     </section>
 
     <section class="overlay finish-overlay" id="finished" role="dialog" aria-modal="true" hidden aria-labelledby="finish-title">
-      <div class="menu-card finish-card"><span class="course-tag">海風賽道 · 完成</span><div class="finish-stars" id="finish-stars" aria-hidden="true">★ ★ ★</div><h2 id="finish-title">衝線喇！</h2><p id="finish-message">做得好！再跑一圈？</p><div class="finish-score"><strong id="finish-score">8<span> / 8</span></strong><span>題答啱</span></div><div class="finish-facts"><span>賽事時間 <b id="finish-time"></b></span><span>最長連續答啱 <b id="finish-streak"></b></span></div><div id="review" class="answer-review" hidden><span>一齊記住這些答案</span><div id="review-answers"></div></div><button class="play-button" id="play-again">再玩一次 <span aria-hidden="true">↻</span></button></div>
+      <div class="menu-card finish-card"><span class="course-tag">海風賽道 · 完成</span><div class="finish-stars" id="finish-stars" aria-hidden="true">★ ★ ★</div><h2 id="finish-title">第 1 名！</h2><p id="finish-message">做得好！再跑一圈？</p><div class="finish-ranking"><div class="ranking-heading"><span>名次</span><span>答啱</span></div><ol id="finish-standings" aria-label="最終排名"></ol></div><div class="finish-facts"><span>賽事時間 <b id="finish-time"></b></span><span>最長連續答啱 <b id="finish-streak"></b></span></div><div id="review" class="answer-review" hidden><span>一齊記住這些答案</span><div id="review-answers"></div></div><button class="play-button" id="play-again">再玩一次 <span aria-hidden="true">↻</span></button></div>
     </section>
     <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
+    <p id="position-announcement" class="sr-only" role="status" aria-live="polite"></p>
     <noscript><div class="no-script">請啟用 JavaScript 以開始遊戲。</div></noscript>
   </main>
   <script type="module" src="/game1/game.js"></script>

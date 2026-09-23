@@ -2,7 +2,7 @@ import { GAME_CONFIG, createRace, startRace, setLane, updateRace, pauseRace, res
 import { KartRenderer } from './renderer.js';
 
 const $ = id => document.getElementById(id);
-const ui = Object.fromEntries(['game', 'track', 'welcome', 'paused', 'finished', 'pause', 'sound', 'start', 'resume', 'restart', 'play-again', 'race-hud', 'round-label', 'progress-dots', 'question-card', 'question-prompt', 'equation', 'thinking-clock', 'clock-ring', 'think-count', 'start-countdown', 'feedback', 'feedback-icon', 'feedback-title', 'feedback-detail', 'driving-ui', 'speed', 'speed-effect', 'steering-prompt', 'score', 'streak', 'announcement', 'finish-score', 'finish-time', 'finish-streak', 'finish-message', 'finish-stars', 'review', 'review-answers'].map(id => [id, $(id)]));
+const ui = Object.fromEntries(['game', 'track', 'welcome', 'paused', 'finished', 'pause', 'sound', 'start', 'resume', 'restart', 'play-again', 'race-hud', 'round-label', 'progress-dots', 'position-label', 'rival-scores', 'question-card', 'question-prompt', 'equation', 'thinking-clock', 'clock-ring', 'think-count', 'start-countdown', 'feedback', 'feedback-icon', 'feedback-title', 'feedback-detail', 'driving-ui', 'speed', 'speed-effect', 'steering-prompt', 'score', 'streak', 'announcement', 'position-announcement', 'finish-title', 'finish-standings', 'finish-time', 'finish-streak', 'finish-message', 'finish-stars', 'review', 'review-answers'].map(id => [id, $(id)]));
 const laneButtons = [...document.querySelectorAll('[data-lane]')];
 const laneNames = ['左線', '中線', '右線'];
 const symbols = ['←', '↑', '→'];
@@ -15,6 +15,7 @@ let questionHistory = [];
 let returnFocus = null;
 let pointer = null;
 let soundEnabled = true;
+let announcedPosition = race.position;
 
 // Quiet synthesised arcade sounds, created only after a player gesture.
 class GameAudio {
@@ -76,11 +77,51 @@ for (let i = 0; i < GAME_CONFIG.rounds; i++) {
   ui['progress-dots'].append(dot);
 }
 const dots = [...ui['progress-dots'].children];
+const rivalRows = new Map(race.rivals.map(rival => {
+  const row = document.createElement('span');
+  row.className = 'rival-score';
+  const swatch = document.createElement('i');
+  swatch.className = 'racer-swatch';
+  swatch.style.backgroundColor = rival.color;
+  swatch.setAttribute('aria-hidden', 'true');
+  const name = document.createElement('span'); name.textContent = rival.name;
+  const score = document.createElement('strong');
+  const effect = document.createElement('span'); effect.className = 'rival-effect'; effect.setAttribute('role', 'img');
+  row.append(swatch, name, score, effect);
+  ui['rival-scores'].append(row);
+  return [rival.id, { score, effect }];
+}));
+
+function syncRivals() {
+  put(ui['position-label'], `第 ${race.position} 名`);
+  attr(ui.game, 'data-position', String(race.position));
+  for (const rival of race.rivals) {
+    const { score, effect } = rivalRows.get(rival.id);
+    put(score, `${rival.correct}/${race.total}`);
+    const result = race.phase === 'feedback' ? rival.lastResult : null;
+    show(effect, Boolean(result));
+    if (result) {
+      const good = result.correct;
+      put(effect, good ? 'ϟ' : '↻');
+      className(effect, `rival-effect ${good ? 'correct' : 'wrong'}`);
+      attr(effect, 'aria-label', good ? '今題答啱，加速！' : '今題答錯，減速。');
+    }
+  }
+  // Keep question and answer announcements uninterrupted; announce a changed
+  // position between questions, in a separate live region.
+  if (!race.paused && race.results.length && ['driving', 'feedback'].includes(race.phase) && race.position !== announcedPosition) {
+    announcedPosition = race.position;
+    put(ui['position-announcement'], `你而家排第 ${race.position} 名。`);
+  }
+}
+
 
 function begin() {
   audio.unlock();
   race = createRace();
   questionHistory = [];
+  announcedPosition = race.position;
+  put(ui['position-announcement'], '');
   renderer.lane = 1;
   lastTick = '';
   lastPhase = 'ready';
@@ -123,10 +164,20 @@ function finish() {
     if (i >= stars) span.className = 'dim';
     return span;
   }));
-  ui['finish-score'].innerHTML = `${race.correct}<span> / ${race.total}</span>`;
+  put(ui['finish-title'], `第 ${race.position} 名！`);
+  ui['finish-standings'].replaceChildren(...race.standings.map(racer => {
+    const row = document.createElement('li');
+    if (racer.id === 'player') row.className = 'is-player';
+    const place = document.createElement('b'); place.className = 'racer-place'; place.textContent = String(racer.position);
+    const swatch = document.createElement('i'); swatch.className = 'racer-swatch'; swatch.style.backgroundColor = racer.color; swatch.setAttribute('aria-hidden', 'true');
+    const name = document.createElement('span'); name.textContent = racer.name;
+    const score = document.createElement('strong'); score.textContent = `${racer.correct} / ${race.total}`;
+    row.append(place, swatch, name, score);
+    return row;
+  }));
   put(ui['finish-time'], `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`);
   put(ui['finish-streak'], `${race.bestStreak} 題`);
-  put(ui['finish-message'], race.correct === race.total ? '全部答啱，太好喇！' : race.correct >= 5 ? '做得好！再跑一圈？' : '完成喇！再練習，一定會進步。');
+  put(ui['finish-message'], race.position === 1 ? '全部答啱，率先衝線！' : race.position === 2 ? '差少少！再跑一圈，挑戰第一名。' : '衝線喇！再練習，一定會進步。');
   const mistakes = race.results.filter(result => !result.correct);
   show(ui.review, mistakes.length > 0);
   ui['review-answers'].replaceChildren(...mistakes.map(result => {
@@ -135,7 +186,8 @@ function finish() {
     element.textContent = q ? `${q.a} + ${q.b} = ${result.answer}` : `答案：${result.answer}`;
     return element;
   }));
-  announce(`完成比賽！${race.total} 題答啱 ${race.correct} 題。`);
+  put(ui['position-announcement'], '');
+  announce(`完成比賽，獲得第 ${race.position} 名！${race.total} 題答啱 ${race.correct} 題。`);
   audio.win();
   requestAnimationFrame(() => ui['play-again'].focus({ preventScroll: true }));
 }
@@ -178,6 +230,7 @@ function syncUI() {
   show(ui['thinking-clock'], thinking);
   show(ui.feedback, phase === 'feedback' && !paused);
   put(ui['round-label'], `${race.questionIndex + 1} / ${race.total}`);
+  syncRivals();
   for (const [i, dot] of dots.entries()) {
     const result = race.results[i];
     className(dot, `progress-dot${result ? result.correct ? ' correct' : ' wrong' : i === race.questionIndex ? ' current' : ''}`);

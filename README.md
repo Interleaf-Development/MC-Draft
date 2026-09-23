@@ -181,6 +181,7 @@ An ordinary move can also be done by dragging a booking, or by opening it and ch
 - Open **`/game1/`** for the standalone Hong Kong Chinese kart game. It is not linked into the student app or proposal yet.
 - The kart drives automatically through eight single-digit addition questions. Each checkpoint stops the kart for three seconds, then reveals an active three-lane answer approach.
 - Use **← / →**, **A / D**, the lane buttons, or a horizontal swipe on the track. A correct box gives a speed boost; a wrong box causes a short spin and slower recovery, with the correct sum shown.
+- The blue rival answers exactly **7/8** correctly and the green rival **4/8**, with their mistake order shuffled on every race. They choose answer lanes and receive the same boosts, spins and recovery as the player. Positions follow actual distance, so opponents can be passed. Small starting leads settle tied scores: **8/8 gives first place, 5–7/8 second, 0–4/8 third**.
 - Pause with the pause button, **P** or **Escape**. Leaving the tab pauses automatically. Sound can be muted before starting. Results show the score and any sums to practise; replay starts a fresh race.
 - Original canvas artwork and synthesised audio run locally, with no external game assets, accounts or saved student results. Timing and speed values live in `dist/game1/engine.js`.
 

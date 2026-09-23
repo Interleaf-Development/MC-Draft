@@ -13,6 +13,8 @@ export class KartRenderer {
     this.lane = 1;
     this.clock = 0;
     this.distance = 0;
+    this.rivalLanes = new Map();
+    this.race = null;
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.resize();
   }
@@ -224,19 +226,48 @@ export class KartRenderer {
   }
 
   draw(state, dt) {
+    if (this.race !== state) {
+      this.race = state;
+      this.rivalLanes.clear();
+    }
     if (!state.paused) this.clock += dt;
     const oldLane = this.lane;
     if (!state.paused) this.lane = lerp(this.lane, state.lane, 1 - Math.exp(-dt * (this.reducedMotion ? 25 : 12)));
     this.distance = state.distance + (state.phase === 'ready' ? this.clock * 9 : 0);
     this.backdrop(); this.road(); this.scenery();
-    // Two pace karts give the road a racing feel. Boosts gain on them;
-    // mistakes let them pull ahead. They never obstruct answer boxes.
+    const playerRoad = this.project(115);
+    const playerX = playerRoad.x + (this.lane - 1) * playerRoad.w * .667;
+    const playerY = Math.min(playerRoad.y, this.height * .81);
+    const groundOffset = playerRoad.y - playerY;
+    const size = clamp(this.roadWidth * .15, 47, 92);
+    const sprites = [];
+
+    // Every rival has an actual race distance. A negative gap brings the
+    // opponent alongside and then behind the camera, without rubber-banding.
     if (!['ready', 'finished'].includes(state.phase)) {
-      const advantage = state.results.reduce((sum, result) => sum + (result.correct ? 55 : -65), 0);
-      for (const [i, side] of [[0, -.63], [1, .63]]) {
-        const z = clamp(660 + i * 290 - advantage + Math.sin(this.distance / 310 + i) * 55, 190, 1800);
-        const p = this.project(z, side);
-        this.kart(p.x, p.y, clamp(p.w * .18, 12, 52), i ? '#83bdcf' : '#b8ca70');
+      for (const rival of state.rivals || []) {
+        const oldRivalLane = this.rivalLanes.get(rival.id) ?? rival.lane;
+        const lane = state.paused ? oldRivalLane : lerp(oldRivalLane, rival.lane, 1 - Math.exp(-dt * 7));
+        this.rivalLanes.set(rival.id, lane);
+        const z = 115 + (rival.distance - state.distance) * 1.8;
+        if (z < -45 || z > 2700) continue;
+        // Small side offsets keep cars readable when they choose the same box.
+        const p = this.project(z, (lane - 1) * .667 + (rival.id === 'blue' ? -.13 : .13));
+        const rivalSize = size * p.scale / playerRoad.scale;
+        const y = p.y - groundOffset;
+        const rivalLean = clamp((lane - oldRivalLane) * 100, -1, 1);
+        const spin = rival.spinRemaining > 0 && !this.reducedMotion ? Math.sin(rival.spinRemaining * 13) * 2.8 : 0;
+        sprites.push({ z, draw: () => {
+          this.kart(p.x, y, rivalSize, rival.color, rivalLean, spin, rival.boostRemaining > 0);
+          if (rival.spinRemaining > 0) this.spinStars(p.x, y, rivalSize);
+          const labelSize = clamp(rivalSize * .17, 10, 14);
+          const mark = rival.boostRemaining > 0 ? ' ϟ' : rival.spinRemaining > 0 || rival.recoveryRemaining > 0 ? ' ↻' : '';
+          const label = rival.name + mark;
+          const labelY = y - rivalSize * 1.43;
+          const width = labelSize * (mark ? 5.6 : 3.6);
+          this.rect(p.x - width / 2, labelY - labelSize * .83, width, labelSize * 1.7, 5, '#fffdf3ee');
+          this.text(label, p.x, labelY, labelSize);
+        } });
       }
     }
     if (Number.isFinite(state.gateDistance) && ['question', 'answer'].includes(state.phase)) {
@@ -244,36 +275,38 @@ export class KartRenderer {
       for (let i = 0; i < 3; i++) {
         const p = this.project(z, (i - 1) * .667);
         const size = clamp(p.w * .41, 22, 122);
-        this.answerBox(p.x, p.y, size, state.question.options[i], BOXES[i], state.lane === i && state.phase === 'answer');
+        sprites.push({ z, draw: () => this.answerBox(p.x, p.y, size, state.question.options[i], BOXES[i], state.lane === i && state.phase === 'answer') });
       }
     } else if (state.phase === 'driving') {
       const z = 650 + state.driveRemaining * 3.4;
       for (let i = 0; i < 3; i++) {
         const p = this.project(z, (i - 1) * .667);
-        this.answerBox(p.x, p.y, clamp(p.w * .36, 15, 60), '?', BOXES[i], false);
+        sprites.push({ z, draw: () => this.answerBox(p.x, p.y, clamp(p.w * .36, 15, 60), '?', BOXES[i], false) });
       }
     }
-    const playerRoad = this.project(115);
-    const playerX = playerRoad.x + (this.lane - 1) * playerRoad.w * .667;
-    const playerY = Math.min(playerRoad.y, this.height * .81);
-    const size = clamp(this.roadWidth * .15, 47, 92);
     const boost = state.boostRemaining > 0;
     const spinning = state.spinRemaining > 0;
     const lean = clamp((this.lane - oldLane) * 130, -1, 1);
     if (boost && !this.reducedMotion) this.speedLines();
     const spin = spinning && !this.reducedMotion ? Math.sin(state.spinRemaining * 13) * 2.8 : 0;
-    this.kart(playerX, playerY + (state.speed > 0 && !this.reducedMotion ? Math.sin(this.clock * 20) * .7 : 0), size, '#ed7653', lean, spin, boost, true);
-    if (spinning) {
-      for (let i = 0; i < 5; i++) {
-        const a = (this.reducedMotion ? 0 : this.clock * 5) + i * Math.PI * .4;
-        this.text('✦', playerX + Math.cos(a) * size * .88, playerY - size * .8 + Math.sin(a) * size * .29, 20, '#ffe495');
-      }
-    }
+    sprites.push({ z: 115, draw: () => {
+      this.kart(playerX, playerY + (state.speed > 0 && !this.reducedMotion ? Math.sin(this.clock * 20) * .7 : 0), size, '#ed7653', lean, spin, boost, true);
+      if (spinning) this.spinStars(playerX, playerY, size);
+    } });
+    // Draw near cars over far cars so passing has a visible, consistent order.
+    sprites.sort((a, b) => b.z - a.z).forEach(sprite => sprite.draw());
     if (state.phase === 'finished' && !this.reducedMotion) this.confetti();
     // Bottom shading keeps the small steering controls readable.
     const shade = this.ctx.createLinearGradient(0, this.height * .83, 0, this.height);
     shade.addColorStop(0, '#173b4300'); shade.addColorStop(1, '#173b435a');
     this.ctx.fillStyle = shade; this.ctx.fillRect(0, this.height * .83, this.width, this.height * .17);
+  }
+
+  spinStars(x, y, size) {
+    for (let i = 0; i < 5; i++) {
+      const a = (this.reducedMotion ? 0 : this.clock * 5) + i * Math.PI * .4;
+      this.text('✦', x + Math.cos(a) * size * .88, y - size * .8 + Math.sin(a) * size * .29, clamp(size * .23, 9, 20), '#ffe495');
+    }
   }
 
   speedLines() {
