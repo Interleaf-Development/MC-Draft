@@ -15,6 +15,8 @@ export class KartRenderer {
     this.distance = 0;
     this.rivalLanes = new Map();
     this.race = null;
+    this.playerLogo = new Image();
+    this.playerLogo.src = '/brand/mathconcept-m.png';
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.resize();
   }
@@ -216,8 +218,16 @@ export class KartRenderer {
     this.rect(-s * .42, -s * .1, s * .84, s * .33, s * .07, color, INK, 2);
     this.rect(-s * .62, -s * .27, s * 1.24, s * .15, s * .04, color, INK, 2);
     this.rect(-s * .51, -s * .25, s * 1.02, s * .035, s * .01, '#ffd0a6');
-    this.rect(-s * .14, -s * .045, s * .28, s * .22, s * .04, '#fff3d2');
-    this.text(player ? 'M' : '✦', 0, s * .065, s * .17, INK, 900);
+    if (player) {
+      this.rect(-s * .21, -s * .105, s * .42, s * .32, s * .04, '#fffdf3');
+      if (this.playerLogo.complete && this.playerLogo.naturalWidth > 0) {
+        // Fit the supplied standalone mark, trimming only transparent margins.
+        ctx.drawImage(this.playerLogo, 41, 17, 1197, 1002, -s * .18, -s * .095, s * .36, s * .30);
+      } else this.text('M', 0, s * .065, s * .17, INK, 900);
+    } else {
+      this.rect(-s * .14, -s * .045, s * .28, s * .22, s * .04, '#fff3d2');
+      this.text('✦', 0, s * .065, s * .17, INK, 900);
+    }
     for (const side of [-.29, .29]) {
       this.ellipse(side * s, s * .17, s * .08, s * .065, '#18343d');
       this.ellipse(side * s, s * .17, s * .041, s * .035, '#8da3a0');
