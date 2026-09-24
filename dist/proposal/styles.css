@@ -466,9 +466,6 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
 .smartpen-writing-timeline li { padding: 8px 10px 0 0; margin: -2px 0 0; border-top: 2px solid transparent; font-size: 13px; }
 .smartpen-writing-timeline span { display: block; color: #727981; font-size: 11px; font-variant-numeric: tabular-nums; }
 .smartpen-writing-timeline .smartpen-writing-current { border-top-color: #a92531; color: #92212b; font-weight: 600; }
-.smartpen-writing-caution, .smartpen-writing-caption { color: #636b72; font-size: 12px; line-height: 1.7; }
-.smartpen-writing-caution { margin: 0 0 6px; }
-.smartpen-writing-caption { margin: 0; }
 @media (max-width: 620px) {
   .smartpen-writing-panels { grid-template-columns: 1fr; gap: 16px; }
   .smartpen-writing-demo { padding-block: 18px; }

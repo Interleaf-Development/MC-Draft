@@ -20,8 +20,6 @@ function words(language) {
     complete: '示意完成：可保留答案，也可重看書寫過程。',
     paused: '播放已暫停。', reduced: '完整書寫示意（已減少動態效果）。',
     timer: '示例時間', stepOne: '寫「1」', stepPause: '停筆 3 秒', stepTwo: '寫「2」',
-    caution: '停筆時間是可觀察的紀錄；單憑停頓，不能判斷學生是否困惑。',
-    caption: '書寫與同步示意，非實體智能筆連線。時間及筆跡均為示例。'
   } : {
     title: 'The same stroke appears on paper and on screen',
     paper: 'Paper worksheet', digital: 'Learning record in the system',
@@ -34,8 +32,6 @@ function words(language) {
     complete: 'Example complete: keep the answer and revisit the writing process.',
     paused: 'Playback paused.', reduced: 'Complete writing example (reduced motion).',
     timer: 'Example time', stepOne: 'Write “1”', stepPause: 'Pause for 3 sec', stepTwo: 'Write “2”',
-    caution: 'A pause is an observable event; it does not by itself show that a pupil is confused.',
-    caption: 'Illustration of writing and synchronisation, not a connected smartpen. All handwriting and timings are examples.'
   };
 }
 
@@ -73,8 +69,6 @@ export function smartpenWritingDemo(language) {
       <li data-writing-phase="pause"><span>1.4–4.4 s</span>${copy.stepPause}</li>
       <li data-writing-phase="two"><span>4.4–6.5 s</span>${copy.stepTwo}</li>
     </ol>
-    <p class="smartpen-writing-caution">${copy.caution}</p>
-    <p class="smartpen-writing-caption">${copy.caption}</p>
   </figure>`;
 }
 
