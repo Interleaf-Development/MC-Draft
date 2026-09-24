@@ -333,6 +333,8 @@ class ProposalBuilder:
             result.extend([Spacer(1, 9), HRFlowable(width="100%", thickness=.5, color=LINE), Spacer(1, 4)])
         for child in element:
             result.extend(self.walk(child))
+        if element.get("id") == "shared-knowledge":
+            return [KeepTogether(result)]
         return result
 
 

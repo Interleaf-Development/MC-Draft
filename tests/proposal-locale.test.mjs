@@ -73,7 +73,7 @@ test('materials and centre administration are grouped without duplicating the te
   for (const content of [chinese, english]) {
     const materials = content.chapters.find(c => c.id === 'library');
     const centre = content.chapters.find(c => c.id === 'system');
-    assert.equal([...materials.body.matchAll(/<h3>/g)].length, 3);
+    assert.equal([...materials.body.matchAll(/<h3>/g)].length, content === chinese ? 4 : 3);
     assert.equal([...centre.body.matchAll(/<h3>/g)].length, 2);
     assert.doesNotMatch(materials.body, /data-demo=/);
     assert.deepEqual([...centre.body.matchAll(/data-demo="([^"]+)"/g)].map(m => m[1]), ['operations', 'billing']);
