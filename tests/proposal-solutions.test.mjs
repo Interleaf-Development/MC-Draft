@@ -56,7 +56,10 @@ test('a targeted proposal link may select a chapter while language switches reta
 });
 
 function freezeContent(content) {
-  const input = { chapters: structuredClone(content.chapters) };
+  const input = {
+    chapters: structuredClone(content.chapters),
+    ...(content.materialSecurity ? { materialSecurity: structuredClone(content.materialSecurity) } : {})
+  };
   const freeze = value => {
     if (value && typeof value === 'object') {
       Object.values(value).forEach(freeze);
@@ -69,8 +72,8 @@ function freezeContent(content) {
 
 for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
   test(`smartpen proposal keeps the original ${language} proposal intact and exposes all chapters without reference documents`, () => {
-    const before = JSON.stringify({ chapters: original.chapters });
     const input = freezeContent(original);
+    const before = JSON.stringify(input);
     const alternate = getSmartpenProposal(language, input);
     assert.deepEqual(alternate.chapters.map(chapter => chapter.id), chapterIds);
     assert.equal(Object.hasOwn(alternate, 'references'), false, 'removed reference documents are not retained in the smartpen proposal');
@@ -86,7 +89,7 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
     assert.notEqual(alternate.chapters.find(chapter => chapter.id === 'student').intro,
       original.chapters.find(chapter => chapter.id === 'student').intro);
     assert.equal(JSON.stringify(input), before, 'creating the smartpen proposal does not alter the supplied content');
-    assert.equal(JSON.stringify({ chapters: original.chapters }), before,
+    assert.equal(JSON.stringify(freezeContent(original)), before,
       'the original proposal remains available unchanged');
   });
 
@@ -240,5 +243,24 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
       assertContentPreserved(original.chapters.find(chapter => chapter.id === id), byId('system').body, `Shared ${id}`);
     }
     assertContentPreserved(original.chapters.find(chapter => chapter.id === 'parent'), byId('parent').intro + byId('parent').body, 'Shared parent');
+  });
+
+  test(`unified ${language} proposal numbers only one subsection level from chapter three onward`, () => {
+    for (const [id, number, count] of [['materials', 3, 3], ['teaching', 4, 2], ['system', 5, 3], ['parent', 6, language === 'zh-HK' ? 4 : 9]]) {
+      const body = byId(id).body;
+      const headings = [...body.matchAll(/<h3(?:\s[^>]*)?>([^<]+)<\/h3>/g)].map(match => match[1]);
+      assert.equal(headings.length, count, `${id} has the intended subsection count`);
+      headings.forEach((heading, index) => assert.ok(heading.startsWith(`${number}.${index + 1} `), heading));
+      assert.doesNotMatch(body, /<h[3-6](?:\s[^>]*)?>\d+\.\d+\.\d+/, 'no third numbering level');
+      assert.doesNotMatch(body, /<h[4-6](?:\s[^>]*)?>\d+\./, 'detail headings remain unnumbered');
+    }
+    const materials = byId('materials').body;
+    const library = elementByAttribute(materials, 'id', 'library');
+    const security = elementByAttribute(materials, 'id', 'material-security');
+    const knowledge = elementByAttribute(materials, 'id', 'shared-knowledge');
+    assert.ok(library.end <= security.start && security.end <= knowledge.start,
+      'material security is a sibling between material authoring and the school knowledge base');
+    assertContentPreserved(original.materialSecurity, security.html, 'Material security');
+    assert.doesNotMatch(byId('learning').body, /numbered-subsection/, 'student options keep their existing hierarchy');
   });
 }

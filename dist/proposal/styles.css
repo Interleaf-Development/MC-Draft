@@ -416,6 +416,17 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
 .proposal-feature .feature-detail h4 { font-size: 15px; line-height: 1.5; }
 @media print { .proposal-feature > h3 { font-size: 13pt; } .proposal-feature .feature-detail h4 { font-size: 11pt; } }
 
+/* Chapters 3 onward share one numbered subsection level. */
+@media screen {
+  .chapter > .numbered-subsection { margin-top: 28px; padding-top: 0; border-top: 0; }
+  .chapter > .numbered-subsection ~ .numbered-subsection { margin-top: 30px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .chapter > .numbered-subsection > h3 { margin: 0 0 10px; font-size: 18px; line-height: 1.45; font-weight: 600; }
+  .chapter > .numbered-subsection :is(.proposal-feature, .feature-detail) { margin-top: 22px; padding-top: 0; border-top: 0; }
+  .chapter > .numbered-subsection :is(h4, h5) { margin: 0 0 8px; line-height: 1.5; color: var(--ink); font-weight: 600; }
+  .chapter > .numbered-subsection h4 { font-size: 15px; }
+  .chapter > .numbered-subsection h5 { font-size: 14px; }
+}
+
 /* Paired paper/digital writing illustration; this is a simulated sequence. */
 .smartpen-writing-demo { margin: 24px 0 28px; padding: 22px 0; border-block: 1px solid var(--line); }
 .smartpen-writing-heading { margin-bottom: 16px; font-size: 16px; font-weight: 650; }

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "pdf": "dist/proposal/MathConcept-Proposal-V1.pdf",
-  "pdfSha256": "adc830d088c2b4cde41e8d8dccde650d7ee78d96d93f651715e1162d2ae47067",
+  "pdfSha256": "b68cd520d84856c502a852acedbc2a7479cc2548884577ec4c4a77040394ddb5",
   "pageCount": 13,
   "dependencies": {
     "scripts/build-proposal-pdf.py": "87bad5762e53b4aa6a3df3039f2d9f6c43fcc5b71043e621a08ac503711f6e52",
-    "dist/proposal/content.zh-HK.js": "27b69ebc7bb11c4861ee2bd35c1cf9ebc8cb768215b1ec02bc7a886784194a94",
+    "dist/proposal/content.zh-HK.js": "ef20379f5e57a5a56fa72369a9738ba66a9b7678a89fe261d92b8d5cf276f895",
     "dist/proposal/smartpen-content.js": "a6df7a2c1b37ee6170c2297b9a4b7ee98b34bdbf54da5ca356c8dd85fc0e706d",
-    "dist/proposal/structure.js": "37e605d41a41102de3c3467ea47470d89abb4351d23ebffc01a7b103146be9ce",
+    "dist/proposal/structure.js": "50cdd4bac0fed451b5d0b705bd77a95fea72c63827dfeee07054621c2dadf955",
     "dist/proposal/shared-knowledge.js": "6c897520ce65cf8ca507b6dd34aabcabc32f2658a2fa28ff535a6c67f14cbaea",
     "dist/proposal/smartpen-flow.js": "862a862faa597dceb490087ef8f8c6a4494efc7c7166699b096fd6963625469e",
     "dist/proposal/smartpen-writing-demo.js": "508e61e3a734e19e662007f1c5c88f94295e383ec2ef0edb25922105a399c6a7",

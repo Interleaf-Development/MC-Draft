@@ -10,7 +10,7 @@ export function buildProposalStructure(language, original, smartpen) {
   const chapter = (source, id) => source.chapters.find(item => item.id === id);
   const paragraph = text => `<p>${text}</p>`;
   const lowerHeadings = html => html.replace(/<(\/?)(h)([2-5])\b/g, (_, close, h, level) => `<${close}${h}${Number(level) + 1}`);
-  const subsection = (item, id, body = item.body) => `<section class="proposal-subsection" id="${id}" aria-labelledby="heading-${id}"><h3 id="heading-${id}">${item.heading || item.title}</h3>${item.intro ? `<p class="section-intro">${item.intro}</p>` : ''}${lowerHeadings(body)}</section>`;
+  const subsection = (item, id, body = item.body, number) => `<section class="proposal-subsection${number ? ' numbered-subsection' : ''}" id="${id}" aria-labelledby="heading-${id}"><h3 id="heading-${id}">${number ? `${number} ` : ''}${item.heading || item.title}</h3>${item.intro ? `<p class="section-intro">${item.intro}</p>` : ''}${lowerHeadings(body)}</section>`;
   const learningBody = (source, prefix) => {
     const item = chapter(source, 'student');
     const body = prefix === 'smartpen-' ? (zh ? '' : smartpenWritingDemo(language)) + item.body + smartpenFlow(language) : item.body;
@@ -49,8 +49,9 @@ export function buildProposalStructure(language, original, smartpen) {
     title: copy('教材', 'Teaching materials'),
     heading: copy('教材', 'Teaching materials'),
     intro: copy('我們建議建立一套完整的教材及學習管理系統，涵蓋現有教材數碼化、新教材編製、教材安全、派發及批改、學習分析、家長跟進及課後自學。老師可在同一系統完成主要教學工作，並利用跨中心累積的學校資訊及 AI，準備更適合學生的教材和練習。', 'From digitising existing materials and creating new content to assigning worksheets, marking and following up learning, teachers can work in one system and use school information and AI to prepare suitable practice.'),
-    body: subsection(chapter(original, 'library'), 'library') +
-      subsection(getSharedKnowledge(language), 'shared-knowledge')
+    body: subsection(chapter(original, 'library'), 'library', undefined, '3.1') +
+      subsection(original.materialSecurity, 'material-security', undefined, '3.2') +
+      subsection(getSharedKnowledge(language), 'shared-knowledge', undefined, '3.3')
   };
 
   const teaching = {
@@ -58,8 +59,8 @@ export function buildProposalStructure(language, original, smartpen) {
     title: copy('老師及課後流程', 'Teacher and home learning workflows'),
     heading: copy('老師及課後流程', 'Teacher and home learning workflows'),
     intro: '',
-    body: subsection(chapter(original, 'teacher'), 'teacher') +
-      `<section class="proposal-subsection shared-practice" id="shared-practice"><h3>${copy('課後自學與互動練習', 'Home learning and interactive practice')}</h3>${paragraph(copy('課堂教材及練習可進一步轉化成互動遊戲、自學活動及挑戰，直接放到學生 App，讓學生回家後透過電腦、平板或手機繼續學習。AI 可根據正在學習的課題及學生進度，協助把現有教材轉化成不同形式的遊戲和互動練習，讓原本的教材不只用於課堂及工作紙，亦能延伸成更有趣的課後自學體驗。', 'At home, students can sign in on a computer, tablet or phone to revisit released work and use interactive exercises. AI can draft questions, hints, learning content and games around current topics and teacher-confirmed needs. Teachers review and adjust them before release, keeping home learning aligned with classroom progress.'))}${paragraph(copy('以下可試玩「數學飛車」：學生在八道個位數加法題中駛向正確答案便會加速，選錯則會減速，以遊戲鼓勵練習。此版本僅作概念及互動效果示範，主要展示教材如何轉化為遊戲化學習體驗，並非最終的遊戲內容或設計。', 'Try Maths Kart below: students race through eight single-digit addition questions, speeding up when they drive towards the correct answer and slowing down for an incorrect one.'))}<div class="demo-wrap"><div class="demo-caption">${copy('互動示範：數學飛車', 'Interactive demo: Maths Kart')}</div><div class="demo" data-demo="game" id="demo-game"></div></div></section>`
+    body: subsection(chapter(original, 'teacher'), 'teacher', undefined, '4.1') +
+      `<section class="proposal-subsection numbered-subsection shared-practice" id="shared-practice" aria-labelledby="heading-shared-practice"><h3 id="heading-shared-practice">4.2 ${copy('課後自學與互動練習', 'Home learning and interactive practice')}</h3>${paragraph(copy('課堂教材及練習可進一步轉化成互動遊戲、自學活動及挑戰，直接放到學生 App，讓學生回家後透過電腦、平板或手機繼續學習。AI 可根據正在學習的課題及學生進度，協助把現有教材轉化成不同形式的遊戲和互動練習，讓原本的教材不只用於課堂及工作紙，亦能延伸成更有趣的課後自學體驗。', 'At home, students can sign in on a computer, tablet or phone to revisit released work and use interactive exercises. AI can draft questions, hints, learning content and games around current topics and teacher-confirmed needs. Teachers review and adjust them before release, keeping home learning aligned with classroom progress.'))}${paragraph(copy('以下可試玩「數學飛車」：學生在八道個位數加法題中駛向正確答案便會加速，選錯則會減速，以遊戲鼓勵練習。此版本僅作概念及互動效果示範，主要展示教材如何轉化為遊戲化學習體驗，並非最終的遊戲內容或設計。', 'Try Maths Kart below: students race through eight single-digit addition questions, speeding up when they drive towards the correct answer and slowing down for an incorrect one.'))}<div class="demo-wrap"><div class="demo-caption">${copy('互動示範：數學飛車', 'Interactive demo: Maths Kart')}</div><div class="demo" data-demo="game" id="demo-game"></div></div></section>`
   };
 
   const centre = chapter(original, 'system');
@@ -75,7 +76,7 @@ export function buildProposalStructure(language, original, smartpen) {
       title: copy('中心及總部管理', 'Centre & HQ management'),
       heading: copy('中心及總部管理', 'Centre & HQ management'),
       intro: copy('', 'Centres can handle enrolment, scheduling, leave, make-up lessons and billing in one system, while HQ manages centre permissions and operating records so staff can continue with familiar ways of working.'),
-      body: centre.body + subsection(franchise, 'franchise')
+      body: centre.body + subsection(franchise, 'franchise', undefined, '5.3')
     },
     {
       ...parent,
