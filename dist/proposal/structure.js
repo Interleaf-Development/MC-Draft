@@ -86,7 +86,7 @@ export function buildProposalStructure(language, original, smartpen) {
     },
     {
       ...parent,
-      intro: `${copy('可查閱的學習紀錄來自已儲存的平板作答，或已成功同步的智能筆筆跡，並須由老師開放。', 'Available learning records come from saved tablet work or successfully synchronised smartpen handwriting, released by the teacher.')} ${parent.intro}`
+      intro: zh ? parent.intro : `Available learning records come from saved tablet work or successfully synchronised smartpen handwriting, released by the teacher. ${parent.intro}`
     }
   ];
 
