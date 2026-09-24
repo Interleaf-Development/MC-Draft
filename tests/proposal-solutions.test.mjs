@@ -56,7 +56,7 @@ test('a targeted proposal link may select a chapter while language switches reta
 });
 
 function freezeContent(content) {
-  const input = { chapters: structuredClone(content.chapters), references: structuredClone(content.references) };
+  const input = { chapters: structuredClone(content.chapters) };
   const freeze = value => {
     if (value && typeof value === 'object') {
       Object.values(value).forEach(freeze);
@@ -68,12 +68,12 @@ function freezeContent(content) {
 }
 
 for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
-  test(`smartpen proposal keeps the original ${language} proposal intact and exposes all chapters and references`, () => {
-    const before = JSON.stringify({ chapters: original.chapters, references: original.references });
+  test(`smartpen proposal keeps the original ${language} proposal intact and exposes all chapters without reference documents`, () => {
+    const before = JSON.stringify({ chapters: original.chapters });
     const input = freezeContent(original);
     const alternate = getSmartpenProposal(language, input);
     assert.deepEqual(alternate.chapters.map(chapter => chapter.id), chapterIds);
-    assert.deepEqual(Object.keys(alternate.references).sort(), Object.keys(original.references).sort());
+    assert.equal(Object.hasOwn(alternate, 'references'), false, 'removed reference documents are not retained in the smartpen proposal');
     for (const chapter of alternate.chapters) {
       assert.ok(chapter.title?.trim(), chapter.id + ' has a navigation title');
       if (chapter.id !== 'vision') {
@@ -81,16 +81,12 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
         assert.ok(chapter.body?.trim(), chapter.id + ' has content');
       }
     }
-    for (const [key, reference] of Object.entries(alternate.references)) {
-      assert.ok(reference.title?.trim(), key + ' has a title');
-      assert.ok(reference.body?.trim(), key + ' has content');
-    }
     assert.ok(alternate.overviewHTML?.trim());
     assert.ok(alternate.shellTextOverrides.documentTitle?.trim());
     assert.notEqual(alternate.chapters.find(chapter => chapter.id === 'student').intro,
       original.chapters.find(chapter => chapter.id === 'student').intro);
     assert.equal(JSON.stringify(input), before, 'creating the smartpen proposal does not alter the supplied content');
-    assert.equal(JSON.stringify({ chapters: original.chapters, references: original.references }), before,
+    assert.equal(JSON.stringify({ chapters: original.chapters }), before,
       'the original proposal remains available unchanged');
   });
 
@@ -179,7 +175,7 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
       assert.ok(html.includes(`<h2 id="heading-${id}">${number}. ${chapter.heading}</h2>`), `${id} has its correct section number`);
     }
     assert.match(result.shellTextOverrides.parentLink, /^6\. /);
-    assert.deepEqual(Object.keys(result.references).sort(), Object.keys(original.references).sort());
+    assert.equal(Object.hasOwn(result, 'references'), false, 'unified proposal excludes the removed reference documents');
     assert.ok(result.overviewHTML?.trim());
     assert.ok(result.shellTextOverrides.documentTitle?.trim());
     for (const chapter of result.chapters) {

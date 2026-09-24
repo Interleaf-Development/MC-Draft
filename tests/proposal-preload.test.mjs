@@ -165,13 +165,13 @@ function harness(hash = '#teacher', query = '') {
       for (const child of [...body.children]) child.remove();
       body.append(new Element('meta', { name: 'description' }));
       body.append(new Element('header', { class: 'topbar' }));
-      for (const id of ['chapters', 'menu', 'references', 'close-dialog', 'prev', 'next', 'language-switch', 'main', 'detail-dialog', 'dialog-title', 'dialog-body', 'toast', 'chapter-label', 'slide-counter', 'mode', 'presentation-footer', 'sidebar', 'print-document']) {
+      for (const id of ['chapters', 'menu', 'prev', 'next', 'language-switch', 'main', 'toast', 'chapter-label', 'slide-counter', 'mode', 'presentation-footer', 'sidebar', 'print-document']) {
         body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
       }
       document.getElementById('main').append(new Element('section', { id: 'vision', class: 'chapter' }));
       const chapterIds = ['vision', 'learning', 'materials', 'teaching', 'system', 'parent'];
       scope.english = scope.chinese = {
-        chapters: chapterIds.map(id => ({ id, title: id })), references: {},
+        chapters: chapterIds.map(id => ({ id, title: id })),
         chapterHTML: chapter => `<section id="${chapter.id}" class="chapter">${chapter.body || ''}</section>`
       };
       scope.getSmartpenProposal = () => ({});
@@ -561,6 +561,9 @@ test('scrolling within the teaching chapter keeps the visible game active rather
 
 test('materials stays text-only while the new teaching chapter activates its retained teacher demo', () => {
   const h = harness('#materials'); h.loadApp(); h.warm();
+  assert.deepEqual(h.document.getElementById('chapters').querySelectorAll('a').map(link => link.href),
+    ['#vision', '#learning', '#materials', '#teaching', '#system', '#parent']);
+  assert.equal(h.document.querySelectorAll('[data-action="reference"]').length, 0, 'navigation contains no removed reference documents');
   for (const id of scenes) h.ready(id);
   const originals = scenes.map(id => h.frame(id));
   assert.equal(h.document.getElementById('chapter-label').textContent, 'materials');

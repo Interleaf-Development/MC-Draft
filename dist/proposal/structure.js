@@ -90,31 +90,8 @@ export function buildProposalStructure(language, original, smartpen) {
     }
   ];
 
-  const referenceLabels = {
-    scope: copy('詳細範圍', 'Detailed scope'),
-    safeguards: copy('教材與營運保障', 'Protection & reliability'),
-    assumptions: copy('待確認事項', 'Open decisions')
-  };
-  const references = Object.fromEntries(Object.entries(referenceLabels).map(([key, title]) => {
-    let penBody = smartpen.references[key].body
-      .replace('原有方案二另頁保留；', '智能筆與平板的學生體驗見第 2 節，可切換比較；')
-      .replace('Solution 2 remains available separately.', 'Smartpen and tablet student experiences are available to compare in section 2.')
-      .replace('本方案第 5 至第 7 章', '本建議書第 5 至第 6 節')
-      .replace('chapters 5–7', 'sections 5–6');
-    if (key === 'scope') {
-      // Shared operational terms remain in the original scope above. The
-      // smartpen supplement only needs its teaching, materials and demo scope.
-      penBody = penBody.replace(/<section class="feature-detail"><h3>(?:中心、家長及總部|Centre, parent and HQ functions)<\/h3>[\s\S]*?<\/section>/, '');
-    }
-    return [key, {
-      title,
-      body: `<section class="reference-section"><h3>${copy('系統功能範圍', 'System functions')}</h3>${lowerHeadings(original.references[key].body)}</section><section class="reference-section"><h3>${copy('方案一：智能筆補充內容', 'Solution 1: smartpen-specific details')}</h3>${lowerHeadings(penBody)}</section>`
-    }];
-  }));
-
   return {
     chapters,
-    references,
     overviewHTML,
     shellTextOverrides: {
       draftMark: copy('系統建議書', 'SYSTEM PROPOSAL'),

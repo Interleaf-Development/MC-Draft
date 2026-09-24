@@ -38,10 +38,10 @@ test('proposal language links preserve the current chapter, presentation mode an
   assert.equal(unchangedView.hash, '#billing');
 });
 
-test('both proposal languages expose the same chapters and references with their selected live demos', () => {
+test('both proposal languages expose the same chapters with their selected live demos and no reference documents', () => {
   assert.deepEqual(chinese.chapters.map(c => c.id), ['vision', 'student', 'teacher', 'library', 'system', 'parent', 'franchise']);
   assert.deepEqual(chinese.chapters.map(c => c.id), english.chapters.map(c => c.id));
-  assert.deepEqual(Object.keys(chinese.references), Object.keys(english.references));
+  for (const content of [chinese, english]) assert.equal(Object.hasOwn(content, 'references'), false);
   for (const [index, chapter] of chinese.chapters.entries()) {
     assert.match(chapter.title, /[\u3400-\u9fff]/);
     if (!index) continue;
@@ -56,15 +56,12 @@ test('both proposal languages expose the same chapters and references with their
     }
     assert.match(zhHTML, new RegExp('id="' + chapter.id + '"'));
   }
-  for (const key of Object.keys(english.references)) {
-    const links = html => [...html.matchAll(/href="([^"]+)"/g)].map(match => match[1]);
-    assert.deepEqual(links(chinese.references[key].body), links(english.references[key].body), key);
-  }
 });
 
 test('all marked cover and navigation text has a locale entry', async () => {
   const html = await readFile(new URL('../dist/proposal/index.html', import.meta.url), 'utf8');
   for (const [, key] of html.matchAll(/data-copy="([^"]+)"/g)) assert.equal(typeof shellText[key], 'string', key);
+  assert.doesNotMatch(html, /id="(?:references|detail-dialog|dialog-title|dialog-body|close-dialog)"|data-action="reference"/);
   assert.match(html, /<html lang="zh-HK">/);
   assert.match(html, /href="\?lang=eng" hreflang="en"/);
   for (const [, key, text] of html.matchAll(/data-copy="([^"]+)"[^>]*>([^<]*)</g)) {

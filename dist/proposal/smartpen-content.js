@@ -131,53 +131,8 @@ export function getSmartpenProposal(language, original) {
     }
   ];
 
-  const references = {
-    scope: {
-      title: copy('方案一詳細範圍', 'Solution 1 detailed scope'),
-      body: paragraph('本方案以紙本及智能筆為主要作答方式。原有方案二另頁保留；中心行政及收費政策共用，無須因學生書寫工具改變而重新設定。', 'This proposal uses paper and smartpens as the main answering method. Solution 2 remains available separately. Administrative and billing policies are shared and do not need to change because students use a different writing tool.') +
-        detail(copy('教學及學習紀錄', 'Teaching and learning records'), list([
-          copy('按學生、工作紙版本、頁次及派發紀錄配對紙張與筆跡，保留補印及重新派發歷史。', 'Associate paper and handwriting with the student, worksheet version, page and assignment, retaining reprint and reassignment history.'),
-          copy('連線時逐筆同步，支援的筆型可離線暫存後補傳；顯示已收到、待同步及需要跟進的習作，避免把未收到筆跡判斷為未完成作答。', 'Stream strokes while connected, with offline capture and later transfer on supported pens. Distinguish received, pending and exception records without treating missing data as unfinished work.'),
-          copy('提供逐筆重播、書寫用時、停頓位置及按題目整理的作答紀錄，配合 AI 分析和課堂觀察，協助老師確認學習需要、安排個人化練習及發布進展摘要。', 'Provide stroke replay, writing durations, pause locations and question-level working records. Combine AI analysis with classroom observations to help teachers confirm learning needs, assign personalised practice and publish progress summaries.'),
-          copy('保留紙本資料夾分類；教師控制未來習作的實體派發及帳戶內的開放。', 'Retain binder categories, with teachers controlling physical distribution and account access for future work.'),
-          copy('提供老師批改、學生改正、課堂報告、家長已閱及回覆、學生集印紀錄。', 'Support teacher marking, student corrections, lesson reports, parent acknowledgements and replies, and stamp records.'),
-          copy('AI 協助核對已驗證題型；不確定字跡、解題方法及評分仍須老師判斷。', 'AI assists with validated question types; uncertain handwriting, methods and grading remain for teacher judgement.')
-        ])) +
-        detail(copy('教材及列印', 'Materials and printing'), list([
-          copy('整理既有目錄及核准版本，先保留原版工作紙，再分階段建立可搜尋、可重用及可編輯題庫。', 'Organise catalogues and approved versions, retaining original-layout sheets first and building searchable, reusable and editable questions in stages.'),
-          copy('提供教材編排及審批、原始檔案權限、獲准設備列印、補印及追蹤紀錄。', 'Provide material authoring and approval, source-file permissions, authorised printing, reprints and traceable records.'),
-          copy('用實際工作紙確認智能筆辨識、打印品質、學生書寫、改正及老師批改的可行流程。', 'Use real worksheets to validate pen recognition, printing quality, student writing, corrections and teacher marking.')
-        ])) +
-        detail(copy('中心、家長及總部', 'Centre, parent and HQ functions'), paragraph('沿用本方案第 5 至第 7 章列出的排課、請假補堂、報名、電子手冊、家長溝通、收費、對帳及跨中心管理功能。收費維持每兩個曆月的八堂名義課程套票；自然出現的七、八或九堂，以及恆常調堂後的堂數增減，按已確認的中心政策處理。', 'Use the scheduling, leave and make-up, enrolment, handbook, parent communication, billing, reconciliation and multi-centre functions in chapters 5–7. Billing retains the nominal eight-lesson package over two calendar months; naturally occurring seven, eight or nine lessons and changes caused by regular rescheduling follow the confirmed centre policy.'))
-    },
-    safeguards: {
-      title: copy('教材與紀錄保障', 'Material and record safeguards'),
-      body:
-        feature('教材取用與紙本副本', 'Material access and printed copies', '限制各中心、角色及學生的可用教材，保留版本、派發及列印紀錄；答案及老師備註另設權限。中心可按紀錄管理紙本派發、保管及回收，讓教材使用有據可查。', 'Limit materials by centre, role and student, retain edition, assignment and printing records, and protect answers and teacher notes separately. Centres can use these records to manage paper distribution, storage and collection, keeping material use traceable.') +
-        feature('正確歸屬與同步復原', 'Correct ownership and synchronisation recovery', '學生、筆及工作紙的配對須能查核；換筆、轉交設備、補印及中途斷線須有清楚流程。重複同步不可產生重複習作，不完整的紀錄須標示待處理；紙本仍可供老師核對。', 'Student, pen and worksheet associations must be reviewable, with procedures for replacement pens, device handovers, reprints and interruptions. Repeated synchronisation must not duplicate assignments, incomplete records must be flagged, and paper remains available for verification.') +
-        feature('批改與發布責任', 'Marking and publication responsibilities', '保留原作答、批改、改正及更改紀錄；老師決定是否完成改正及何時發布給家長。AI 核對結果連同原筆跡交由老師覆核，並集中顯示待處理項目。', 'Retain original answers, marking, corrections and revision records. Teachers determine when corrections are complete and when records are released to parents. AI checks remain linked to the original handwriting for teacher review, with outstanding items presented together.') +
-        feature('學生資料與持續使用', 'Student data and continuity', '學習紀錄只供獲授權人士查閱。備份、紀錄保留、帳戶停用、資料移交及設備遺失後的處理方式須預先議定，並以實際測試確認同步中斷及更換設備時的恢復安排。', 'Learning records are available only to authorised users. Agree backup, retention, account closure, data handover and lost-device handling in advance, and test recovery after synchronisation interruptions or equipment replacement.')
-    },
-    assumptions: {
-      title: copy('試行及待確認事項', 'Pilot and open decisions'),
-      body: paragraph('我們建議先選取一小組學生、老師及具代表性的工作紙，一起驗證從派發工作紙到家長查看紀錄的完整課堂流程，再決定擴展範圍。以下項目影響實際使用方式，須在方案定稿前確認。', 'We recommend starting with a small group of students, teachers and representative worksheets, testing the full lesson workflow together from distribution to parent access before deciding how widely to expand. The following items affect practical use and need confirmation before finalising the proposal.') +
-        list([
-          copy('智能筆是否適合學生年齡、握筆習慣及日常書寫；所用筆芯、紙張、改正方式及耗材安排。', 'Whether selected pens suit student ages, grip and daily writing, including refills, paper, corrections and consumables.'),
-          copy('工作紙印製品質及可用設備；原版算式、圖形、頁次、裝訂、縮放及補印是否影響辨識。', 'Printing quality and supported equipment, including the effect of equations, diagrams, pagination, binding, scaling and reprints on recognition.'),
-          copy('按班別人數安排個人領用或課堂借用、連線容量、充電、設備保養及更換。', 'Plan individual allocation or classroom lending, connection capacity, charging, maintenance and replacements around class sizes.'),
-          copy('課堂及家中的連線安排、逐筆顯示延遲、同時使用人數、離線容量及補傳完整性，以及誰負責檢查及復原未完成紀錄。', 'Connections in class and at home, stroke-display latency, simultaneous users, offline capacity and transfer completeness, and responsibility for checking and recovering pending records.'),
-          copy('落筆及抬筆時間、逐點位置、時間準確性及力度資料是否適用；如何區分補傳時間與原書寫時間、缺漏紀錄與真正停頓，以及題目邊界與多次作答。', 'Availability and accuracy of pen-down/up times, point positions and pressure; distinguish transfer time from writing time, missing data from actual pauses, and question boundaries from repeated attempts.'),
-          copy('學習分析如何供老師覆核、哪些紀錄向家長開放、資料保留期限及去識別化統計方式；以學生個人進展及老師確認的學習需要為主。', 'Teacher review of analysis, parent visibility, retention and de-identification, focusing on individual progress and teacher-confirmed learning needs.'),
-          copy('老師是否需要以智能筆記錄紙本批改，或在應用程式補入批改；如何區分學生作答、老師註解及後續改正。', 'Whether teachers need captured paper annotations or app-based marking, and how student answers, teacher notes and later corrections are distinguished.'),
-          copy('AI 可處理的題型及核對標準、必須交由老師的情況，以及教材使用及保密安排。', 'Supported AI question types, checking standards, cases requiring teacher review, and material-use and confidentiality arrangements.'),
-          copy('設備、耗材、商業使用授權及支援安排；確認各項成本後，再由 MathConcept 比較兩個方案。', 'Equipment, consumables, commercial usage rights and support; establish these costs before MathConcept compares the two approaches.')
-        ])
-    }
-  };
-
   return {
     chapters,
-    references,
     overviewHTML,
     shellTextOverrides: {
       draftMark: copy('方案一建議書', 'SOLUTION 1 PROPOSAL'),
