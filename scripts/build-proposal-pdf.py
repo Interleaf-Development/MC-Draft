@@ -25,7 +25,7 @@ from lxml import etree, html
 from PIL import Image as PILImage
 from pypdf import PdfReader
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.utils import ImageReader
@@ -164,6 +164,17 @@ class DeviceScreenshot(Flowable):
         canvas.restoreState()
 
 
+class ChapterHeading(Paragraph):
+    """A small brand accent without changing the established text layout."""
+
+    def draw(self):
+        super().draw()
+        self.canv.saveState()
+        self.canv.setFillColor(RED)
+        self.canv.rect(-10, 3, 2, self.height - 6, stroke=0, fill=1)
+        self.canv.restoreState()
+
+
 class ProposalBuilder:
     def __init__(self):
         base = dict(fontName="Proposal", fontSize=10.3, leading=16.4, textColor=INK,
@@ -180,13 +191,15 @@ class ProposalBuilder:
             "small": ParagraphStyle("Small", **{**base, "fontSize": 9.3, "leading": 14.5}, spaceAfter=0),
             "notice": ParagraphStyle("Notice", **{**base, "fontSize": 8.5, "leading": 13, "textColor": RED}, spaceAfter=17),
             "screen": ParagraphStyle("Screen label", **{**base, "fontName": "Proposal-Bold", "fontSize": 8.3, "leading": 12, "alignment": TA_CENTER}, spaceAfter=0),
+            "illustration": ParagraphStyle("Illustration label", **{**base, "fontSize": 7.2, "leading": 14, "textColor": MUTED, "alignment": TA_RIGHT}, spaceAfter=0),
         }
         self.expected = []
         self.demo_ids = []
 
     def paragraph(self, element, style="body"):
         self.expected.append(plain(element))
-        return Paragraph(inline(element), self.styles[style])
+        paragraph_type = ChapterHeading if style in ("h1", "h2") else Paragraph
+        return paragraph_type(inline(element), self.styles[style])
 
     def demo(self, element):
         demo = element.xpath('.//*[@data-demo]')[0].get("data-demo")
@@ -203,10 +216,12 @@ class ProposalBuilder:
             device = "tablet" if demo == "student" else "phone"
             cells = []
             for filename, label in DEMO_SCREENS[demo]:
-                self.expected.append(label)
+                self.expected.extend([label, "示意圖"])
                 cells.append([
                     DeviceScreenshot(ASSETS / filename, column_width - 15, device),
-                    Spacer(1, 7), Paragraph(escape(label), self.styles["screen"]),
+                    Spacer(1, 7), Paragraph(
+                        escape(label) + ' <font name="Proposal" size="7.2" color="#64666B">示意圖</font>',
+                        self.styles["screen"]),
                 ])
             gallery = Table([cells], colWidths=[column_width] * columns, hAlign="CENTER")
             gallery.setStyle(TableStyle([
@@ -224,7 +239,17 @@ class ProposalBuilder:
         scale = min(CONTENT_WIDTH / source_width, 310 / source_height)
         image = Image(str(path), width=source_width * scale, height=source_height * scale)
         image.hAlign = "CENTER"
-        return [Spacer(1, 9), KeepTogether([caption_paragraph, image]), Spacer(1, 13)]
+        self.expected.append("示意圖")
+        caption_row = Table([[caption_paragraph, Paragraph("示意圖", self.styles["illustration"])]],
+                            colWidths=[CONTENT_WIDTH - 45, 45], spaceAfter=8)
+        caption_row.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        return [Spacer(1, 9), KeepTogether([caption_row, image]), Spacer(1, 13)]
 
     def table(self, element):
         rows = []
@@ -319,6 +344,12 @@ def page_chrome(canvas, doc):
     canvas.setStrokeColor(LINE)
     canvas.setLineWidth(.45)
     canvas.line(MARGIN, PAGE_HEIGHT - 39, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 39)
+    canvas.setStrokeColor(RED)
+    canvas.setLineWidth(1.6)
+    canvas.line(MARGIN, PAGE_HEIGHT - 39, MARGIN + 28, PAGE_HEIGHT - 39)
+    canvas.setStrokeColor(LINE)
+    canvas.setLineWidth(.35)
+    canvas.line(MARGIN, 38, PAGE_WIDTH - MARGIN, 38)
     canvas.setFont("Proposal", 8)
     canvas.setFillColor(MUTED)
     canvas.drawRightString(PAGE_WIDTH - MARGIN, 25, str(doc.page))
@@ -344,10 +375,13 @@ def verify(builder, source):
     images = sum(len(page.images) for page in reader.pages)
     if images != len(SCREENSHOT_FILES):
         raise AssertionError(f"Expected {len(SCREENSHOT_FILES)} demo images, found {images}")
+    illustration_labels = extracted.count("示意圖")
+    if illustration_labels != images:
+        raise AssertionError(f"Expected one 示意圖 label per screenshot: {images}, found {illustration_labels}")
     WORK.mkdir(parents=True, exist_ok=True)
     (WORK / "proposal-pdf-source.json").write_text(json.dumps({"segments": builder.expected, "demo_ids": builder.demo_ids}, ensure_ascii=False, indent=2))
     (WORK / "proposal-pdf-extracted.txt").write_text(extracted)
-    report = {"pages": len(reader.pages), "source_segments_verified": len(builder.expected), "demo_images": images, "smartpen_before_tablet": True, "bytes": OUTPUT.stat().st_size}
+    report = {"pages": len(reader.pages), "source_segments_verified": len(builder.expected), "demo_images": images, "illustration_labels": illustration_labels, "smartpen_before_tablet": True, "bytes": OUTPUT.stat().st_size}
     (WORK / "proposal-pdf-qa.json").write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
     return report

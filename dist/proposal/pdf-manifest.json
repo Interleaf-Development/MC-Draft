@@ -1,10 +1,10 @@
 {
   "version": 1,
   "pdf": "dist/proposal/MathConcept-Proposal-V1.pdf",
-  "pdfSha256": "c58ea2aa1a4f94a3a31ef8608d109381e6890ad5028b51301843c05155ea29ba",
+  "pdfSha256": "d7ab2ed40eed5102954f742fa3614834993a9d59250f4e02e9ca6244ee4b1f8f",
   "pageCount": 12,
   "dependencies": {
-    "scripts/build-proposal-pdf.py": "d5e421fcdc38522539c5a8dc3acbdd6e5873f8559626ee6eaad789d58cba6722",
+    "scripts/build-proposal-pdf.py": "dd01c70044ab8558bad9eb76f16e90fef82026b240f8f3013e5ca69b7855f160",
     "dist/proposal/content.zh-HK.js": "6c7633445ac7e6a48b4d5ad629a8efb4f048ebd6ad5e8c59ed1a983b47cd2a3d",
     "dist/proposal/smartpen-content.js": "a6df7a2c1b37ee6170c2297b9a4b7ee98b34bdbf54da5ca356c8dd85fc0e706d",
     "dist/proposal/structure.js": "37e605d41a41102de3c3467ea47470d89abb4351d23ebffc01a7b103146be9ce",
