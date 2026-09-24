@@ -1,17 +1,34 @@
 import * as english from './content.js';
 import * as chinese from './content.zh-HK.js';
 import { language, t, shellText, proposalLanguageUrl } from './locale.js';
-const { chapters, chapterHTML, references } = language === 'zh-HK' ? chinese : english;
+import { getProposalSolution, proposalSolutionUrl } from './solutions.js';
+import { getSmartpenProposal } from './smartpen-content.js';
+const solution = getProposalSolution(new URL(location.href));
+const original = language === 'zh-HK' ? chinese : english;
+const proposal = solution === '2' ? getSmartpenProposal(language, original) : original;
+const { chapters, references } = proposal;
+const { chapterHTML } = original;
+const solutionLabel = solution === '2' ? t('Solution 2 · Paper + smartpen','方案二 · 紙本＋智能筆') : t('Solution 1 · Tablet learning','方案一 · 平板學習');
+const copy = { ...shellText, documentType: solutionLabel, ...proposal.shellTextOverrides };
 // Keep shared links working after combining related chapters.
 const chapterAliases = { authoring: 'library', protection: 'library', operations: 'system', billing: 'system', rollout: 'vision', proposal: 'vision' };
 const chapterIndex = hash => { const id = hash.replace(/^#/, ''); return chapters.findIndex(chapter => chapter.id === (chapterAliases[id] || id)); };
 import { initDemos, activateDemo, demoIsSaving, demoNavigationBlocked } from './demos.js';
 document.documentElement.lang=language;
-for(const element of document.querySelectorAll('[data-copy]'))element.textContent=shellText[element.dataset.copy];
+if (proposal.overviewHTML) document.getElementById('vision').innerHTML=proposal.overviewHTML;
+for(const element of document.querySelectorAll('[data-copy]'))element.textContent=copy[element.dataset.copy];
+const solutionSwitch = document.getElementById('solution-switch');
+solutionSwitch.setAttribute('aria-label',t('Compare the two solutions','比較兩個方案'));
+for (const link of solutionSwitch.querySelectorAll('[data-solution]')) {
+  link.textContent=link.dataset.solution==='2'?t('Solution 2: Paper + smartpen','方案二：紙本＋智能筆'):t('Solution 1: Tablet learning','方案一：平板學習');
+  link.href=proposalSolutionUrl(location.href,link.dataset.solution);
+  if(link.dataset.solution===solution)link.setAttribute('aria-current','page');
+  else link.removeAttribute('aria-current');
+}
 const topbar=document.querySelector('.topbar');
 const measureHeader=()=>document.documentElement.style.setProperty('--proposal-header-height',topbar.getBoundingClientRect().height+'px');
 measureHeader();new ResizeObserver(measureHeader).observe(topbar);
-document.querySelector('meta[name="description"]').content=t('MathConcept system proposal: digital learning, teaching materials, centre management and the parent app.','MathConcept 系統建議書，涵蓋數碼學習、教材管理、中心營運及家長應用程式。');
+document.querySelector('meta[name="description"]').content=solutionLabel+' — '+t('MathConcept system proposal: learning records, teaching materials, centre management and the parent app.','MathConcept 系統建議書，涵蓋學習紀錄、教材管理、中心營運及家長應用程式。');
 for(const [id,label] of Object.entries({chapters:t('Proposal chapters','建議書章節'),menu:t('Open contents','開啟目錄'),references:t('Open reference documents','開啟參考文件'),'close-dialog':t('Close dialog','關閉視窗')}))document.getElementById(id).setAttribute('aria-label',label);
 document.getElementById('prev').textContent=t('← Previous','← 上一章');
 document.getElementById('next').textContent=t('Next →','下一章 →');
@@ -21,7 +38,7 @@ languageSwitch.hreflang=languageSwitch.lang=language==='zh-HK'?'en':'zh-HK';
 languageSwitch.setAttribute('aria-label',t('Switch to Hong Kong Traditional Chinese','切換至英文版'));
 document.documentElement.style.setProperty('--proposal-print-demo-label',JSON.stringify(t('Explore the actual application in the online proposal.','請開啟網頁版建議書，試用互動示範。')));
 const main=document.getElementById('main');
-main.insertAdjacentHTML('beforeend',chapters.slice(1).map((c,i)=>chapterHTML(c,i+1)).join('')+`<footer class="document-footer"><img src="assets/mathconcept-logo.png" alt="MathConcept"><div><strong>${t("System proposal","系統功能建議")}</strong><p>${t("Draft · 23 September 2026","初稿 · 2026年9月23日")}</p></div><a href="#vision">${t("Back to the beginning ↑","返回開首 ↑")}</a></footer>`);
+main.insertAdjacentHTML('beforeend',chapters.slice(1).map((c,i)=>chapterHTML(c,i+1)).join('')+`<footer class="document-footer"><img src="assets/mathconcept-logo.png" alt="MathConcept"><div><strong>${solutionLabel}</strong><p>${copy.draftNote} · ${copy.draftDate}</p></div><a href="#vision">${t("Back to the beginning ↑","返回開首 ↑")}</a></footer>`);
 const nav=document.getElementById('chapters');
 nav.innerHTML=chapters.map((c,i)=>`<a href="#${c.id}" data-index="${i}"><span>${i+1}.</span>${c.title}</a>`).join('')+`<div class="nav-references"><span>${t("REFERENCE","參考文件")}</span><button data-action="reference" data-ref="scope">${t("Detailed scope ↗","詳細範圍 ↗")}</button><button data-action="reference" data-ref="safeguards">${t("Protection & reliability ↗","教材與營運保障 ↗")}</button><button data-action="reference" data-ref="assumptions">${t("Open decisions ↗","待確認事項 ↗")}</button></div>`;
 const sections=[...document.querySelectorAll('.chapter')];
@@ -29,9 +46,9 @@ let current=0,present=false,toastTimer;
 const dialog=document.getElementById('detail-dialog');
 export function openDialog(title,body,className=''){dialog.className=className;document.getElementById('dialog-title').textContent=title;document.getElementById('dialog-body').innerHTML=body;if(!dialog.open)dialog.showModal();dialog.scrollTop=0}
 function notify(message){const t=document.getElementById('toast');t.textContent=message;t.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('visible'),4200)}
-function update(index){if(demoIsSaving())return;current=Math.max(0,Math.min(chapters.length-1,index));sections.forEach((s,i)=>s.classList.toggle('current',i===current));nav.querySelectorAll('a').forEach((a,i)=>{a.classList.toggle('active',i===current);if(i===current)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current')});document.getElementById('chapter-label').textContent=chapters[current].title;document.getElementById('slide-counter').textContent=`${current+1} / ${chapters.length}`;document.getElementById('prev').disabled=current===0;document.getElementById('next').disabled=current===chapters.length-1;document.title=`MathConcept — ${chapters[current].title}`;activateDemo(chapters[current].id);updateLanguageLink()}
+function update(index){if(demoIsSaving())return;current=Math.max(0,Math.min(chapters.length-1,index));sections.forEach((s,i)=>s.classList.toggle('current',i===current));nav.querySelectorAll('a').forEach((a,i)=>{a.classList.toggle('active',i===current);if(i===current)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current')});document.getElementById('chapter-label').textContent=chapters[current].title;document.getElementById('slide-counter').textContent=`${current+1} / ${chapters.length}`;document.getElementById('prev').disabled=current===0;document.getElementById('next').disabled=current===chapters.length-1;document.title=`MathConcept — ${solutionLabel} — ${chapters[current].title}`;activateDemo(chapters[current].id);updateLanguageLink()}
 function go(index){if(demoNavigationBlocked())return;const i=Math.max(0,Math.min(chapters.length-1,index));update(i);history.replaceState(null,'','#'+chapters[i].id);if(present)window.scrollTo({top:0,behavior:'instant'});else sections[i].scrollIntoView({behavior:'instant',block:'start'})}
-function updateLanguageLink(){languageSwitch.href=proposalLanguageUrl(location.href,language==='zh-HK'?'en':'zh-HK',{chapter:chapters[current].id,present});}
+function updateLanguageLink(){languageSwitch.href=proposalLanguageUrl(location.href,language==='zh-HK'?'en':'zh-HK',{chapter:chapters[current].id,present});for(const link of solutionSwitch.querySelectorAll('[data-solution]'))link.href=proposalSolutionUrl(location.href,link.dataset.solution);}
 function updateModeLabel(){document.getElementById('mode').textContent=present?t('Full document','完整文件'):t('Section view','逐章閱讀');}
 updateModeLabel();
 function toggleMode(){if(demoNavigationBlocked())return;present=!present;document.body.classList.toggle('present-mode',present);updateModeLabel();const url=new URL(location.href);if(present)url.searchParams.set('view','present');else url.searchParams.delete('view');history.replaceState(null,'',url.pathname+url.search+url.hash);document.getElementById('mode').setAttribute('aria-pressed',present);document.getElementById('presentation-footer').hidden=!present;go(current)}

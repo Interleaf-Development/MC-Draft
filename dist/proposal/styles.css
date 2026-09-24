@@ -53,6 +53,11 @@ p { color: var(--muted); }
 .page-shell { margin-left: var(--nav); min-width: 0; }
 .topbar { position: sticky; top: 0; z-index: 40; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; min-height: 58px; padding: 10px 32px; background: #fff; border-bottom: 1px solid var(--line); }
 .proposal-demo-notice { flex: 0 0 100%; padding-bottom: 8px; border-bottom: 1px solid var(--line); color: #79323a; font-size: 13px; font-weight: 500; line-height: 1.6; }
+.solution-switch { display: flex; flex: 0 0 100%; gap: 20px; border-bottom: 1px solid var(--line); }
+.solution-switch a { padding: 7px 0 9px; border-bottom: 2px solid transparent; color: var(--muted); font-size: 14px; line-height: 1.5; text-decoration: none; }
+.solution-switch a[aria-current="page"] { border-bottom-color: var(--red); color: var(--ink); font-weight: 600; }
+.solution-switch a:hover { color: var(--red); }
+.solution-switch a:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
 .breadcrumb { display: flex; align-items: center; min-width: 0; gap: 10px; color: #777; font-size: 12px; }
 .breadcrumb span:last-child { color: var(--ink); }
 #chapter-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -86,6 +91,9 @@ p { color: var(--muted); }
 .feature-table tr > :last-child:nth-child(2) { width: 77%; }
 .document-overview .feature-table tr > :nth-child(2) { width: 67%; }
 .document-overview .feature-table tr > :nth-child(3) { width: 10%; white-space: nowrap; }
+.document-overview .solution-comparison tr > :first-child { width: 20%; }
+.document-overview .solution-comparison tr > :nth-child(2),
+.document-overview .solution-comparison tr > :nth-child(3) { width: 40%; white-space: normal; }
 .feature-table td:first-child { color: var(--ink); font-weight: 600; }
 .feature-table td { color: #4c4c4c; }
 .feature-table td p + p { margin-top: 6px; }
@@ -324,6 +332,8 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   .top-actions { gap: 6px; margin-left: auto; }
   .language-switch, .mode-switch, .print-button { min-height: 30px; padding: 4px 8px; font-size: 11px; }
   .top-actions .icon-button { width: 28px; height: 30px; }
+  .solution-switch { gap: 12px; }
+  .solution-switch a { flex: 1; font-size: 12px; }
   .chapter { padding: 24px 18px; }
   .document-metadata { grid-template-columns: 1fr; gap: 0; margin-top: 18px; }
   .document-metadata > div { grid-template-columns: 90px minmax(0, 1fr); }

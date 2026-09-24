@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import { getProposalSolution, proposalSolutionUrl } from '../dist/proposal/solutions.js';
 
 const source = await readFile(new URL('../dist/proposal/demos.js', import.meta.url), 'utf8');
 const appSource = await readFile(new URL('../dist/proposal/app.js', import.meta.url), 'utf8');
@@ -139,7 +140,7 @@ function harness(hash = '#teacher') {
   const scope = vm.createContext({
     document, window: { addEventListener, scrollTo() {}, print() {}, innerHeight: 1000 }, location: address,
     history: { replaceState(_state, _title, url) { const next = new URL(url, address.href); address.href = next.href; address.hash = next.hash; } },
-    URL, URLSearchParams, t: english => english,
+    URL, URLSearchParams, t: english => english, getProposalSolution, proposalSolutionUrl,
     setTimeout(callback, delay) { const id = ++timerId; timers.set(id, { callback, delay }); return id; },
     clearTimeout: id => timers.delete(id),
     requestAnimationFrame: callback => callback(),
@@ -161,6 +162,9 @@ function harness(hash = '#teacher') {
       for (const child of [...body.children]) child.remove();
       body.append(new Element('meta', { name: 'description' }));
       body.append(new Element('header', { class: 'topbar' }));
+      const solutionSwitch = new Element('nav', { id: 'solution-switch' });
+      for (const solution of ['1', '2']) solutionSwitch.append(new Element('a', { 'data-solution': solution, href: '?solution=' + solution }));
+      body.append(solutionSwitch);
       for (const id of ['chapters', 'menu', 'references', 'close-dialog', 'prev', 'next', 'language-switch', 'main', 'detail-dialog', 'dialog-title', 'dialog-body', 'toast', 'chapter-label', 'slide-counter', 'mode', 'presentation-footer', 'sidebar', 'print-document']) {
         body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
       }
@@ -453,7 +457,7 @@ test('a view requested before another frame starts saving stays queued until all
   assert.equal(messages(system, 'mc-proposal:navigate')[0].data.role, 'parent');
 });
 
-test('the proposal shell blocks chapter, language and reading-mode navigation while its payment review saves', () => {
+test('the proposal shell blocks chapter, solution, language and reading-mode navigation while its payment review saves', () => {
   const h = harness('#billing'); h.loadApp(); h.warm(); h.ready('billing', 'admin', 'billing');
   const billing = h.frame('billing');
   const doc = h.document;
@@ -462,6 +466,8 @@ test('the proposal shell blocks chapter, language and reading-mode navigation wh
   h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: true });
   assert.equal(h.click(chapterLink).prevented, true);
   assert.equal(h.click(doc.getElementById('language-switch')).prevented, true);
+  const solutionLink = doc.querySelector('[data-solution="2"]');
+  assert.equal(h.click(solutionLink).prevented, true);
   h.click(mode);
   h.click(doc.getElementById('next'));
   assert.equal(h.address.hash, '#system');
@@ -475,6 +481,7 @@ test('the proposal shell blocks chapter, language and reading-mode navigation wh
 
   h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: false });
   assert.equal(h.click(doc.getElementById('language-switch')).prevented, false);
+  assert.equal(h.click(solutionLink).prevented, false);
   h.click(mode);
   assert.equal(doc.body.classList.contains('present-mode'), true);
   h.click(chapterLink);
