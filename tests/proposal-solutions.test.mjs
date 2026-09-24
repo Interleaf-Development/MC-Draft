@@ -105,7 +105,7 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
     assert.ok(demos(chapter('system').body).includes('operations'));
     assert.ok(demos(chapter('system').body).includes('billing'));
     assert.ok(demos(chapter('parent').body).includes('parent'));
-    assert.ok(demos(chapter('franchise').body).includes('franchise'));
+    assert.deepEqual(demos(chapter('franchise').body), language === 'zh-HK' ? [] : ['franchise']);
   });
 }
 
@@ -229,10 +229,13 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
 
   test(`unified ${language} proposal has one copy of each demo and unchanged shared management features`, () => {
     const html = structure.overviewHTML + structure.chapters.map(chapter => chapter.body || '').join('');
-    assert.deepEqual(demos(html).sort(), ['billing', 'franchise', 'game', 'operations', 'parent', 'student', 'teacher']);
+    const expectedDemos = language === 'zh-HK'
+      ? ['billing', 'game', 'operations', 'parent', 'student', 'teacher']
+      : ['billing', 'franchise', 'game', 'operations', 'parent', 'student', 'teacher'];
+    assert.deepEqual(demos(html).sort(), expectedDemos);
     const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(match => match[1]);
     assert.equal(new Set(ids).size, ids.length, 'composing chapters does not duplicate IDs or embed hosts');
-    assert.deepEqual(demos(byId('system').body).sort(), ['billing', 'franchise', 'operations']);
+    assert.deepEqual(demos(byId('system').body).sort(), language === 'zh-HK' ? ['billing', 'operations'] : ['billing', 'franchise', 'operations']);
     assert.deepEqual(demos(byId('parent').body), ['parent']);
     for (const id of ['system', 'franchise']) {
       assertContentPreserved(original.chapters.find(chapter => chapter.id === id), byId('system').body, `Shared ${id}`);

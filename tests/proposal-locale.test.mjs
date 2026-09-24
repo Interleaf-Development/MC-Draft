@@ -38,7 +38,7 @@ test('proposal language links preserve the current chapter, presentation mode an
   assert.equal(unchangedView.hash, '#billing');
 });
 
-test('both proposal languages expose the same chapters, live demos and references', () => {
+test('both proposal languages expose the same chapters and references with their selected live demos', () => {
   assert.deepEqual(chinese.chapters.map(c => c.id), ['vision', 'student', 'teacher', 'library', 'system', 'parent', 'franchise']);
   assert.deepEqual(chinese.chapters.map(c => c.id), english.chapters.map(c => c.id));
   assert.deepEqual(Object.keys(chinese.references), Object.keys(english.references));
@@ -48,7 +48,12 @@ test('both proposal languages expose the same chapters, live demos and reference
     const enHTML = english.chapterHTML(english.chapters[index], index);
     const zhHTML = chinese.chapterHTML(chapter, index);
     const demos = html => [...html.matchAll(/data-demo="([^"]+)"/g)].map(match => match[1]);
-    assert.deepEqual(demos(zhHTML), demos(enHTML), chapter.id);
+    if (chapter.id === 'franchise') {
+      assert.deepEqual(demos(zhHTML), [], 'Chinese HQ scope is text-only');
+      assert.deepEqual(demos(enHTML), ['franchise'], 'English retains its centre demo');
+    } else {
+      assert.deepEqual(demos(zhHTML), demos(enHTML), chapter.id);
+    }
     assert.match(zhHTML, new RegExp('id="' + chapter.id + '"'));
   }
   for (const key of Object.keys(english.references)) {
