@@ -442,3 +442,42 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
 .proposal-feature .feature-intro { font-size: 14px; line-height: 1.7; }
 .proposal-feature .feature-detail h4 { font-size: 15px; line-height: 1.5; }
 @media print { .proposal-feature > h3 { font-size: 13pt; } .proposal-feature .feature-detail h4 { font-size: 11pt; } }
+
+/* Paired paper/digital writing illustration; this is a simulated sequence. */
+.smartpen-writing-demo { margin: 24px 0 28px; padding: 22px 0; border-block: 1px solid var(--line); }
+.smartpen-writing-heading { margin-bottom: 16px; font-size: 16px; font-weight: 650; }
+.smartpen-writing-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.smartpen-writing-panel { min-width: 0; }
+.smartpen-writing-panel h4 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
+.smartpen-writing-sheet { display: block; width: 100%; overflow: visible; }
+.smartpen-writing-sheet-title { font-family: inherit; font-size: 15px; font-weight: 700; fill: #363b42; }
+.smartpen-writing-sheet-prompt { font-family: inherit; font-size: 13px; fill: #687077; }
+.smartpen-writing-question { font-family: inherit; font-size: 37px; font-weight: 500; fill: #363b42; }
+.smartpen-writing-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 15px; }
+.smartpen-writing-controls button { border: 1px solid #aaaeb3; border-radius: 4px; padding: 7px 12px; min-height: 36px; background: #fff; color: #26313c; font: inherit; font-size: 13px; cursor: pointer; }
+.smartpen-writing-controls button:hover { background: #f4f4f3; }
+.smartpen-writing-controls button:focus-visible { outline: 2px solid #a92531; outline-offset: 3px; }
+.smartpen-writing-clock { margin-left: auto; color: #5f6770; font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.smartpen-writing-clock [data-writing-time] { display: inline-block; min-width: 37px; text-align: right; }
+.smartpen-writing-status { min-height: 1.6em; margin: 10px 0 15px; color: #414b54; font-size: 13px; }
+.smartpen-writing-timeline { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0; margin: 0 0 12px; list-style: none; border-top: 2px solid #d9dde0; }
+.smartpen-writing-timeline li { padding: 8px 10px 0 0; margin: -2px 0 0; border-top: 2px solid transparent; font-size: 13px; }
+.smartpen-writing-timeline span { display: block; color: #727981; font-size: 11px; font-variant-numeric: tabular-nums; }
+.smartpen-writing-timeline .smartpen-writing-current { border-top-color: #a92531; color: #92212b; font-weight: 600; }
+.smartpen-writing-caution, .smartpen-writing-caption { color: #636b72; font-size: 12px; line-height: 1.7; }
+.smartpen-writing-caution { margin: 0 0 6px; }
+.smartpen-writing-caption { margin: 0; }
+@media (max-width: 620px) {
+  .smartpen-writing-panels { grid-template-columns: 1fr; gap: 16px; }
+  .smartpen-writing-demo { padding-block: 18px; }
+  .smartpen-writing-heading { font-size: 15px; }
+  .smartpen-writing-controls { gap: 8px; }
+  .smartpen-writing-clock { width: 100%; margin-left: 0; }
+}
+@media print {
+  .smartpen-writing-demo { break-inside: avoid; margin-block: 12pt; padding-block: 10pt; }
+  .smartpen-writing-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .smartpen-writing-controls, .smartpen-writing-status, .smartpen-writing-pen { display: none !important; }
+  .smartpen-writing-ink path { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; visibility: visible !important; }
+  .smartpen-writing-timeline li { border-top-color: transparent !important; color: #222 !important; font-weight: normal !important; }
+}

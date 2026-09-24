@@ -7,17 +7,17 @@ export function smartpenFlow(language) {
   const steps = [
     {
       title: copy('準備及派發', 'Prepare & hand out'),
-      text: copy('老師選取教材，配對學生、智能筆與工作紙。', 'The teacher selects materials and links the pupil, pen and worksheet.'),
+      text: copy('老師派發印有細微點紋的工作紙，配對學生與智能筆。', 'The teacher hands out patterned worksheets and links each pupil and pen.'),
       art: drawing('<path d="M35 31V15h74v16" fill="white"/><rect x="22" y="31" width="100" height="43" rx="6" fill="white"/><path d="M42 57h60v35H42z" fill="white"/><path d="M53 68h38M53 78h24"/><path d="M34 44h8" class="flow-accent"/><circle cx="111" cy="44" r="2" fill="currentColor" stroke="none"/><path d="m104 84 4 4 8-9" class="flow-accent"/>')
     },
     {
       title: copy('紙上作答', 'Write on paper'),
-      text: copy('學生沿用資料夾，以智能筆完成習作。', 'The pupil keeps their binder and answers with a smartpen.'),
+      text: copy('學生照常在紙上作答，筆芯留下真實墨水。', 'The pupil writes normally on paper, leaving real ink.'),
       art: drawing('<rect x="25" y="12" width="80" height="82" rx="4" fill="white"/><path d="M37 12v82M20 32h11M20 72h11M49 30h37M49 39h23"/><path d="M48 56h9m-4-4v8m9-4h5m7-4v8m-3-4h6M49 78h30"/><path d="m78 70 5-13 33-34 8 8-34 33zM83 57l7 7M114 25l8 8" class="flow-accent" fill="white"/>')
     },
     {
-      title: copy('同步筆跡', 'Sync handwriting'),
-      text: copy('同步成功後，作答存入對應學生的紀錄。', 'After a successful sync, answers appear in the pupil’s record.'),
+      title: copy('即時同步', 'Sync as they write'),
+      text: copy('連線正常時，筆跡隨下筆逐筆出現在系統。', 'While connected, strokes appear in the system as they are written.'),
       art: drawing('<path d="M16 22h39v57H16z" fill="white"/><path d="M24 34h22M24 43h14M24 58l5-4 4 6 8-8"/><rect x="87" y="13" width="44" height="80" rx="6" fill="white"/><path d="M102 21h14M101 83h16M96 57h25M96 66h18"/><circle cx="109" cy="36" r="6"/><path d="M99 49c1-9 19-9 20 0"/><path d="M64 48h15m-5-5 5 5-5 5M79 66H64m5-5-5 5 5 5" class="flow-accent"/>')
     },
     {

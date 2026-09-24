@@ -174,6 +174,7 @@ function harness(hash = '#teacher', query = '') {
         chapterHTML: chapter => `<section id="${chapter.id}" class="chapter">${chapter.body || ''}</section>`
       };
       scope.getSmartpenProposal = () => ({});
+      scope.initSmartpenWritingDemo = () => () => {};
       scope.buildProposalStructure = (_language, original) => ({
         ...original,
         chapters: original.chapters.map(chapter => ({ ...chapter, body: chapter.id === 'learning'

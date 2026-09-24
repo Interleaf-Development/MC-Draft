@@ -1,4 +1,5 @@
 import { smartpenFlow } from './smartpen-flow.js';
+import { smartpenWritingDemo } from './smartpen-writing-demo.js';
 
 // Keep the agreed wording in its source documents. Only the teaching approach
 // changes; centre operations and the parent app are presented once.
@@ -19,6 +20,7 @@ export function buildProposalStructure(language, original, smartpen) {
         .replace('The addition racing game below', 'The addition racing game at the end of this section')
         .replace('The Maths Kart demo below', 'The Maths Kart demo at the end of this section');
     }
+    if (prefix === 'smartpen-' && id === 'student') body = smartpenWritingDemo(language) + body + smartpenFlow(language);
     return subsection(item, `${prefix}${id}`, body);
   }).join('');
 
@@ -36,7 +38,7 @@ export function buildProposalStructure(language, original, smartpen) {
     </header>
     <section class="feature-detail">
       <h2>${copy('系統概覽', 'System overview')}</h2>
-      ${paragraph(copy('系統預計包括 iOS 及 Android 原生應用程式，以及供電腦使用的網頁介面。家長以手機為主，老師可使用平板或電腦，中心職員及總部以電腦處理日常工作。學生的作答方式按所選教學方案安排：方案一以直向平板作答，方案二保留紙本工作紙及資料夾，以智能筆記錄筆跡。支援裝置及完整使用流程會在試行時與中心一同確認。', 'The proposed system includes native iOS and Android applications and a web interface for computers. Parents mainly use phones, teachers use tablets or computers, and centre staff and HQ use computers for everyday work. Student writing depends on the chosen teaching approach: portrait tablets in Solution 1, or familiar paper worksheets and binders with smartpen handwriting capture in Solution 2. We will validate supported devices and the complete workflow with the centre during a pilot.'))}
+      ${paragraph(copy('系統預計包括 iOS 及 Android 原生應用程式，以及供電腦使用的網頁介面。家長以手機為主，老師可使用平板或電腦，中心職員及總部以電腦處理日常工作。學生的作答方式按所選教學方案安排：方案一以直向平板作答，方案二保留紙本工作紙及資料夾，以墨水智能筆在專用點紋工作紙上書寫，連線時逐筆同步。支援裝置及完整使用流程會在試行時與中心一同確認。', 'The proposed system includes native iOS and Android applications and a web interface for computers. Parents mainly use phones, teachers use tablets or computers, and centre staff and HQ use computers for everyday work. Student writing depends on the chosen teaching approach: portrait tablets in Solution 1, or familiar binders and specially patterned worksheets with ink smartpens streaming strokes while connected in Solution 2. We will validate supported devices and the complete workflow with the centre during a pilot.'))}
       ${paragraph(copy('<strong>學生及老師：</strong>派發習作、作答、批改、改正、學習進度及集印鼓勵。兩個方案保留相同的教學目的，分別說明學生使用方式、老師跟進流程及教材準備。', '<strong>Students and teachers:</strong> assignments, answers, marking, corrections, learning progress and stamp rewards. Both approaches support the same teaching aims, with their own student workflow, teacher follow-up and material preparation.'))}
       ${paragraph(copy('<strong>中心職員及總部：</strong>報名、排課、請假補堂、家長溝通、收費與銀行對帳，以及跨中心權限及營運管理。', '<strong>Centre staff and HQ:</strong> enrolment, scheduling, leave and make-up arrangements, parent communication, billing and bank reconciliation, plus permissions and operations across centres.'))}
       ${paragraph(copy('<strong>家長：</strong>透過手機查閱子女課堂、已開放的學習紀錄、電子手冊、帳單及收據，提交請假或付款證明，並與中心溝通。', '<strong>Parents:</strong> use a phone to view lessons, released learning records, the digital handbook, invoices and receipts, submit leave requests or payment proof, and communicate with the centre.'))}
@@ -50,7 +52,7 @@ export function buildProposalStructure(language, original, smartpen) {
     intro: copy('可在這裏切換兩個教學方案，了解各自的學生體驗、老師流程及教材準備。切換只影響這一節；第 3 節的中心及總部管理、第 4 節的家長應用程式均為兩方案共用。', 'You can switch between the two teaching approaches here to explore the student experience, teacher workflow and material preparation. The selection affects only this section. Centre and HQ management in section 3 and the parent app in section 4 are shared by both approaches.'),
     body: `<nav class="solution-switch" id="solution-switch" aria-label="${copy('選擇教學方案', 'Choose a teaching approach')}"><a data-solution="1" href="?solution=1#learning">${copy('方案一：平板無紙化', 'Solution 1: paperless tablets')}</a><a data-solution="2" href="?solution=2#learning">${copy('方案二：紙本＋智能筆', 'Solution 2: paper + smartpen')}</a></nav>
       <section id="learning-solution-1" class="learning-option" data-learning-solution="1" aria-labelledby="learning-solution-1-title"><h3 id="learning-solution-1-title">${copy('方案一：平板無紙化學習', 'Solution 1: paperless tablet learning')}</h3>${learningBody(original, '')}</section>
-      <section id="learning-solution-2" class="learning-option" data-learning-solution="2" aria-labelledby="learning-solution-2-title"><h3 id="learning-solution-2-title">${copy('方案二：保留紙本，以智能筆建立數碼紀錄', 'Solution 2: retain paper and capture learning records with smartpens')}</h3><p class="solution-demo-note">${copy('以下是我們建議的智能筆流程，網站尚未連接實體智能筆；正式使用前會配合實際教材及設備試行驗證。', 'This is our proposed smartpen workflow. The website does not connect to physical pens; we will validate the process with real materials and equipment before live use.')}</p>${smartpenFlow(language)}${learningBody(smartpen, 'smartpen-')}</section>
+      <section id="learning-solution-2" class="learning-option" data-learning-solution="2" aria-labelledby="learning-solution-2-title"><h3 id="learning-solution-2-title">${copy('方案二：紙本作答，筆跡即時同步', 'Solution 2: write on paper, sync strokes as you write')}</h3><p class="solution-demo-note">${copy('以下是我們建議的智能筆流程，網站尚未連接實體智能筆；正式使用前會配合實際教材及設備試行驗證。', 'This is our proposed smartpen workflow. The website does not connect to physical pens; we will validate the process with real materials and equipment before live use.')}</p>${learningBody(smartpen, 'smartpen-')}</section>
       <section class="proposal-subsection shared-practice" id="shared-practice"><h3>${copy('兩方案均可提供的課後互動練習', 'Optional interactive practice for either approach')}</h3>${paragraph(copy('學生可在日常習作以外使用獲開放的互動練習。以下遊戲為可操作示例，兩個方案均可採用；並非智能筆同步或按個別進度生成題目的示範。', 'Students can use released interactive exercises alongside their regular worksheets. The playable game below is available with either approach; it does not demonstrate smartpen synchronisation or questions generated from individual progress.'))}<div class="demo-wrap"><div class="demo-caption">${copy('共用練習示範：數學飛車', 'Shared practice demo: Maths Kart')}</div><div class="demo" data-demo="game" id="demo-game"></div></div></section>`
   };
 

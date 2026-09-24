@@ -4,6 +4,7 @@ import { language, t, shellText, proposalLanguageUrl } from './locale.js';
 import { getProposalSolution, proposalSolutionUrl } from './solutions.js';
 import { getSmartpenProposal } from './smartpen-content.js';
 import { buildProposalStructure } from './structure.js';
+import { initSmartpenWritingDemo } from './smartpen-writing-demo.js';
 let solution = getProposalSolution(new URL(location.href));
 const original = language === 'zh-HK' ? chinese : english;
 const proposal = buildProposalStructure(language, original, getSmartpenProposal(language, original));
@@ -81,4 +82,5 @@ window.addEventListener('hashchange',()=>{if(demoNavigationBlocked()){history.re
 window.addEventListener('keydown',e=>{if(dialog.open||e.target.matches('input,textarea,select,button,[contenteditable]'))return;if(present&&['ArrowRight','PageDown'].includes(e.key)){e.preventDefault();go(current+1)}if(present&&['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(current-1)}if(e.key.toLowerCase()==='p'&&!e.ctrlKey&&!e.metaKey&&!e.altKey)toggleMode()});
 let scrollQueued=false;window.addEventListener('scroll',()=>{if(present||scrollQueued)return;scrollQueued=true;requestAnimationFrame(()=>{scrollQueued=false;if(present)return;let index=0;sections.forEach((s,i)=>{if(s.getClientRects().length&&s.getBoundingClientRect().top<window.innerHeight*.35)index=i});if(index!==current)update(index)})},{passive:true});
 initDemos({notify,openDialog});
+initSmartpenWritingDemo(document);
 const initial=chapterIndex(location.hash);if(chapterAliases[location.hash.slice(1)])history.replaceState(null,'','#'+chapters[initial].id);update(Math.max(0,initial));if(new URL(location.href).searchParams.get('view')==='present')toggleMode();else if(initial>0)requestAnimationFrame(()=>sections[initial].scrollIntoView({behavior:'instant'}));
