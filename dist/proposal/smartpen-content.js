@@ -136,7 +136,7 @@ export function getSmartpenProposal(language, original) {
     },
     assumptions: {
       title: copy('試行及待確認事項', 'Pilot and open decisions'),
-      body: paragraph('先選取一小組學生、老師及具代表性的工作紙，驗證一堂課從派發到家長查看紀錄的完整流程，再決定擴展範圍。以下項目影響實際使用方式，須在方案定稿前確認。', 'Start with a small group of students, teachers and representative worksheets, validating the full lesson workflow from distribution to parent access before deciding how widely to expand. The following items affect practical use and need confirmation before finalising the proposal.') +
+      body: paragraph('我們建議先選取一小組學生、老師及具代表性的工作紙，一起驗證從派發工作紙到家長查看紀錄的完整課堂流程，再決定擴展範圍。以下項目影響實際使用方式，須在方案定稿前確認。', 'We recommend starting with a small group of students, teachers and representative worksheets, testing the full lesson workflow together from distribution to parent access before deciding how widely to expand. The following items affect practical use and need confirmation before finalising the proposal.') +
         list([
           copy('智能筆是否適合學生年齡、握筆習慣及日常書寫；所用筆芯、紙張、改正方式及耗材安排。', 'Whether selected pens suit student ages, grip and daily writing, including refills, paper, corrections and consumables.'),
           copy('工作紙印製品質及可用設備；原版算式、圖形、頁次、裝訂、縮放及補印是否影響辨識。', 'Printing quality and supported equipment, including the effect of equations, diagrams, pagination, binding, scaling and reprints on recognition.'),
