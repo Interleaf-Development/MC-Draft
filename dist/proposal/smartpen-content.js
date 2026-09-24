@@ -53,17 +53,19 @@ export function getSmartpenProposal(language, original) {
     {
       id: 'student', title: copy('學生學習體驗', 'Student learning experience'),
       heading: copy('在紙上書寫，筆跡同步至系統', 'Write on paper and sync handwriting to the system'),
-      intro: copy('學生以真正有墨水的智能筆，在外觀接近一般工作紙的專用點紋紙上作答，保留熟悉的版面及書寫空間。連線正常時，筆跡隨寫隨同步，毋須完成後逐份拍照或掃描。', 'Students use a real ink smartpen on compatible patterned paper that looks much like an ordinary worksheet, retaining the familiar layout and writing space. While connected, strokes sync as they write, without photographing or scanning each completed sheet.'),
+      intro: copy('學生的書寫體驗與傳統紙筆幾乎一樣：工作紙外觀及版面維持不變，只需打印在特制的點紋紙上；智能筆亦使用真正墨水，可像普通原子筆一樣直接在紙上書寫。不同之處是，學生在紙上作答的同時，筆跡會自動數碼化並同步至系統，毋須完成後再逐份拍照或掃描。再配合我們自行開發的識別及配對技術，學生一落筆，系統便能自動知道是哪位學生、哪份教材、哪一頁、哪一道題目，並同步記錄每一筆的位置、軌跡、次序及時間。', 'Students use a real ink smartpen on compatible patterned paper that looks much like an ordinary worksheet, retaining the familiar layout and writing space. While connected, strokes sync as they write, without photographing or scanning each completed sheet.'),
       body:
-        featureGroup('保留紙本學習冊', 'Keep the familiar paper binder', [
-          ['學生沿用「已完成、目前、日後」資料夾，在紙上寫下答案及運算步驟。每張工作紙均對應學生及習作，讓筆跡同步至正確的紀錄；學生毋須全程在平板上作答。', 'Students retain past, current and future binder sections, writing answers and working steps on paper. Each sheet is associated with the student and assignment so strokes reach the correct record, without needing a tablet for the whole lesson.']
+        featureGroup('保留現有紙本學習流程', 'Keep the familiar paper binder', [
+          ['學生的學習習慣及中心現有流程幾乎毋須任何改變，繼續沿用「已完成、目前、日後」資料夾及原有工作紙，在紙上寫下答案及運算步驟。唯一改變只是工作紙改用專用點紋紙列印，並以智能筆取代普通原子筆。學生如常落筆作答，筆跡及作答過程便會自動同步至所屬學生、習作及題目紀錄，毋須改用平板或增加額外操作。', 'Students retain past, current and future binder sections, writing answers and working steps on paper. Each sheet is associated with the student and assignment so strokes reach the correct record, without needing a tablet for the whole lesson.']
         ]) +
+        (zh ? '' :
         featureGroup('連線同步與離線續寫', 'Live sync and offline writing', [
           ['連線正常時，每一筆會傳入系統。支援離線儲存的筆型可先記錄、稍後補傳，學生不必因短暫斷線而停下作答；能否離線儲存及補傳，須按選定筆型驗證。', 'While connected, each stroke is sent to the system. Pens with offline storage can retain work for later transfer, allowing students to keep writing through a temporary disconnection. Offline storage and transfer must be validated for the selected pen.']
         ]) +
         featureGroup('紙張與智能筆的配合', 'Compatible paper and pens', [
           ['試行時以選定的智能筆及點紋工作紙，核對印製清晰度、書寫手感及筆跡位置。紙上的真實墨水保留原有書寫體驗；紙本擦除不代表已同步的筆跡會自動刪除。', 'The pilot checks print clarity, writing feel and stroke alignment using the chosen pen and patterned worksheets. Real ink retains the familiar writing experience; erasing on paper does not automatically delete captured strokes.']
         ])
+        )
     },
     {
       id: 'teacher', title: copy('老師派發及批改流程', 'Teacher assignment and feedback'),
