@@ -1,5 +1,6 @@
 import { smartpenFlow } from './smartpen-flow.js';
 import { smartpenWritingDemo } from './smartpen-writing-demo.js';
+import { getSharedKnowledge } from './shared-knowledge.js';
 
 // Keep the agreed wording in its source documents. Only the teaching approach
 // changes; materials, centre operations and the parent app are presented once.
@@ -28,7 +29,7 @@ export function buildProposalStructure(language, original, smartpen) {
     <header class="document-header">
       <div class="document-type">${copy('系統功能建議', 'System proposal')}</div>
       <h1 id="document-title">${copy('1. MathConcept 教學及中心管理系統', '1. MathConcept Teaching & Centre Management System')}</h1>
-      <p class="document-summary">${copy('我們建議為 MathConcept 建立一套涵蓋學生學習、教材管理、中心營運及家長服務的系統。教學部分提供「平板無紙化」及「紙本＋智能筆」兩種選擇，方便中心按實際需要比較。兩個方案共用相同的教材管理、中心管理及家長功能，以下會一併介紹。', 'We recommend bringing student learning, teaching materials, centre operations and parent services together in one system for MathConcept. The teaching section offers two approaches to compare against the centre’s needs: paperless tablet learning or paper with smartpens. Both use the same material management, centre management and parent functions, which we introduce together below.')}</p>
+      <p class="document-summary">${copy('我們建議為 MathConcept 建立一套涵蓋學生學習、教材管理、中心營運及家長服務的系統。教學部分提供「平板無紙化」及「紙本＋智能筆」兩種選擇，方便中心按實際需要比較。兩個方案共用相同的教材管理、跨中心知識庫、中心管理及家長功能，以下會一併介紹。', 'We recommend bringing student learning, teaching materials, centre operations and parent services together in one system for MathConcept. The teaching section offers two approaches to compare against the centre’s needs: paperless tablet learning or paper with smartpens. Both use the same material management, cross-centre knowledge base, centre management and parent functions, which we introduce together below.')}</p>
       <dl class="document-metadata">
         <div><dt>${copy('提交對象', 'Prepared for')}</dt><dd>MathConcept</dd></div>
         <div><dt>${copy('文件類別', 'Document')}</dt><dd>${copy('系統建議書', 'System proposal')}</dd></div>
@@ -57,6 +58,7 @@ export function buildProposalStructure(language, original, smartpen) {
       <section id="learning-solution-2" class="learning-option" data-learning-solution="2" aria-labelledby="learning-solution-2-title"><h3 id="learning-solution-2-title">${copy('方案二：紙本作答，筆跡即時同步', 'Solution 2: write on paper, sync strokes as you write')}</h3>${learningBody(smartpen, 'smartpen-')}</section>
       </section>
       ${subsection({ ...chapter(original, 'library'), heading: copy('教材管理與編製（兩方案共用）', 'Material management and authoring (shared)') }, 'library')}
+      ${subsection(getSharedKnowledge(language), 'shared-knowledge')}
       <section class="proposal-subsection shared-practice" id="shared-practice"><h3>${copy('兩方案均可提供的課後互動練習', 'Optional interactive practice for either approach')}</h3>${paragraph(copy('學生可在日常習作以外使用獲開放的互動練習。以下可試玩「數學飛車」，體驗以遊戲鼓勵學生練習加法的方式，兩個方案均可採用。', 'Students can use released interactive exercises alongside their regular worksheets. Try Maths Kart below to explore game-based addition practice, available with either approach.'))}<div class="demo-wrap"><div class="demo-caption">${copy('共用練習示範：數學飛車', 'Shared practice demo: Maths Kart')}</div><div class="demo" data-demo="game" id="demo-game"></div></div></section>`
   };
 

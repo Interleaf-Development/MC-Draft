@@ -113,6 +113,8 @@ export const references = {
    'Existing worksheets remain usable in their original layout. Reusable questions and verified editable content are introduced in agreed stages.',
    'Authors can arrange content directly on a worksheet, starting from a blank page or reusing approved questions and layouts, and adding equations, diagrams, answers and working space. Preview portrait-tablet and A4 printing before review and publication.',
    'Existing formats such as PDFs can stay in the controlled library for permitted assignment and use. Normal teaching accounts do not provide original-file downloads.',
+   'A shared knowledge base brings together school exam dates, syllabus coverage, past papers and teaching insights contributed by centres in different districts. Authorised teachers can search by school, grade, school year and term, with source, update date and version records, and contribute further information.',
+   'AI can analyse permitted reference papers for assessed topics, question types, structure and difficulty, then draft original comparable exercises and mock papers with new contexts, data and diagrams, plus suggested answers and worked solutions. Teachers check the material before publishing it to the shared question bank or assigning it.',
    'AI can help find examples, draft questions and organise content. External processing of materials requires prior approval; designated editors are responsible for checking content and approving publication.'
   ])}<h3>Teaching & learning</h3>${list([
    'Teachers select classes and students by teaching time and choose and assign worksheets directly from the progress chart.',
