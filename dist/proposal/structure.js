@@ -81,7 +81,7 @@ export function buildProposalStructure(language, original, smartpen) {
       ...centre,
       title: copy('中心及總部管理', 'Centre & HQ management'),
       heading: copy('中心及總部管理', 'Centre & HQ management'),
-      intro: copy('中心可在同一系統處理報名、排課、請假補堂及收費，總部則可管理各中心的權限及營運紀錄，方便職員按熟悉的方式處理日常工作。', 'Centres can handle enrolment, scheduling, leave, make-up lessons and billing in one system, while HQ manages centre permissions and operating records so staff can continue with familiar ways of working.'),
+      intro: copy('', 'Centres can handle enrolment, scheduling, leave, make-up lessons and billing in one system, while HQ manages centre permissions and operating records so staff can continue with familiar ways of working.'),
       body: centre.body + subsection(franchise, 'franchise')
     },
     {
