@@ -191,10 +191,19 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
     assert.equal(demos(learning).filter(id => id === 'game').length, 1);
     const gameIndex = learning.indexOf('data-demo="game"');
     assert.ok(gameIndex > tablet.end && gameIndex > smartpen.end, 'the shared game follows both approach panels');
-    for (const id of ['student', 'teacher', 'library']) {
+    for (const id of ['student', 'teacher']) {
       assertContentPreserved(original.chapters.find(chapter => chapter.id === id), tablet.html, `Tablet ${id}`);
       assertContentPreserved(alternate.chapters.find(chapter => chapter.id === id), smartpen.html, `Smartpen ${id}`);
     }
+    const comparison = elementByAttribute(learning, 'id', 'learning-comparison');
+    const materials = elementByAttribute(learning, 'id', 'library');
+    assert.ok(tablet.start > comparison.start && tablet.end < comparison.end);
+    assert.ok(smartpen.start > comparison.start && smartpen.end < comparison.end);
+    assert.ok(switcher.start > comparison.start && switcher.end < comparison.end);
+    assert.ok(materials.start > comparison.end, 'shared materials stay outside the switching area');
+    assertContentPreserved(original.chapters.find(chapter => chapter.id === 'library'), materials.html, 'Shared materials');
+    assert.equal((learning.match(/id="library"/g) || []).length, 1, 'materials are presented once');
+    assert.ok(gameIndex > comparison.end, 'the shared game stays outside the switching area');
   });
 
   test(`unified ${language} proposal has one copy of each demo and unchanged shared management features`, () => {

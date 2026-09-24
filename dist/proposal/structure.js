@@ -2,7 +2,7 @@ import { smartpenFlow } from './smartpen-flow.js';
 import { smartpenWritingDemo } from './smartpen-writing-demo.js';
 
 // Keep the agreed wording in its source documents. Only the teaching approach
-// changes; centre operations and the parent app are presented once.
+// changes; materials, centre operations and the parent app are presented once.
 export function buildProposalStructure(language, original, smartpen) {
   const zh = language === 'zh-HK';
   const copy = (chinese, english) => zh ? chinese : english;
@@ -11,7 +11,7 @@ export function buildProposalStructure(language, original, smartpen) {
   const lowerHeadings = html => html.replace(/<(\/?)(h)([2-5])\b/g, (_, close, h, level) => `<${close}${h}${Number(level) + 1}`);
   const gameMarkup = /<div class="demo-wrap"><div class="demo-caption">[^<]*<\/div><div class="demo" data-demo="game" id="demo-game"><\/div><\/div>/g;
   const subsection = (item, id, body = item.body) => `<section class="proposal-subsection" id="${id}" aria-labelledby="heading-${id}"><h3 id="heading-${id}">${item.heading || item.title}</h3>${item.intro ? `<p class="section-intro">${item.intro}</p>` : ''}${lowerHeadings(body)}</section>`;
-  const learningBody = (source, prefix) => ['student', 'teacher', 'library'].map(id => {
+  const learningBody = (source, prefix) => ['student', 'teacher'].map(id => {
     const item = chapter(source, id);
     let body = item.body.replace(gameMarkup, '');
     if (id === 'student') {
@@ -28,7 +28,7 @@ export function buildProposalStructure(language, original, smartpen) {
     <header class="document-header">
       <div class="document-type">${copy('系統功能建議', 'System proposal')}</div>
       <h1 id="document-title">${copy('1. MathConcept 教學及中心管理系統', '1. MathConcept Teaching & Centre Management System')}</h1>
-      <p class="document-summary">${copy('我們建議為 MathConcept 建立一套涵蓋學生學習、教材管理、中心營運及家長服務的系統。教學部分提供「平板無紙化」及「紙本＋智能筆」兩種選擇，方便中心按實際需要比較。兩個方案共用相同的中心管理及家長功能，以下會一併介紹。', 'We recommend bringing student learning, teaching materials, centre operations and parent services together in one system for MathConcept. The teaching section offers two approaches to compare against the centre’s needs: paperless tablet learning or paper with smartpens. Both use the same centre management and parent functions, which we introduce together below.')}</p>
+      <p class="document-summary">${copy('我們建議為 MathConcept 建立一套涵蓋學生學習、教材管理、中心營運及家長服務的系統。教學部分提供「平板無紙化」及「紙本＋智能筆」兩種選擇，方便中心按實際需要比較。兩個方案共用相同的教材管理、中心管理及家長功能，以下會一併介紹。', 'We recommend bringing student learning, teaching materials, centre operations and parent services together in one system for MathConcept. The teaching section offers two approaches to compare against the centre’s needs: paperless tablet learning or paper with smartpens. Both use the same material management, centre management and parent functions, which we introduce together below.')}</p>
       <dl class="document-metadata">
         <div><dt>${copy('提交對象', 'Prepared for')}</dt><dd>MathConcept</dd></div>
         <div><dt>${copy('文件類別', 'Document')}</dt><dd>${copy('系統建議書', 'System proposal')}</dd></div>
@@ -49,10 +49,14 @@ export function buildProposalStructure(language, original, smartpen) {
     id: 'learning',
     title: copy('教學與教材', 'Teaching & materials'),
     heading: copy('教學與教材：兩個方案', 'Teaching & materials: two approaches'),
-    intro: copy('可在這裏切換兩個教學方案，了解各自的學生體驗、老師流程及教材準備。切換只影響這一節；第 3 節的中心及總部管理、第 4 節的家長應用程式均為兩方案共用。', 'You can switch between the two teaching approaches here to explore the student experience, teacher workflow and material preparation. The selection affects only this section. Centre and HQ management in section 3 and the parent app in section 4 are shared by both approaches.'),
-    body: `<nav class="solution-switch" id="solution-switch" aria-label="${copy('選擇教學方案', 'Choose a teaching approach')}"><span class="solution-switch-label" aria-hidden="true">${copy('選擇教學方案', 'Choose a teaching approach')}</span><a data-solution="1" href="?solution=1#learning">${copy('方案一：平板無紙化', 'Solution 1: paperless tablets')}</a><a data-solution="2" href="?solution=2#learning">${copy('方案二：紙本＋智能筆', 'Solution 2: paper + smartpen')}</a></nav>
+    intro: copy('兩個方案共用相同的教材及管理系統，主要分別在於學生如何作答，以及老師如何收集和跟進學習紀錄。', 'Both approaches share the same materials and management system. The main difference is how students answer worksheets and how teachers collect and follow up their work.'),
+    body: `<section class="learning-comparison" id="learning-comparison" aria-labelledby="learning-comparison-title">
+      <header class="learning-comparison-heading"><h3 id="learning-comparison-title">${copy('選擇教學方案', 'Choose a teaching approach')}</h3><p>${copy('切換下方選項，比較框內的學生體驗與老師流程。', 'Switch between the options to compare the student and teacher workflows inside this section.')}</p></header>
+      <nav class="solution-switch" id="solution-switch" aria-label="${copy('選擇教學方案', 'Choose a teaching approach')}"><a data-solution="1" aria-controls="learning-solution-1" href="?solution=1#learning"><span class="solution-number">${copy('方案一', 'Solution 1')}</span><strong>${copy('平板無紙化', 'Paperless tablets')}</strong><span class="solution-description">${copy('在平板上直接書寫及作答', 'Write and answer directly on a tablet')}</span></a><a data-solution="2" aria-controls="learning-solution-2" href="?solution=2#learning"><span class="solution-number">${copy('方案二', 'Solution 2')}</span><strong>${copy('紙本＋智能筆', 'Paper + smartpen')}</strong><span class="solution-description">${copy('保留紙本書寫，筆跡同步至系統', 'Keep writing on paper, with synced handwriting')}</span></a></nav>
       <section id="learning-solution-1" class="learning-option" data-learning-solution="1" aria-labelledby="learning-solution-1-title"><h3 id="learning-solution-1-title">${copy('方案一：平板無紙化學習', 'Solution 1: paperless tablet learning')}</h3>${learningBody(original, '')}</section>
       <section id="learning-solution-2" class="learning-option" data-learning-solution="2" aria-labelledby="learning-solution-2-title"><h3 id="learning-solution-2-title">${copy('方案二：紙本作答，筆跡即時同步', 'Solution 2: write on paper, sync strokes as you write')}</h3>${learningBody(smartpen, 'smartpen-')}</section>
+      </section>
+      ${subsection({ ...chapter(original, 'library'), heading: copy('教材管理與編製（兩方案共用）', 'Material management and authoring (shared)') }, 'library')}
       <section class="proposal-subsection shared-practice" id="shared-practice"><h3>${copy('兩方案均可提供的課後互動練習', 'Optional interactive practice for either approach')}</h3>${paragraph(copy('學生可在日常習作以外使用獲開放的互動練習。以下可試玩「數學飛車」，體驗以遊戲鼓勵學生練習加法的方式，兩個方案均可採用。', 'Students can use released interactive exercises alongside their regular worksheets. Try Maths Kart below to explore game-based addition practice, available with either approach.'))}<div class="demo-wrap"><div class="demo-caption">${copy('共用練習示範：數學飛車', 'Shared practice demo: Maths Kart')}</div><div class="demo" data-demo="game" id="demo-game"></div></div></section>`
   };
 

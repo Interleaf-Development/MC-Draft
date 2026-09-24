@@ -57,6 +57,7 @@ export function getSmartpenProposal(language, original) {
       body:
         featureGroup('保留紙本習慣，自動留下學習紀錄', 'Keep familiar paper routines and capture learning records automatically', [
           ['老師照常派發習作，學生沿用「已完成、目前、日後」資料夾。每份作答會整理至對應學生的學習紀錄，原作答、老師批改及後續改正可一併查閱，方便接手跟進；日後習作仍由老師決定何時派發及開放。', 'Teachers hand out work as usual, and students keep their past, current and future binder sections. Each assignment is organised under the correct pupil, with original answers, teacher marking and later corrections available together for follow-up and handover. Teachers continue deciding when future work is distributed and released.'],
+          ['每張紙本工作紙均對應學生、教材版本及派發紀錄，讓筆跡同步至正確的習作。補印時保留與原派發的關係，老師可一併查閱原有及後續作答。', 'Each printed worksheet is associated with its student, material version and assignment so handwriting reaches the correct learning record. Reprints remain linked to the original assignment, letting teachers review original and subsequent answers together.'],
           ['支援離線儲存的筆型可先記錄、稍後補傳，學生不必因短暫斷線而停下作答。老師會看見哪些紀錄已收到、哪些仍待同步；只有完整同步並由老師開放的內容，才會分享給家長。', 'Pens with offline storage can retain work for later transfer, allowing students to keep writing through a temporary disconnection. Teachers can see which records have arrived and which remain pending. Only successfully synchronised work released by the teacher is shared with parents.']
         ]) +
         demo('game', copy('共用練習示範：數學飛車', 'Shared practice demo: Maths Kart'))
