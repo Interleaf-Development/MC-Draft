@@ -3,7 +3,7 @@ export function getProposalSolution(url) {
   return url.searchParams.get('solution') === '2' ? '2' : '1';
 }
 
-export function proposalSolutionUrl(href, nextSolution, { chapter = 'vision' } = {}) {
+export function proposalSolutionUrl(href, nextSolution, { chapter = 'learning' } = {}) {
   const url = new URL(href);
   if (String(nextSolution) === '2') url.searchParams.set('solution', '2');
   else url.searchParams.delete('solution');

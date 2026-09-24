@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { getProposalSolution, proposalSolutionUrl } from '../dist/proposal/solutions.js';
 import { getProposalLanguage, proposalLanguageUrl } from '../dist/proposal/locale.js';
 import { getSmartpenProposal } from '../dist/proposal/smartpen-content.js';
+import { buildProposalStructure } from '../dist/proposal/structure.js';
 import * as english from '../dist/proposal/content.js';
 import * as chinese from '../dist/proposal/content.zh-HK.js';
 
@@ -19,7 +20,7 @@ test('existing proposal links keep solution one unless solution two is explicitl
 
 test('switching proposals preserves language, presentation mode and shared link parameters', () => {
   // Existing shared URLs include hashes from before the chapters were combined.
-  // Switching solution starts at its overview instead of carrying stale context.
+  // Switching an approach focuses the learning section rather than unrelated operations.
   for (const chapter of ['system', 'operations', 'billing', 'protection', 'authoring']) {
     const original = base + '/proposal/?lang=eng&view=present&revision=a3f6e10#' + chapter;
     const switched = new URL(proposalSolutionUrl(original, '2'), base);
@@ -28,7 +29,7 @@ test('switching proposals preserves language, presentation mode and shared link 
     assert.equal(getProposalLanguage(switched), 'en');
     assert.equal(switched.searchParams.get('view'), 'present');
     assert.equal(switched.searchParams.get('revision'), 'a3f6e10');
-    assert.equal(switched.hash, '#vision');
+    assert.equal(switched.hash, '#learning');
 
     const restored = new URL(proposalSolutionUrl(switched.href, '1'), base);
     assert.equal(getProposalSolution(restored), '1');
@@ -36,7 +37,7 @@ test('switching proposals preserves language, presentation mode and shared link 
     assert.equal(restored.searchParams.get('lang'), 'eng');
     assert.equal(restored.searchParams.get('revision'), 'a3f6e10');
     assert.equal(restored.searchParams.get('view'), 'present');
-    assert.equal(restored.hash, '#vision');
+    assert.equal(restored.hash, '#learning');
   }
 });
 
@@ -116,3 +117,96 @@ test('solution two has separate Chinese and English overviews', () => {
   assert.match(en.overviewHTML, /smart\s*pen/i);
   assert.notEqual(zh.shellTextOverrides.documentTitle, en.shellTextOverrides.documentTitle);
 });
+
+
+// Read a complete element, including nested elements of the same tag. This keeps
+// these content-boundary checks independent of browser implementation details.
+function elementByAttribute(html, name, value) {
+  const opening = new RegExp(`<([a-z][\\w:-]*)\\b[^>]*\\b${name}=["']${value}["'][^>]*>`, 'i').exec(html);
+  assert.ok(opening, `Expected element ${name}="${value}"`);
+  const start = opening.index;
+  const tags = new RegExp(`<(/?)${opening[1]}\\b[^>]*>`, 'gi');
+  tags.lastIndex = start;
+  let depth = 0;
+  for (let tag; (tag = tags.exec(html));) {
+    depth += tag[1] ? -1 : 1;
+    if (depth === 0) return { html: html.slice(start, tags.lastIndex), start, end: tags.lastIndex };
+  }
+  assert.fail(`Unclosed element ${name}="${value}"`);
+}
+
+function readableText(html) {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    // Relocating the shared game may update its directional pointer only.
+    .replace(/(?:以下|本節末的)「數學飛車」示範/g, '「數學飛車」示範')
+    .replace(/(?:下方|本節末的)數學飛車/g, '數學飛車')
+    .replace(/(The (?:Maths Kart demo|addition racing game)) (?:below|at the end of this section)/g, '$1');
+}
+
+function assertContentPreserved(source, composed, label) {
+  const text = readableText(composed);
+  if (source.intro) assert.ok(text.includes(readableText(source.intro)), `${label}: introduction preserved`);
+  // Check meaningful source copy rather than snapshots of wrapper/heading markup.
+  for (const [, , fragment] of source.body.matchAll(/<(p|li|th|td|h[2-6])(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi)) {
+    const copy = readableText(fragment);
+    assert.ok(text.includes(copy), `${label}: preserved “${copy.slice(0, 90)}”`);
+  }
+}
+
+for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
+  const alternate = getSmartpenProposal(language, original);
+  const structure = buildProposalStructure(language, original, alternate);
+  const byId = id => structure.chapters.find(chapter => chapter.id === id);
+
+  test(`unified ${language} proposal uses four chapters and preserves its content inputs`, () => {
+    const originalInput = freezeContent(original);
+    const alternateInput = Object.freeze({
+      ...alternate,
+      ...freezeContent(alternate),
+      shellTextOverrides: Object.freeze({ ...alternate.shellTextOverrides })
+    });
+    const before = JSON.stringify([originalInput, alternateInput]);
+    const result = buildProposalStructure(language, originalInput, alternateInput);
+    assert.deepEqual(result.chapters.map(chapter => chapter.id), ['vision', 'learning', 'system', 'parent']);
+    assert.deepEqual(Object.keys(result.references).sort(), Object.keys(original.references).sort());
+    assert.ok(result.overviewHTML?.trim());
+    assert.ok(result.shellTextOverrides.documentTitle?.trim());
+    for (const chapter of result.chapters) {
+      assert.ok(chapter.title?.trim(), chapter.id + ' has a navigation title');
+      if (chapter.id !== 'vision') assert.ok(chapter.body?.trim(), chapter.id + ' has content');
+    }
+    assert.equal(JSON.stringify([originalInput, alternateInput]), before,
+      'composition does not overwrite either source proposal');
+  });
+
+  test(`unified ${language} proposal keeps both learning approaches mounted with one common practice game`, () => {
+    const learning = byId('learning').body;
+    const switcher = elementByAttribute(learning, 'id', 'solution-switch');
+    const options = [...switcher.html.matchAll(/<a\b[^>]*data-solution=["']([^"']+)["']/gi)].map(match => match[1]);
+    assert.deepEqual(options.sort(), ['1', '2']);
+    const tablet = elementByAttribute(learning, 'data-learning-solution', '1');
+    const smartpen = elementByAttribute(learning, 'data-learning-solution', '2');
+    assert.deepEqual(demos(tablet.html).sort(), ['student', 'teacher']);
+    assert.deepEqual(demos(smartpen.html), [], 'proposed smartpen capture does not show connected tablet demonstrations');
+    assert.equal(demos(learning).filter(id => id === 'game').length, 1);
+    const gameIndex = learning.indexOf('data-demo="game"');
+    assert.ok(gameIndex > tablet.end && gameIndex > smartpen.end, 'the shared game follows both approach panels');
+    for (const id of ['student', 'teacher', 'library']) {
+      assertContentPreserved(original.chapters.find(chapter => chapter.id === id), tablet.html, `Tablet ${id}`);
+      assertContentPreserved(alternate.chapters.find(chapter => chapter.id === id), smartpen.html, `Smartpen ${id}`);
+    }
+  });
+
+  test(`unified ${language} proposal has one copy of each demo and unchanged shared management features`, () => {
+    const html = structure.overviewHTML + structure.chapters.map(chapter => chapter.body || '').join('');
+    assert.deepEqual(demos(html).sort(), ['billing', 'franchise', 'game', 'operations', 'parent', 'student', 'teacher']);
+    const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(match => match[1]);
+    assert.equal(new Set(ids).size, ids.length, 'composing chapters does not duplicate IDs or embed hosts');
+    assert.deepEqual(demos(byId('system').body).sort(), ['billing', 'franchise', 'operations']);
+    assert.deepEqual(demos(byId('parent').body), ['parent']);
+    for (const id of ['system', 'franchise']) {
+      assertContentPreserved(original.chapters.find(chapter => chapter.id === id), byId('system').body, `Shared ${id}`);
+    }
+    assertContentPreserved(original.chapters.find(chapter => chapter.id === 'parent'), byId('parent').intro + byId('parent').body, 'Shared parent');
+  });
+}

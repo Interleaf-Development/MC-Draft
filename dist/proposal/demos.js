@@ -207,6 +207,13 @@ function navigateFrame(entry,view) {
 }
 export function activateDemo(id) {
   if (!initialised || demoIsSaving()) return;
+  if (id==='learning') {
+    const entry=mount('student');
+    const visible=entry&&!entry.box.closest('[hidden]')?entry:null;
+    setActive(visible);
+    if(visible)sizeFrame(visible);
+    return;
+  }
   const scene=id==='system'?'operations':id;
   const entry=scenes[scene]?mount(scene):null;
   setActive(entry);
@@ -241,7 +248,7 @@ export function initDemos(options = {}) {
       }
       return;
     }
-    if(data?.type==='mc-proposal:focused'){setActive(entry);return;}
+    if(data?.type==='mc-proposal:focused'){if(!entry.box.closest('[hidden]'))setActive(entry);return;}
     if(!data||!['mc-proposal:ready','mc-proposal:state'].includes(data.type)||!Object.hasOwn(dimensions,data.role))return;
     if(data.type==='mc-proposal:ready'){
       entry.ready=true;

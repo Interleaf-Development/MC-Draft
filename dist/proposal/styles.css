@@ -55,9 +55,21 @@ p { color: var(--muted); }
 .proposal-demo-notice { flex: 0 0 100%; padding-bottom: 8px; border-bottom: 1px solid var(--line); color: #79323a; font-size: 13px; font-weight: 500; line-height: 1.6; }
 .solution-switch { display: flex; flex: 0 0 100%; gap: 20px; border-bottom: 1px solid var(--line); }
 .solution-switch a { padding: 7px 0 9px; border-bottom: 2px solid transparent; color: var(--muted); font-size: 14px; line-height: 1.5; text-decoration: none; }
-.solution-switch a[aria-current="page"] { border-bottom-color: var(--red); color: var(--ink); font-weight: 600; }
+.solution-switch a[aria-current] { border-bottom-color: var(--red); color: var(--ink); font-weight: 600; }
 .solution-switch a:hover { color: var(--red); }
 .solution-switch a:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.chapter .solution-switch { position: sticky; top: var(--proposal-header-height, 112px); z-index: 20; margin: 22px 0; padding-top: 8px; background: var(--paper); scroll-margin-top: 12px; }
+.learning-option > h3 { font-size: 20px; margin-bottom: 18px; }
+.learning-option > .proposal-subsection:first-of-type { margin-top: 18px; padding-top: 0; border-top: 0; }
+.proposal-subsection { margin-top: 30px; padding-top: 24px; border-top: 1px solid var(--line); }
+.proposal-subsection > h3 { font-size: 19px; margin-bottom: 10px; }
+.proposal-subsection .section-intro { margin-bottom: 18px; }
+.proposal-subsection h4 { font-size: 16px; line-height: 1.5; }
+.proposal-subsection h5 { margin: 0 0 8px; font-size: 14px; line-height: 1.5; }
+.proposal-subsection .proposal-feature > h4 { margin: 0 0 8px; font-size: 17px; }
+.proposal-subsection .feature-detail > h5 { margin-bottom: 8px; }
+.solution-demo-note { margin-bottom: 18px; font-size: 13px; }
+.reference-section + .reference-section { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
 .breadcrumb { display: flex; align-items: center; min-width: 0; gap: 10px; color: #777; font-size: 12px; }
 .breadcrumb span:last-child { color: var(--ink); }
 #chapter-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -366,7 +378,7 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   @page { margin: 15mm 14mm; }
   :root { color: #000; background: #fff; }
   body { font-size: 10pt; line-height: 1.5; }
-  .sidebar, .topbar, .presentation-footer, .document-footer, .demo-wrap, .demo-caption, .demo-device-shell, .actual-demo-frame, .demo-loading, .document-links, .button-row, .skip, #toast, dialog, .rollout-interactive { display: none !important; }
+  .sidebar, .topbar, .solution-switch, .presentation-footer, .document-footer, .demo-wrap, .demo-caption, .demo-device-shell, .actual-demo-frame, .demo-loading, .document-links, .button-row, .skip, #toast, dialog, .rollout-interactive { display: none !important; }
   .rollout-print { display: block; }
   .demo-wrap:has(#demo-rollout) { display: block !important; }
   .page-shell { margin: 0; }

@@ -42,6 +42,8 @@ class Element {
   set className(value) { this.attributes.class = value; }
   get href() { return this.attributes.href || ''; }
   set href(value) { this.attributes.href = value; }
+  get hidden() { return Object.hasOwn(this.attributes, 'hidden'); }
+  set hidden(value) { if (value) this.attributes.hidden = ''; else delete this.attributes.hidden; }
   get dataset() {
     return Object.fromEntries(Object.entries(this.attributes)
       .filter(([name]) => name.startsWith('data-'))
@@ -116,7 +118,7 @@ class Element {
   }
 }
 
-function harness(hash = '#teacher') {
+function harness(hash = '#teacher', query = '') {
   const body = new Element('body');
   for (const id of scenes) body.append(new Element('div', { id: 'demo-' + id }));
   const listeners = new Map();
@@ -136,7 +138,7 @@ function harness(hash = '#teacher') {
     querySelectorAll: selector => body.querySelectorAll(selector),
     createElement: tagName => new Element(tagName)
   };
-  const address = { origin, hash, href: origin + '/proposal/' + hash };
+  const address = { origin, hash, href: origin + '/proposal/' + query + hash };
   const scope = vm.createContext({
     document, window: { addEventListener, scrollTo() {}, print() {}, innerHeight: 1000 }, location: address,
     history: { replaceState(_state, _title, url) { const next = new URL(url, address.href); address.href = next.href; address.hash = next.hash; } },
@@ -162,21 +164,22 @@ function harness(hash = '#teacher') {
       for (const child of [...body.children]) child.remove();
       body.append(new Element('meta', { name: 'description' }));
       body.append(new Element('header', { class: 'topbar' }));
-      const solutionSwitch = new Element('nav', { id: 'solution-switch' });
-      for (const solution of ['1', '2']) solutionSwitch.append(new Element('a', { 'data-solution': solution, href: '?solution=' + solution }));
-      body.append(solutionSwitch);
       for (const id of ['chapters', 'menu', 'references', 'close-dialog', 'prev', 'next', 'language-switch', 'main', 'detail-dialog', 'dialog-title', 'dialog-body', 'toast', 'chapter-label', 'slide-counter', 'mode', 'presentation-footer', 'sidebar', 'print-document']) {
         body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
       }
       document.getElementById('main').append(new Element('section', { id: 'vision', class: 'chapter' }));
-      const chapterIds = ['vision', 'student', 'teacher', 'library', 'system', 'parent', 'franchise'];
+      const chapterIds = ['vision', 'learning', 'system', 'parent'];
       scope.english = scope.chinese = {
         chapters: chapterIds.map(id => ({ id, title: id })), references: {},
-        chapterHTML: chapter => {
-          const ids = chapter.id === 'student' ? ['student', 'game'] : chapter.id === 'system' ? ['operations', 'billing'] : scenes.includes(chapter.id) ? [chapter.id] : [];
-          return `<section id="${chapter.id}" class="chapter">${ids.map(id => `<div id="demo-${id}"></div>`).join('')}</section>`;
-        }
+        chapterHTML: chapter => `<section id="${chapter.id}" class="chapter">${chapter.body || ''}</section>`
       };
+      scope.getSmartpenProposal = () => ({});
+      scope.buildProposalStructure = (_language, original) => ({
+        ...original,
+        chapters: original.chapters.map(chapter => ({ ...chapter, body: chapter.id === 'learning'
+          ? '<nav id="solution-switch"><a href="?solution=1#learning" data-solution="1">Tablet</a><a href="?solution=2#learning" data-solution="2">Smartpen</a></nav><section id="learning-solution-1" data-learning-solution="1"><div id="demo-student"></div><div id="demo-teacher"></div></section><section id="learning-solution-2" data-learning-solution="2"></section><div id="demo-game"></div>'
+          : (chapter.id === 'system' ? ['operations', 'billing', 'franchise'] : chapter.id === 'parent' ? ['parent'] : []).map(id => `<div id="demo-${id}"></div>`).join('') }))
+      });
       scope.language = 'en'; scope.shellText = {};
       scope.proposalLanguageUrl = href => href + '?lang=zh-HK';
       vm.runInContext('(function(){\n' + appSource.replace(/^import[^\n]+\n/gm, '').replaceAll('export function ', 'function ') + '\n})()', scope);
@@ -461,7 +464,7 @@ test('the proposal shell blocks chapter, solution, language and reading-mode nav
   const h = harness('#billing'); h.loadApp(); h.warm(); h.ready('billing', 'admin', 'billing');
   const billing = h.frame('billing');
   const doc = h.document;
-  const chapterLink = doc.querySelector('a[href="#teacher"]');
+  const chapterLink = doc.querySelector('a[href="#learning"]');
   const mode = doc.getElementById('mode');
   h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: true });
   assert.equal(h.click(chapterLink).prevented, true);
@@ -481,12 +484,13 @@ test('the proposal shell blocks chapter, solution, language and reading-mode nav
 
   h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: false });
   assert.equal(h.click(doc.getElementById('language-switch')).prevented, false);
-  assert.equal(h.click(solutionLink).prevented, false);
+  assert.equal(h.click(solutionLink).prevented, true);
+  assert.equal(new URL(h.address.href).searchParams.get('solution'), '2');
   h.click(mode);
   assert.equal(doc.body.classList.contains('present-mode'), true);
   h.click(chapterLink);
-  assert.equal(h.address.hash, '#teacher');
-  assert.equal(doc.getElementById('chapter-label').textContent, 'teacher');
+  assert.equal(h.address.hash, '#learning');
+  assert.equal(doc.getElementById('chapter-label').textContent, 'learning');
   assert.equal(h.frame('billing'), billing);
   assert.equal(messages(billing, 'mc-proposal:deactivate').length, 1);
 });
@@ -540,29 +544,62 @@ test('a hidden document never starts an embedded game and a narrow frame preserv
   assert.equal(stage.style.height, '675px');
 });
 
-test('scrolling within the student chapter keeps the visible game active rather than resetting to its binder', () => {
+test('scrolling within the learning chapter keeps the visible game active rather than resetting to its binder', () => {
   const h = harness('#student'); h.loadApp(); h.warm();
   h.ready('student', 'student', 'work'); h.ready('game', 'game', 'race');
-  h.document.getElementById('student').getBoundingClientRect = () => ({ top: 100 });
+  h.document.getElementById('learning').getBoundingClientRect = () => ({ top: 100 });
   h.intersect('game', true);
   const game = h.frame('game');
   h.emit('scroll');
-  assert.equal(h.document.getElementById('chapter-label').textContent, 'student');
+  assert.equal(h.document.getElementById('chapter-label').textContent, 'learning');
   assert.equal(messages(game, 'mc-proposal:activate').length, 1);
   assert.equal(messages(game, 'mc-proposal:deactivate').length, 0);
   assert.equal(h.frame('game'), game);
 });
 
 test('legacy chapter links open the merged chapters and reuse their existing demo frames', () => {
-  for (const [legacy, chapter, demo] of [['authoring', 'library', null], ['protection', 'library', null], ['operations', 'system', 'operations'], ['billing', 'system', 'operations'], ['rollout', 'vision', null], ['proposal', 'vision', null]]) {
+  for (const [legacy, chapter, demo] of [['student', 'learning', 'student'], ['teacher', 'learning', 'student'], ['library', 'learning', null], ['authoring', 'learning', null], ['protection', 'learning', null], ['franchise', 'system', 'operations'], ['operations', 'system', 'operations'], ['billing', 'system', 'operations'], ['rollout', 'vision', null], ['proposal', 'vision', null]]) {
     const h = harness('#' + legacy); h.loadApp(); h.warm();
     assert.equal(h.address.hash, '#' + chapter);
     assert.equal(h.document.getElementById('chapter-label').textContent, chapter);
     const original = demo ? h.frame(demo) : null;
     if (demo) h.ready(demo, 'admin', 'schedule');
-    h.click(h.document.querySelector('a[href="#student"]'));
+    h.click(h.document.querySelector('a[href="#learning"]'));
     h.click(h.document.querySelector(`a[href="#${chapter}"]`));
     if (demo) assert.equal(h.frame(demo), original);
     assert.equal(h.document.querySelectorAll('iframe').length, scenes.length);
   }
+});
+
+test('switching learning approach changes only its panel and preserves every shared demo instance', () => {
+  const h = harness('#learning'); h.loadApp(); h.warm();
+  h.ready('student', 'student', 'work');
+  const doc=h.document;
+  const originals=scenes.map(id=>h.frame(id));
+  const centre=doc.getElementById('system'), parent=doc.getElementById('parent');
+  const tablet=doc.getElementById('learning-solution-1'), pen=doc.getElementById('learning-solution-2');
+  assert.equal(tablet.hidden,false);assert.equal(pen.hidden,true);
+  h.click(doc.querySelector('[data-solution="2"]'));
+  assert.equal(tablet.hidden,true);assert.equal(pen.hidden,false);
+  assert.equal(h.address.hash,'#learning');
+  assert.equal(new URL(h.address.href).searchParams.get('solution'),'2');
+  assert.equal(messages(originals[1],'mc-proposal:deactivate').length,1);
+  h.message(originals[1].contentWindow,{type:'mc-proposal:focused'});
+  assert.equal(messages(originals[1],'mc-proposal:activate').length,1,'a hidden tablet cannot become active');
+  assert.deepEqual(scenes.map(id=>h.frame(id)), originals);
+  assert.equal(doc.getElementById('system'),centre);assert.equal(doc.getElementById('parent'),parent);
+  h.click(doc.querySelector('[data-solution="1"]'));
+  assert.equal(tablet.hidden,false);assert.equal(pen.hidden,true);
+  assert.equal(new URL(h.address.href).searchParams.has('solution'),false);
+  assert.deepEqual(scenes.map(id=>h.frame(id)), originals);
+});
+
+test('a shared smartpen link opens the second teaching panel without altering shared chapters', () => {
+  const h = harness('#learning','?solution=2&lang=eng');h.loadApp();h.warm();
+  assert.equal(h.document.getElementById('learning-solution-1').hidden,true);
+  assert.equal(h.document.getElementById('learning-solution-2').hidden,false);
+  assert.equal(h.document.querySelector('[data-solution="2"]').getAttribute('aria-current'),'true');
+  assert.equal(h.document.querySelectorAll('.chapter').length,4);
+  assert.equal(h.document.querySelectorAll('iframe').length,7);
+  assert.equal(new URL(h.address.href).searchParams.get('lang'),'eng');
 });
