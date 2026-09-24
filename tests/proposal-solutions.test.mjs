@@ -158,7 +158,7 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
   const structure = buildProposalStructure(language, original, alternate);
   const byId = id => structure.chapters.find(chapter => chapter.id === id);
 
-  test(`unified ${language} proposal uses five chapters and preserves its content inputs`, () => {
+  test(`unified ${language} proposal uses six chapters and preserves its content inputs`, () => {
     const originalInput = freezeContent(original);
     const alternateInput = Object.freeze({
       ...alternate,
@@ -167,8 +167,18 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
     });
     const before = JSON.stringify([originalInput, alternateInput]);
     const result = buildProposalStructure(language, originalInput, alternateInput);
-    assert.deepEqual(result.chapters.map(chapter => chapter.id), ['vision', 'learning', 'materials', 'system', 'parent']);
+    assert.deepEqual(result.chapters.map(chapter => chapter.id), ['vision', 'learning', 'materials', 'teaching', 'system', 'parent']);
     assert.equal(result.chapters[1].title, language === 'zh-HK' ? '學生體驗' : 'Student experience');
+    if (language === 'zh-HK') {
+      assert.equal(result.chapters[3].title, '老師及課後流程');
+      assert.equal(result.chapters[3].heading, '老師及課後流程');
+    }
+    for (const [id, number] of [['materials', 3], ['teaching', 4], ['system', 5], ['parent', 6]]) {
+      const chapter = result.chapters.find(chapter => chapter.id === id);
+      const html = original.chapterHTML(chapter, result.chapters.indexOf(chapter));
+      assert.ok(html.includes(`<h2 id="heading-${id}">${number}. ${chapter.heading}</h2>`), `${id} has its correct section number`);
+    }
+    assert.match(result.shellTextOverrides.parentLink, /^6\. /);
     assert.deepEqual(Object.keys(result.references).sort(), Object.keys(original.references).sort());
     assert.ok(result.overviewHTML?.trim());
     assert.ok(result.shellTextOverrides.documentTitle?.trim());
@@ -180,7 +190,7 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
       'composition does not overwrite either source proposal');
   });
 
-  test(`unified ${language} proposal switches only the student experience and presents teaching materials once`, () => {
+  test(`unified ${language} proposal switches only student experience and separates materials from teaching workflows`, () => {
     const learning = byId('learning').body;
     const switcher = elementByAttribute(learning, 'id', 'solution-switch');
     const options = [...switcher.html.matchAll(/<a\b[^>]*data-solution=["']([^"']+)["']/gi)].map(match => match[1]);
@@ -197,18 +207,24 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
     assert.ok(smartpen.start > comparison.start && smartpen.end < comparison.end);
     assert.ok(switcher.start > comparison.start && switcher.end < comparison.end);
     const materials = byId('materials').body;
-    for (const id of ['library', 'teacher']) {
-      const section = elementByAttribute(materials, 'id', id);
-      assertContentPreserved(original.chapters.find(chapter => chapter.id === id), section.html, `Teaching materials ${id}`);
-      assert.equal((materials.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1, `${id} is presented once`);
+    const teaching = byId('teaching').body;
+    for (const [id, chapterBody, otherBody] of [['library', materials, teaching], ['teacher', teaching, materials]]) {
+      const section = elementByAttribute(chapterBody, 'id', id);
+      assertContentPreserved(original.chapters.find(chapter => chapter.id === id), section.html, `Preserved subsection ${id}`);
+      assert.equal((chapterBody.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1, `${id} is presented once`);
+      assert.equal(otherBody.includes(`id="${id}"`), false, `${id} is absent from the other chapter`);
       assert.equal(learning.includes(`id="${id}"`), false, `${id} is outside the device switch`);
     }
     const knowledge = elementByAttribute(materials, 'id', 'shared-knowledge');
-    const practice = elementByAttribute(materials, 'id', 'shared-practice');
+    const practice = elementByAttribute(teaching, 'id', 'shared-practice');
     assert.ok(knowledge.html.length > 0);
+    assert.equal(teaching.includes('id="shared-knowledge"'), false);
+    assert.equal(materials.includes('id="shared-practice"'), false);
+    assert.ok(elementByAttribute(teaching, 'id', 'teacher').end <= practice.start, 'home learning follows teacher assignment and marking');
     assert.deepEqual(demos(practice.html), ['game']);
-    assert.deepEqual(demos(materials).sort(), ['game', 'teacher']);
-    assert.doesNotMatch(materials, /data-learning-solution=/, 'teaching materials do not switch by device');
+    assert.deepEqual(demos(materials), [], 'materials are a separate text-only chapter');
+    assert.deepEqual(demos(teaching).sort(), ['game', 'teacher']);
+    assert.doesNotMatch(materials + teaching, /data-learning-solution=/, 'materials and teaching workflows do not switch by device');
   });
 
   test(`unified ${language} proposal has one copy of each demo and unchanged shared management features`, () => {

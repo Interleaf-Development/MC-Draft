@@ -168,7 +168,7 @@ function harness(hash = '#teacher', query = '') {
         body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
       }
       document.getElementById('main').append(new Element('section', { id: 'vision', class: 'chapter' }));
-      const chapterIds = ['vision', 'learning', 'materials', 'system', 'parent'];
+      const chapterIds = ['vision', 'learning', 'materials', 'teaching', 'system', 'parent'];
       scope.english = scope.chinese = {
         chapters: chapterIds.map(id => ({ id, title: id })), references: {},
         chapterHTML: chapter => `<section id="${chapter.id}" class="chapter">${chapter.body || ''}</section>`
@@ -179,7 +179,7 @@ function harness(hash = '#teacher', query = '') {
         ...original,
         chapters: original.chapters.map(chapter => ({ ...chapter, body: chapter.id === 'learning'
           ? '<nav id="solution-switch"><a href="?solution=1#learning" data-solution="1">Tablet</a><a href="?solution=2#learning" data-solution="2">Smartpen</a></nav><section id="learning-solution-1" data-learning-solution="1"><div id="demo-student"></div></section><section id="learning-solution-2" data-learning-solution="2"></section>'
-          : (chapter.id === 'materials' ? ['teacher', 'game'] : chapter.id === 'system' ? ['operations', 'billing', 'franchise'] : chapter.id === 'parent' ? ['parent'] : []).map(id => `<div id="demo-${id}"></div>`).join('') }))
+          : (chapter.id === 'teaching' ? ['teacher', 'game'] : chapter.id === 'system' ? ['operations', 'billing', 'franchise'] : chapter.id === 'parent' ? ['parent'] : []).map(id => `<div id="demo-${id}"></div>`).join('') }))
       });
       scope.language = 'en'; scope.shellText = {};
       scope.proposalLanguageUrl = href => href + '?lang=zh-HK';
@@ -214,8 +214,8 @@ function harness(hash = '#teacher', query = '') {
 
 const messages = (frame, type) => frame.messages.filter(message => message.data.type === type);
 
-test('the materials chapter starts its teacher scene first and all inline scenes warm without visiting their chapters', () => {
-  const h = harness('#materials');
+test('the teaching chapter starts its teacher scene first and all inline scenes warm without visiting their chapters', () => {
+  const h = harness('#teaching');
   h.init();
   assert.ok(h.frame('teacher'));
   h.warm();
@@ -518,7 +518,7 @@ test('the game preloads alongside the student binder and follows viewport, chapt
   h.document.hidden = false; h.emit('visibilitychange');
   assert.equal(messages(game, 'mc-proposal:activate').length, 3);
   assert.equal(messages(game, 'mc-proposal:navigate').length, 0);
-  h.activate('materials');
+  h.activate('teaching');
   assert.equal(messages(game, 'mc-proposal:deactivate').length, 3);
   assert.equal(h.frame('game'), game);
   assert.equal(h.frame('student'), student);
@@ -545,26 +545,49 @@ test('a hidden document never starts an embedded game and a narrow frame preserv
   assert.equal(stage.style.height, '675px');
 });
 
-test('scrolling within the materials chapter keeps the visible game active rather than resetting to its teacher demo', () => {
-  const h = harness('#materials'); h.loadApp(); h.warm();
+test('scrolling within the teaching chapter keeps the visible game active rather than resetting to its teacher demo', () => {
+  const h = harness('#teaching'); h.loadApp(); h.warm();
   h.ready('teacher', 'teacher', 'progress'); h.ready('game', 'game', 'race');
-  h.document.getElementById('materials').getBoundingClientRect = () => ({ top: 100 });
+  h.document.getElementById('teaching').getBoundingClientRect = () => ({ top: 100 });
   h.intersect('game', true);
   const game = h.frame('game');
   h.emit('scroll');
-  assert.equal(h.document.getElementById('chapter-label').textContent, 'materials');
+  assert.equal(h.document.getElementById('chapter-label').textContent, 'teaching');
   assert.equal(messages(game, 'mc-proposal:activate').length, 1);
   assert.equal(messages(game, 'mc-proposal:deactivate').length, 0);
   assert.equal(h.frame('game'), game);
 });
 
-test('legacy chapter links open the merged chapters and reuse their existing demo frames', () => {
-  for (const [legacy, chapter, demo] of [['student', 'learning', 'student'], ['smartpen-student', 'learning', 'student'], ['teacher', 'materials', 'teacher'], ['smartpen-teacher', 'materials', 'teacher'], ['library', 'materials', 'teacher'], ['authoring', 'materials', 'teacher'], ['protection', 'materials', 'teacher'], ['shared-knowledge', 'materials', 'teacher'], ['shared-practice', 'materials', 'teacher'], ['franchise', 'system', 'operations'], ['operations', 'system', 'operations'], ['billing', 'system', 'operations'], ['rollout', 'vision', null], ['proposal', 'vision', null]]) {
+test('materials stays text-only while the new teaching chapter activates its retained teacher demo', () => {
+  const h = harness('#materials'); h.loadApp(); h.warm();
+  for (const id of scenes) h.ready(id);
+  const originals = scenes.map(id => h.frame(id));
+  assert.equal(h.document.getElementById('chapter-label').textContent, 'materials');
+  assert.equal(h.document.getElementById('slide-counter').textContent, '3 / 6');
+  for (const frame of originals) assert.equal(messages(frame, 'mc-proposal:activate').length, 0);
+  h.click(h.document.querySelector('a[href="#teaching"]'));
+  assert.equal(h.address.hash, '#teaching');
+  assert.equal(h.document.getElementById('chapter-label').textContent, 'teaching');
+  assert.equal(h.document.getElementById('slide-counter').textContent, '4 / 6');
+  assert.equal(messages(h.frame('teacher'), 'mc-proposal:activate').length, 1);
+  h.click(h.document.querySelector('a[href="#materials"]'));
+  assert.equal(messages(h.frame('teacher'), 'mc-proposal:deactivate').length, 1);
+  assert.deepEqual(scenes.map(id => h.frame(id)), originals);
+});
+
+test('legacy chapter links open the appropriate split chapters and reuse their existing demo frames', () => {
+  for (const [legacy, chapter, demo] of [['student', 'learning', 'student'], ['smartpen-student', 'learning', 'student'], ['teacher', 'teaching', 'teacher'], ['smartpen-teacher', 'teaching', 'teacher'], ['library', 'materials', null], ['authoring', 'materials', null], ['protection', 'materials', null], ['shared-knowledge', 'materials', null], ['shared-practice', 'teaching', 'teacher'], ['franchise', 'system', 'operations'], ['operations', 'system', 'operations'], ['billing', 'system', 'operations'], ['rollout', 'vision', null], ['proposal', 'vision', null]]) {
     const h = harness('#' + legacy); h.loadApp(); h.warm();
     assert.equal(h.address.hash, '#' + chapter);
     assert.equal(h.document.getElementById('chapter-label').textContent, chapter);
     const original = demo ? h.frame(demo) : null;
     if (demo) h.ready(demo, 'admin', 'schedule');
+    else {
+      for (const id of scenes) {
+        h.ready(id);
+        assert.equal(messages(h.frame(id), 'mc-proposal:activate').length, 0, `${legacy} does not activate an unrelated demo`);
+      }
+    }
     h.click(h.document.querySelector('a[href="#learning"]'));
     h.click(h.document.querySelector(`a[href="#${chapter}"]`));
     if (demo) assert.equal(h.frame(demo), original);
@@ -577,7 +600,7 @@ test('switching learning approach changes only its panel and preserves every sha
   h.ready('student', 'student', 'work');
   const doc=h.document;
   const originals=scenes.map(id=>h.frame(id));
-  const materials=doc.getElementById('materials'), centre=doc.getElementById('system'), parent=doc.getElementById('parent');
+  const materials=doc.getElementById('materials'), teaching=doc.getElementById('teaching'), centre=doc.getElementById('system'), parent=doc.getElementById('parent');
   const tablet=doc.getElementById('learning-solution-1'), pen=doc.getElementById('learning-solution-2');
   assert.equal(tablet.hidden,false);assert.equal(pen.hidden,true);
   h.click(doc.querySelector('[data-solution="2"]'));
@@ -589,10 +612,11 @@ test('switching learning approach changes only its panel and preserves every sha
   assert.equal(messages(originals[1],'mc-proposal:activate').length,1,'a hidden tablet cannot become active');
   assert.deepEqual(scenes.map(id=>h.frame(id)), originals);
   assert.equal(doc.getElementById('materials'),materials);
+  assert.equal(doc.getElementById('teaching'),teaching);
   assert.equal(h.host('teacher').closest('[hidden]'),null,'the teacher demo is outside the device switch');
-  h.click(doc.querySelector('a[href="#materials"]'));
+  h.click(doc.querySelector('a[href="#teaching"]'));
   h.ready('teacher','teacher','progress');
-  assert.equal(messages(originals[0],'mc-proposal:activate').length,1,'materials activates its teacher demo while smartpen is selected');
+  assert.equal(messages(originals[0],'mc-proposal:activate').length,1,'teaching activates its teacher demo while smartpen is selected');
   assert.equal(doc.getElementById('system'),centre);assert.equal(doc.getElementById('parent'),parent);
   h.click(doc.querySelector('[data-solution="1"]'));
   assert.equal(tablet.hidden,false);assert.equal(pen.hidden,true);
@@ -605,7 +629,7 @@ test('a shared smartpen link opens the second teaching panel without altering sh
   assert.equal(h.document.getElementById('learning-solution-1').hidden,true);
   assert.equal(h.document.getElementById('learning-solution-2').hidden,false);
   assert.equal(h.document.querySelector('[data-solution="2"]').getAttribute('aria-current'),'true');
-  assert.equal(h.document.querySelectorAll('.chapter').length,5);
+  assert.equal(h.document.querySelectorAll('.chapter').length,6);
   assert.equal(h.document.querySelectorAll('iframe').length,7);
   assert.equal(new URL(h.address.href).searchParams.get('lang'),'eng');
 });

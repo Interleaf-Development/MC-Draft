@@ -12,7 +12,7 @@ const { chapters, references } = proposal;
 const { chapterHTML } = original;
 const copy = { ...shellText, ...proposal.shellTextOverrides };
 // Keep shared links working after separating student experience and materials.
-const chapterAliases = { student: 'learning', 'smartpen-student': 'learning', teacher: 'materials', 'smartpen-teacher': 'materials', library: 'materials', authoring: 'materials', protection: 'materials', 'shared-knowledge': 'materials', 'shared-practice': 'materials', franchise: 'system', operations: 'system', billing: 'system', rollout: 'vision', proposal: 'vision' };
+const chapterAliases = { student: 'learning', 'smartpen-student': 'learning', teacher: 'teaching', 'smartpen-teacher': 'teaching', library: 'materials', authoring: 'materials', protection: 'materials', 'shared-knowledge': 'materials', 'shared-practice': 'teaching', franchise: 'system', operations: 'system', billing: 'system', rollout: 'vision', proposal: 'vision' };
 const chapterIndex = hash => { const id = hash.replace(/^#/, ''); return chapters.findIndex(chapter => chapter.id === (chapterAliases[id] || id)); };
 import { initDemos, activateDemo, demoIsSaving, demoNavigationBlocked } from './demos.js';
 document.documentElement.lang=language;

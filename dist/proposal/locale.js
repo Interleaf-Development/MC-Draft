@@ -49,5 +49,5 @@ export const shellText = {
   statusLabel: t('Status', '文件狀態'),
   statusValue: t('Draft for discussion', '初稿，供討論用'),
   learningLink: t('2. Student experience', '2. 學生體驗'),
-  parentLink: t("5. Parent app", "5. 家長應用程式")
+  parentLink: t("6. Parent app", "6. 家長應用程式")
 };
