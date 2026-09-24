@@ -14,7 +14,8 @@ test('the downloadable proposal is current with its wording, diagrams and screen
     ...['content.zh-HK', 'smartpen-content', 'structure', 'shared-knowledge', 'smartpen-flow', 'smartpen-writing-demo', 'locale']
       .map(name => `dist/proposal/${name}.js`),
     'dist/proposal/assets/mathconcept-logo.png',
-    ...['student', 'teacher', 'game', 'operations', 'billing', 'parent']
+    ...['student-binder', 'student', 'student-stamps', 'teacher', 'game', 'operations', 'billing',
+      'parent', 'parent-handbook', 'parent-payments', 'parent-messages']
       .map(name => `dist/proposal/assets/pdf/${name}.png`),
     'scripts/build-proposal-pdf.py'
   ];

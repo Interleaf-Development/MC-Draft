@@ -2,7 +2,7 @@
 """Build the downloadable Chinese proposal from the website's canonical content.
 
 Requires Python packages reportlab, lxml, svglib, pypdf and Pillow, plus Node.js.
-Screenshot inputs are deliberately explicit: refresh the six PNGs in
+Screenshot inputs are deliberately explicit: refresh the PNGs in
 dist/proposal/assets/pdf when the demonstrated interface changes, then rerun.
 
 Usage: python3 scripts/build-proposal-pdf.py [--node /path/to/node]
@@ -25,13 +25,14 @@ from lxml import etree, html
 from PIL import Image as PILImage
 from pypdf import PdfReader
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
-    HRFlowable, Image, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate,
+    Flowable, HRFlowable, Image, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate,
     Spacer, Table, TableStyle,
 )
 from svglib.svglib import svg2rlg
@@ -43,6 +44,21 @@ PUBLIC_OUTPUT = ROOT / "dist/proposal/MathConcept-Proposal-V1.pdf"
 WORK = ROOT / "tmp/pdfs"
 ASSETS = ROOT / "dist/proposal/assets/pdf"
 DEMOS = ("student", "teacher", "game", "operations", "billing", "parent")
+DEMO_SCREENS = {
+    **{demo: ((f"{demo}.png", None),) for demo in DEMOS},
+    "student": (
+        ("student-binder.png", "工作簿及學習進度"),
+        ("student.png", "工作紙作答"),
+        ("student-stamps.png", "印章收藏"),
+    ),
+    "parent": (
+        ("parent.png", "課堂主頁"),
+        ("parent-handbook.png", "電子手冊及逐堂報告"),
+        ("parent-payments.png", "繳費及電子收據"),
+        ("parent-messages.png", "中心訊息"),
+    ),
+}
+SCREENSHOT_FILES = tuple(filename for demo in DEMOS for filename, _ in DEMO_SCREENS[demo])
 PAGE_WIDTH, PAGE_HEIGHT = A4
 MARGIN = 43
 CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2
@@ -106,6 +122,48 @@ def inline(element) -> str:
     return result
 
 
+class DeviceScreenshot(Flowable):
+    """Draw an unchanged app screenshot inside a restrained vector device frame."""
+
+    def __init__(self, path: Path, width: float, device: str):
+        super().__init__()
+        self.path = path
+        self.width = width
+        self.device = device
+        self.side = 4.5 if device == "phone" else 5.5
+        self.top = 9 if device == "phone" else 8
+        self.bottom = 8 if device == "phone" else 7
+        with PILImage.open(path) as source:
+            source_width, source_height = source.size
+        if source_height <= source_width:
+            raise ValueError(f"Capture {device} screenshots in portrait orientation: {path}")
+        self.screen_width = width - self.side * 2
+        self.screen_height = self.screen_width * source_height / source_width
+        self.height = self.top + self.screen_height + self.bottom
+        self.hAlign = "CENTER"
+
+    def draw(self):
+        canvas = self.canv
+        canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor("#9A9EA5"))
+        canvas.setFillColor(colors.HexColor("#F7F8FA"))
+        canvas.setLineWidth(.65)
+        canvas.roundRect(0, 0, self.width, self.height, 8 if self.device == "phone" else 7,
+                         stroke=1, fill=1)
+        canvas.drawImage(ImageReader(str(self.path)), self.side, self.bottom,
+                         width=self.screen_width, height=self.screen_height)
+        canvas.setStrokeColor(colors.HexColor("#DADDE2"))
+        canvas.setLineWidth(.3)
+        canvas.rect(self.side, self.bottom, self.screen_width, self.screen_height,
+                    stroke=1, fill=0)
+        canvas.setFillColor(colors.HexColor("#B0B4BB"))
+        canvas.circle(self.width / 2, self.height - self.top / 2, .9, stroke=0, fill=1)
+        if self.device == "phone":
+            canvas.roundRect(self.width * .37, 3, self.width * .26, 1.3, .65,
+                             stroke=0, fill=1)
+        canvas.restoreState()
+
+
 class ProposalBuilder:
     def __init__(self):
         base = dict(fontName="Proposal", fontSize=10.3, leading=16.4, textColor=INK,
@@ -121,6 +179,7 @@ class ProposalBuilder:
             "cell": ParagraphStyle("Table cell", **{**base, "fontSize": 9, "leading": 14}, spaceAfter=0),
             "small": ParagraphStyle("Small", **{**base, "fontSize": 9.3, "leading": 14.5}, spaceAfter=0),
             "notice": ParagraphStyle("Notice", **{**base, "fontSize": 8.5, "leading": 13, "textColor": RED}, spaceAfter=17),
+            "screen": ParagraphStyle("Screen label", **{**base, "fontName": "Proposal-Bold", "fontSize": 8.3, "leading": 12, "alignment": TA_CENTER}, spaceAfter=0),
         }
         self.expected = []
         self.demo_ids = []
@@ -131,20 +190,41 @@ class ProposalBuilder:
 
     def demo(self, element):
         demo = element.xpath('.//*[@data-demo]')[0].get("data-demo")
-        path = ASSETS / f"{demo}.png"
-        if not path.is_file():
-            raise FileNotFoundError(f"Capture the actual {demo} demo before exporting: {path}")
+        for filename, _ in DEMO_SCREENS[demo]:
+            path = ASSETS / filename
+            if not path.is_file():
+                raise FileNotFoundError(f"Capture the actual {demo} demo before exporting: {path}")
         self.demo_ids.append(demo)
         caption = element.xpath('.//*[contains(concat(" ",normalize-space(@class)," ")," demo-caption ")]')[0]
+        caption_paragraph = self.paragraph(caption, "caption")
+        if demo in ("student", "parent"):
+            columns = len(DEMO_SCREENS[demo])
+            column_width = CONTENT_WIDTH / columns
+            device = "tablet" if demo == "student" else "phone"
+            cells = []
+            for filename, label in DEMO_SCREENS[demo]:
+                self.expected.append(label)
+                cells.append([
+                    DeviceScreenshot(ASSETS / filename, column_width - 15, device),
+                    Spacer(1, 7), Paragraph(escape(label), self.styles["screen"]),
+                ])
+            gallery = Table([cells], colWidths=[column_width] * columns, hAlign="CENTER")
+            gallery.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 7.5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 7.5),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]))
+            return [Spacer(1, 9), KeepTogether([caption_paragraph, gallery]), Spacer(1, 13)]
         with PILImage.open(path) as source:
             source_width, source_height = source.size
-        # Portrait family/tablet views stay legible; dashboard screenshots span
-        # the text column, never distorted or cropped in the exported document.
-        max_height = 580 if demo in ("student", "parent") else 310
-        scale = min(CONTENT_WIDTH / source_width, max_height / source_height)
+        # Dashboard screenshots span the text column without distortion or crop.
+        scale = min(CONTENT_WIDTH / source_width, 310 / source_height)
         image = Image(str(path), width=source_width * scale, height=source_height * scale)
         image.hAlign = "CENTER"
-        return [Spacer(1, 9), KeepTogether([self.paragraph(caption, "caption"), image]), Spacer(1, 13)]
+        return [Spacer(1, 9), KeepTogether([caption_paragraph, image]), Spacer(1, 13)]
 
     def table(self, element):
         rows = []
@@ -262,8 +342,8 @@ def verify(builder, source):
         if forbidden in extracted:
             raise AssertionError(f"Removed cover metadata found: {forbidden}")
     images = sum(len(page.images) for page in reader.pages)
-    if images != len(DEMOS):
-        raise AssertionError(f"Expected six demo images, found {images}")
+    if images != len(SCREENSHOT_FILES):
+        raise AssertionError(f"Expected {len(SCREENSHOT_FILES)} demo images, found {images}")
     WORK.mkdir(parents=True, exist_ok=True)
     (WORK / "proposal-pdf-source.json").write_text(json.dumps({"segments": builder.expected, "demo_ids": builder.demo_ids}, ensure_ascii=False, indent=2))
     (WORK / "proposal-pdf-extracted.txt").write_text(extracted)
@@ -280,7 +360,7 @@ def write_manifest(report):
             "content.zh-HK.js", "smartpen-content.js", "structure.js", "shared-knowledge.js",
             "smartpen-flow.js", "smartpen-writing-demo.js", "locale.js", "assets/mathconcept-logo.png",
         )],
-        *[f"dist/proposal/assets/pdf/{demo}.png" for demo in DEMOS],
+        *[f"dist/proposal/assets/pdf/{filename}" for filename in SCREENSHOT_FILES],
     ]
     digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
     manifest = {
