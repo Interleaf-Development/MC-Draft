@@ -21,7 +21,7 @@ for(const element of document.querySelectorAll('[data-copy]'))element.textConten
 const topbar=document.querySelector('.topbar');
 const measureHeader=()=>document.documentElement.style.setProperty('--proposal-header-height',topbar.getBoundingClientRect().height+'px');
 measureHeader();new ResizeObserver(measureHeader).observe(topbar);
-document.querySelector('meta[name="description"]').content=t('MathConcept proposal: tablet and smartpen student experiences, teaching materials, centre management and parent services.','MathConcept 系統建議書：平板與智能筆的學生體驗、教材、中心管理及家長服務。');
+document.querySelector('meta[name="description"]').content=t('MathConcept proposal: smartpen and tablet student experiences, teaching materials, centre management and parent services.','MathConcept 系統建議書：智能筆與平板的學生體驗、教材、中心管理及家長服務。');
 for(const [id,label] of Object.entries({chapters:t('Proposal chapters','建議書章節'),menu:t('Open contents','開啟目錄'),references:t('Open reference documents','開啟參考文件'),'close-dialog':t('Close dialog','關閉視窗')}))document.getElementById(id).setAttribute('aria-label',label);
 document.getElementById('prev').textContent=t('← Previous','← 上一章');
 document.getElementById('next').textContent=t('Next →','下一章 →');

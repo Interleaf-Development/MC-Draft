@@ -89,7 +89,7 @@ p { color: var(--muted); }
 .smartpen-flow-copy p { font-size: 13px; line-height: 1.65; }
 .smartpen-flow-number { color: var(--muted); font-weight: 400; }
 .smartpen-flow-arrow { position: absolute; top: 38px; right: -22px; color: #969696; font-size: 22px; line-height: 1; }
-#learning-solution-2 .feature-detail > p + p { margin-top: 10px; }
+#learning-solution-1 .feature-detail > p + p { margin-top: 10px; }
 .reference-section + .reference-section { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
 .breadcrumb { display: flex; align-items: center; min-width: 0; gap: 10px; color: #777; font-size: 12px; }
 .breadcrumb span:last-child { color: var(--ink); }

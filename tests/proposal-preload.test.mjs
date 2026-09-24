@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { getProposalSolution, proposalSolutionUrl } from '../dist/proposal/solutions.js';
+import { getProposalLanguage, proposalLanguageUrl } from '../dist/proposal/locale.js';
 
 const source = await readFile(new URL('../dist/proposal/demos.js', import.meta.url), 'utf8');
 const appSource = await readFile(new URL('../dist/proposal/app.js', import.meta.url), 'utf8');
@@ -178,11 +179,11 @@ function harness(hash = '#teacher', query = '') {
       scope.buildProposalStructure = (_language, original) => ({
         ...original,
         chapters: original.chapters.map(chapter => ({ ...chapter, body: chapter.id === 'learning'
-          ? '<nav id="solution-switch"><a href="?solution=1#learning" data-solution="1">Tablet</a><a href="?solution=2#learning" data-solution="2">Smartpen</a></nav><section id="learning-solution-1" data-learning-solution="1"><div id="demo-student"></div></section><section id="learning-solution-2" data-learning-solution="2"></section>'
+          ? '<nav id="solution-switch"><a href="?solution=1#learning" data-solution="1">Smartpen</a><a href="?solution=2#learning" data-solution="2">Tablet</a></nav><section id="learning-solution-1" data-learning-solution="1"></section><section id="learning-solution-2" data-learning-solution="2"><div id="demo-student"></div></section>'
           : (chapter.id === 'teaching' ? ['teacher', 'game'] : chapter.id === 'system' ? ['operations', 'billing', 'franchise'] : chapter.id === 'parent' ? ['parent'] : []).map(id => `<div id="demo-${id}"></div>`).join('') }))
       });
-      scope.language = 'en'; scope.shellText = {};
-      scope.proposalLanguageUrl = href => href + '?lang=zh-HK';
+      scope.language = getProposalLanguage(new URL(address.href)); scope.shellText = {};
+      scope.proposalLanguageUrl = proposalLanguageUrl;
       vm.runInContext('(function(){\n' + appSource.replace(/^import[^\n]+\n/gm, '').replaceAll('export function ', 'function ') + '\n})()', scope);
     },
     click(target) {
@@ -595,21 +596,45 @@ test('legacy chapter links open the appropriate split chapters and reuse their e
   }
 });
 
-test('switching learning approach changes only its panel and preserves every shared demo instance', () => {
-  const h = harness('#learning'); h.loadApp(); h.warm();
+test('smartpen opens by default and switching to tablet then back preserves shared chapters and every demo instance', () => {
+  const h = harness('#learning', '?lang=eng&revision=current&view=present'); h.loadApp(); h.warm();
   h.ready('student', 'student', 'work');
   const doc=h.document;
   const originals=scenes.map(id=>h.frame(id));
   const materials=doc.getElementById('materials'), teaching=doc.getElementById('teaching'), centre=doc.getElementById('system'), parent=doc.getElementById('parent');
-  const tablet=doc.getElementById('learning-solution-1'), pen=doc.getElementById('learning-solution-2');
-  assert.equal(tablet.hidden,false);assert.equal(pen.hidden,true);
-  h.click(doc.querySelector('[data-solution="2"]'));
-  assert.equal(tablet.hidden,true);assert.equal(pen.hidden,false);
+  const pen=doc.getElementById('learning-solution-1'), tablet=doc.getElementById('learning-solution-2');
+  const penTab=doc.querySelector('[data-solution="1"]'), tabletTab=doc.querySelector('[data-solution="2"]');
+  assert.equal(pen.hidden,false);assert.equal(tablet.hidden,true);
+  assert.equal(penTab.getAttribute('aria-current'),'true');
+  assert.equal(tabletTab.getAttribute('aria-current'),null);
+  assert.equal(messages(originals[1],'mc-proposal:activate').length,0,'the hidden tablet remains preloaded without activation');
+  h.message(originals[1].contentWindow,{type:'mc-proposal:focused'});
+  assert.equal(messages(originals[1],'mc-proposal:activate').length,0,'a hidden tablet cannot become active');
+  h.click(tabletTab);
+  assert.equal(pen.hidden,true);assert.equal(tablet.hidden,false);
+  assert.equal(penTab.getAttribute('aria-current'),null);
+  assert.equal(tabletTab.getAttribute('aria-current'),'true');
   assert.equal(h.address.hash,'#learning');
   assert.equal(new URL(h.address.href).searchParams.get('solution'),'2');
+  assert.equal(messages(originals[1],'mc-proposal:activate').length,1);
+  const translated=new URL(doc.getElementById('language-switch').href,origin);
+  assert.equal(getProposalLanguage(translated),'zh-HK');
+  assert.equal(getProposalSolution(translated),'2');
+  assert.equal(translated.searchParams.get('revision'),'current');
+  assert.equal(translated.searchParams.get('view'),'present');
+  assert.equal(translated.hash,'#learning');
+  h.click(penTab);
+  assert.equal(pen.hidden,false);assert.equal(tablet.hidden,true);
+  assert.equal(penTab.getAttribute('aria-current'),'true');
+  assert.equal(tabletTab.getAttribute('aria-current'),null);
+  const restored=new URL(h.address.href);
+  assert.equal(restored.searchParams.has('solution'),false);
+  assert.equal(restored.searchParams.get('lang'),'eng');
+  assert.equal(restored.searchParams.get('revision'),'current');
+  assert.equal(restored.searchParams.get('view'),'present');
   assert.equal(messages(originals[1],'mc-proposal:deactivate').length,1);
   h.message(originals[1].contentWindow,{type:'mc-proposal:focused'});
-  assert.equal(messages(originals[1],'mc-proposal:activate').length,1,'a hidden tablet cannot become active');
+  assert.equal(messages(originals[1],'mc-proposal:activate').length,1,'switching back prevents hidden tablet reactivation');
   assert.deepEqual(scenes.map(id=>h.frame(id)), originals);
   assert.equal(doc.getElementById('materials'),materials);
   assert.equal(doc.getElementById('teaching'),teaching);
@@ -618,18 +643,32 @@ test('switching learning approach changes only its panel and preserves every sha
   h.ready('teacher','teacher','progress');
   assert.equal(messages(originals[0],'mc-proposal:activate').length,1,'teaching activates its teacher demo while smartpen is selected');
   assert.equal(doc.getElementById('system'),centre);assert.equal(doc.getElementById('parent'),parent);
-  h.click(doc.querySelector('[data-solution="1"]'));
-  assert.equal(tablet.hidden,false);assert.equal(pen.hidden,true);
+  h.click(penTab);
+  assert.equal(pen.hidden,false);assert.equal(tablet.hidden,true);
   assert.equal(new URL(h.address.href).searchParams.has('solution'),false);
   assert.deepEqual(scenes.map(id=>h.frame(id)), originals);
 });
 
-test('a shared smartpen link opens the second teaching panel without altering shared chapters', () => {
+test('an explicit solution two link opens the tablet experience without altering shared chapters', () => {
   const h = harness('#learning','?solution=2&lang=eng');h.loadApp();h.warm();
+  h.ready('student','student','work');
   assert.equal(h.document.getElementById('learning-solution-1').hidden,true);
   assert.equal(h.document.getElementById('learning-solution-2').hidden,false);
   assert.equal(h.document.querySelector('[data-solution="2"]').getAttribute('aria-current'),'true');
+  assert.equal(h.host('student').closest('[hidden]'),null);
+  assert.equal(messages(h.frame('student'),'mc-proposal:activate').length,1);
   assert.equal(h.document.querySelectorAll('.chapter').length,6);
   assert.equal(h.document.querySelectorAll('iframe').length,7);
   assert.equal(new URL(h.address.href).searchParams.get('lang'),'eng');
+});
+
+test('explicit solution one and unknown solution links both open smartpen without activating the tablet', () => {
+  for (const query of ['?solution=1', '?solution=unknown']) {
+    const h=harness('#learning',query);h.loadApp();h.warm();h.ready('student','student','work');
+    assert.equal(h.document.getElementById('learning-solution-1').hidden,false);
+    assert.equal(h.document.getElementById('learning-solution-2').hidden,true);
+    assert.equal(h.document.querySelector('[data-solution="1"]').getAttribute('aria-current'),'true');
+    assert.equal(messages(h.frame('student'),'mc-proposal:activate').length,0);
+    assert.equal(h.document.querySelectorAll('iframe').length,scenes.length);
+  }
 });

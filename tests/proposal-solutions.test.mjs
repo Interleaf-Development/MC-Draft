@@ -11,7 +11,7 @@ const base = 'https://mc-draft-rho.vercel.app';
 const chapterIds = ['vision', 'student', 'teacher', 'library', 'system', 'parent', 'franchise'];
 const demos = html => [...html.matchAll(/data-demo="([^"]+)"/g)].map(match => match[1]);
 
-test('existing proposal links keep solution one unless solution two is explicitly selected', () => {
+test('proposal links default to smartpen solution one unless tablet solution two is explicitly selected', () => {
   for (const query of ['', '?lang=eng', '?solution=1', '?solution=unknown']) {
     assert.equal(getProposalSolution(new URL('/proposal/' + query, base)), '1');
   }
@@ -89,7 +89,7 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
     assert.ok(alternate.shellTextOverrides.documentTitle?.trim());
     assert.notEqual(alternate.chapters.find(chapter => chapter.id === 'student').intro,
       original.chapters.find(chapter => chapter.id === 'student').intro);
-    assert.equal(JSON.stringify(input), before, 'creating solution two does not alter the supplied content');
+    assert.equal(JSON.stringify(input), before, 'creating the smartpen proposal does not alter the supplied content');
     assert.equal(JSON.stringify({ chapters: original.chapters, references: original.references }), before,
       'the original proposal remains available unchanged');
   });
@@ -109,7 +109,7 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
   });
 }
 
-test('solution two has separate Chinese and English overviews', () => {
+test('smartpen solution one has separate Chinese and English overviews', () => {
   const zh = getSmartpenProposal('zh-HK', chinese);
   const en = getSmartpenProposal('en', english);
   assert.notEqual(zh.overviewHTML, en.overviewHTML);
@@ -194,9 +194,12 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
     const learning = byId('learning').body;
     const switcher = elementByAttribute(learning, 'id', 'solution-switch');
     const options = [...switcher.html.matchAll(/<a\b[^>]*data-solution=["']([^"']+)["']/gi)].map(match => match[1]);
-    assert.deepEqual(options.sort(), ['1', '2']);
-    const tablet = elementByAttribute(learning, 'data-learning-solution', '1');
-    const smartpen = elementByAttribute(learning, 'data-learning-solution', '2');
+    assert.deepEqual(options, ['1', '2'], 'the selector presents solution one before solution two');
+    assert.match(readableText(elementByAttribute(switcher.html, 'data-solution', '1').html), language === 'zh-HK' ? /智能筆/ : /smartpen/i);
+    assert.match(readableText(elementByAttribute(switcher.html, 'data-solution', '2').html), language === 'zh-HK' ? /平板/ : /tablet/i);
+    const smartpen = elementByAttribute(learning, 'data-learning-solution', '1');
+    const tablet = elementByAttribute(learning, 'data-learning-solution', '2');
+    assert.ok(smartpen.end < tablet.start, 'the smartpen experience is presented before the tablet experience');
     assert.deepEqual(demos(tablet.html), ['student']);
     assert.deepEqual(demos(smartpen.html), [], 'proposed smartpen capture does not show connected tablet demonstrations');
     assert.deepEqual(demos(learning), ['student'], 'teacher and practice demos are outside the student device choice');

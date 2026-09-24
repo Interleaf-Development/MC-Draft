@@ -1,4 +1,4 @@
-// A second proposal, kept separate from the original tablet-first solution.
+// Smartpen-first option content, kept separate from the tablet option.
 // Existing operational chapters are reused so the agreed centre policies stay aligned.
 export function getSmartpenProposal(language, original) {
   const zh = language === 'zh-HK';
@@ -14,26 +14,26 @@ export function getSmartpenProposal(language, original) {
 
   const overviewHTML = `
     <header class="document-header">
-      <div class="document-type">${copy('方案二 · 紙本學習數碼化', 'Solution 2 · Digitising paper-based learning')}</div>
+      <div class="document-type">${copy('方案一 · 紙本學習數碼化', 'Solution 1 · Digitising paper-based learning')}</div>
       <h1 id="document-title">${copy('1. MathConcept 智能筆教學及中心管理系統', '1. MathConcept Smartpen Teaching & Centre Management System')}</h1>
       <p class="document-summary">${copy('保留學生使用紙本工作紙及資料夾的學習方式，以墨水智能筆在專用點紋工作紙上作答，連線時逐筆同步至學生的學習紀錄。老師可繼續在課堂派發、講解及跟進習作，並透過系統管理教材、查看作答、記錄批改及改正進度。家長手冊、中心行政、收費及跨中心管理亦集中在同一系統。', 'Keep students working on paper worksheets in their familiar binders, using ink smartpens on compatible patterned worksheets to stream strokes into each student’s learning record while connected. Teachers continue handing out, explaining and following up work in class, while the system supports material management, review of answers, marking records and corrections. The parent handbook, centre administration, billing and multi-centre management remain part of the same system.')}</p>
       <dl class="document-metadata">
         <div><dt>${copy('提交對象', 'Prepared for')}</dt><dd>MathConcept</dd></div>
-        <div><dt>${copy('文件類別', 'Document')}</dt><dd>${copy('方案二建議書', 'Solution 2 proposal')}</dd></div>
+        <div><dt>${copy('文件類別', 'Document')}</dt><dd>${copy('方案一建議書', 'Solution 1 proposal')}</dd></div>
         <div><dt>${copy('日期', 'Date')}</dt><dd>${copy('2026年9月24日', '24 September 2026')}</dd></div>
         <div><dt>${copy('文件狀態', 'Status')}</dt><dd>${copy('初稿，供比較及討論', 'Draft for comparison and discussion')}</dd></div>
       </dl>
     </header>
     <section class="feature-detail">
       <h2>${copy('兩個方案，供 MathConcept 選擇', 'Two approaches for MathConcept to consider')}</h2>
-      ${paragraph('原有方案一完整保留，主張以平板及電子學習冊作為主要作答方式。本方案二則以紙本工作紙及智能筆為主要學習方式，將紙上的作答帶入系統。MathConcept 可按教學需要選擇合適方案，兩者共用相同的中心管理及家長服務。', 'Solution 1 remains available in full and uses tablets and a digital binder as the main way of answering worksheets. Solution 2 uses paper worksheets and smartpens, bringing written work into the system. MathConcept can choose the approach that suits its teaching needs, with the same centre management and parent services in either case.')}
+      ${paragraph('原有方案二完整保留，主張以平板及電子學習冊作為主要作答方式。本方案一則以紙本工作紙及智能筆為主要學習方式，將紙上的作答帶入系統。MathConcept 可按教學需要選擇合適方案，兩者共用相同的中心管理及家長服務。', 'Solution 2 remains available in full and uses tablets and a digital binder as the main way of answering worksheets. Solution 1 uses paper worksheets and smartpens, bringing written work into the system. MathConcept can choose the approach that suits its teaching needs, with the same centre management and parent services in either case.')}
       <div class="feature-table-wrap"><table class="feature-table solution-comparison">
-        <thead><tr><th scope="col">${copy('比較項目', 'Area')}</th><th scope="col">${copy('方案一：平板學習', 'Solution 1: tablet learning')}</th><th scope="col">${copy('方案二：智能筆與紙本學習', 'Solution 2: smartpen and paper learning')}</th></tr></thead>
+        <thead><tr><th scope="col">${copy('比較項目', 'Area')}</th><th scope="col">${copy('方案一：智能筆與紙本學習', 'Solution 1: smartpen and paper learning')}</th><th scope="col">${copy('方案二：平板學習', 'Solution 2: tablet learning')}</th></tr></thead>
         <tbody>
-          <tr><th scope="row">${copy('學生作答', 'Student work')}</th><td>${copy('主要在平板的電子工作紙上手寫。', 'Primarily handwritten on digital worksheets using a tablet.')}</td><td>${copy('以相容智能筆在專用印製的紙本工作紙上作答。', 'Written with a compatible smartpen on specially prepared printed worksheets.')}</td></tr>
-          <tr><th scope="row">${copy('課堂安排', 'Classroom routine')}</th><td>${copy('使用電子學習冊派發及整理習作。', 'A digital binder organises and delivers assignments.')}</td><td>${copy('保留紙本資料夾及派發習作的習慣，增加智能筆領用與同步程序。', 'Retain paper binders and worksheet handout routines, adding pen allocation and synchronisation.')}</td></tr>
-          <tr><th scope="row">${copy('學習紀錄', 'Learning records')}</th><td>${copy('作答直接保存在電子工作紙。', 'Answers are saved on the digital worksheet.')}</td><td>${copy('連線時逐筆同步；支援的筆型可離線記錄，再補傳至對應習作。', 'Strokes sync while connected; supported pens can store offline work for later transfer to the correct assignment.')}</td></tr>
-          <tr><th scope="row">${copy('主要設備與耗材', 'Equipment and supplies')}</th><td>${copy('平板、書寫筆及充電安排。', 'Tablets, styluses and charging arrangements.')}</td><td>${copy('相容智能筆、配合的工作紙印製、充電及同步安排。', 'Compatible smartpens, suitable worksheet printing, charging and synchronisation arrangements.')}</td></tr>
+          <tr><th scope="row">${copy('學生作答', 'Student work')}</th><td>${copy('以相容智能筆在專用印製的紙本工作紙上作答。', 'Written with a compatible smartpen on specially prepared printed worksheets.')}</td><td>${copy('主要在平板的電子工作紙上手寫。', 'Primarily handwritten on digital worksheets using a tablet.')}</td></tr>
+          <tr><th scope="row">${copy('課堂安排', 'Classroom routine')}</th><td>${copy('保留紙本資料夾及派發習作的習慣，增加智能筆領用與同步程序。', 'Retain paper binders and worksheet handout routines, adding pen allocation and synchronisation.')}</td><td>${copy('使用電子學習冊派發及整理習作。', 'A digital binder organises and delivers assignments.')}</td></tr>
+          <tr><th scope="row">${copy('學習紀錄', 'Learning records')}</th><td>${copy('連線時逐筆同步；支援的筆型可離線記錄，再補傳至對應習作。', 'Strokes sync while connected; supported pens can store offline work for later transfer to the correct assignment.')}</td><td>${copy('作答直接保存在電子工作紙。', 'Answers are saved on the digital worksheet.')}</td></tr>
+          <tr><th scope="row">${copy('主要設備與耗材', 'Equipment and supplies')}</th><td>${copy('相容智能筆、配合的工作紙印製、充電及同步安排。', 'Compatible smartpens, suitable worksheet printing, charging and synchronisation arrangements.')}</td><td>${copy('平板、書寫筆及充電安排。', 'Tablets, styluses and charging arrangements.')}</td></tr>
           <tr><th scope="row">${copy('共用功能', 'Shared functions')}</th><td colspan="2">${copy('教材管理、學習進度、課堂報告、印章、家長應用程式、排課、收費對帳及跨中心管理。', 'Material management, learning progress, lesson reports, stamps, the parent app, scheduling, billing reconciliation and multi-centre management.')}</td></tr>
         </tbody>
       </table></div>
@@ -49,7 +49,7 @@ export function getSmartpenProposal(language, original) {
     <div class="document-links"><a href="#student">${copy('2. 學生學習體驗', '2. Student learning experience')}</a><a href="#system">${copy('5. 中心管理', '5. Centre management')}</a></div>`;
 
   const chapters = [
-    { id: 'vision', title: copy('方案二概覽', 'Solution 2 overview') },
+    { id: 'vision', title: copy('方案一概覽', 'Solution 1 overview') },
     {
       id: 'student', title: copy('學生學習體驗', 'Student learning experience'),
       heading: copy('在紙上書寫，筆跡同步至系統', 'Write on paper and sync handwriting to the system'),
@@ -133,8 +133,8 @@ export function getSmartpenProposal(language, original) {
 
   const references = {
     scope: {
-      title: copy('方案二詳細範圍', 'Solution 2 detailed scope'),
-      body: paragraph('本方案以紙本及智能筆為主要作答方式。原有方案一另頁保留；中心行政及收費政策共用，無須因學生書寫工具改變而重新設定。', 'This proposal uses paper and smartpens as the main answering method. Solution 1 remains available separately. Administrative and billing policies are shared and do not need to change because students use a different writing tool.') +
+      title: copy('方案一詳細範圍', 'Solution 1 detailed scope'),
+      body: paragraph('本方案以紙本及智能筆為主要作答方式。原有方案二另頁保留；中心行政及收費政策共用，無須因學生書寫工具改變而重新設定。', 'This proposal uses paper and smartpens as the main answering method. Solution 2 remains available separately. Administrative and billing policies are shared and do not need to change because students use a different writing tool.') +
         detail(copy('教學及學習紀錄', 'Teaching and learning records'), list([
           copy('按學生、工作紙版本、頁次及派發紀錄配對紙張與筆跡，保留補印及重新派發歷史。', 'Associate paper and handwriting with the student, worksheet version, page and assignment, retaining reprint and reassignment history.'),
           copy('連線時逐筆同步，支援的筆型可離線暫存後補傳；顯示已收到、待同步及需要跟進的習作，避免把未收到筆跡判斷為未完成作答。', 'Stream strokes while connected, with offline capture and later transfer on supported pens. Distinguish received, pending and exception records without treating missing data as unfinished work.'),
@@ -180,12 +180,12 @@ export function getSmartpenProposal(language, original) {
     references,
     overviewHTML,
     shellTextOverrides: {
-      draftMark: copy('方案二建議書', 'SOLUTION 2 PROPOSAL'),
+      draftMark: copy('方案一建議書', 'SOLUTION 1 PROPOSAL'),
       draftNote: copy('智能筆與紙本學習 · 初稿', 'Smartpen and paper learning · Draft'),
-      documentType: copy('方案二 · 紙本學習數碼化', 'Solution 2 · Digitising paper-based learning'),
+      documentType: copy('方案一 · 紙本學習數碼化', 'Solution 1 · Digitising paper-based learning'),
       documentTitle: copy('1. MathConcept 智能筆教學及中心管理系統', '1. MathConcept Smartpen Teaching & Centre Management System'),
       draftDate: copy('2026年9月24日', '24 September 2026'),
-      documentValue: copy('方案二建議書', 'Solution 2 proposal'),
+      documentValue: copy('方案一建議書', 'Solution 1 proposal'),
       statusValue: copy('初稿，供比較及討論', 'Draft for comparison and discussion')
     }
   };

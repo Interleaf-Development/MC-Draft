@@ -21,7 +21,7 @@ export function buildProposalStructure(language, original, smartpen) {
     <header class="document-header">
       <div class="document-type">${copy('系統功能建議', 'System proposal')}</div>
       <h1 id="document-title">${copy('1. MathConcept 教學及中心管理系統', '1. MathConcept Teaching & Centre Management System')}</h1>
-      ${zh ? '' : `<p class="document-summary">${copy('我們建議為 MathConcept 建立一套涵蓋學生學習、教材管理、中心營運及家長服務的系統。學生可使用平板或紙本配合智能筆作答，以下先介紹兩種學生體驗，再說明教材、教學流程、跨中心知識庫、中心管理及家長功能。', 'We recommend bringing student learning, teaching materials, centre operations and parent services together in one system for MathConcept. Students can answer on tablets or on paper with smartpens. We first introduce these two student experiences, followed by teaching materials, teaching workflows, the cross-centre knowledge base, centre management and parent functions.')}</p>`}
+      ${zh ? '' : `<p class="document-summary">${copy('我們建議為 MathConcept 建立一套涵蓋學生學習、教材管理、中心營運及家長服務的系統。學生可使用平板或紙本配合智能筆作答，以下先介紹兩種學生體驗，再說明教材、教學流程、跨中心知識庫、中心管理及家長功能。', 'We recommend bringing student learning, teaching materials, centre operations and parent services together in one system for MathConcept. Students can answer on paper with smartpens or on tablets. We first introduce these two student experiences, followed by teaching materials, teaching workflows, the cross-centre knowledge base, centre management and parent functions.')}</p>`}
       <dl class="document-metadata">
         <div><dt>${copy('提交對象', 'Prepared for')}</dt><dd>MathConcept</dd></div>
         <div><dt>${copy('文件類別', 'Document')}</dt><dd>${copy('系統建議書', 'System proposal')}</dd></div>
@@ -31,7 +31,7 @@ export function buildProposalStructure(language, original, smartpen) {
     </header>
     <section class="feature-detail">
       <h2>${copy('系統概覽', 'System overview')}</h2>
-      ${paragraph(copy('我們建議為 MathConcept 建立一套以 AI 深度輔助的綜合系統，涵蓋學生學習、教材管理、中心營運及家長服務，並在各個合適的流程中充分運用 AI，以提升教學質素及營運效率。系統預計包括 iOS 及 Android 原生應用程式(Native Application)，以及供電腦使用的網頁介面。家長以手機為主，老師可使用平板或電腦，中心職員及總部以電腦處理日常工作。學生方面，我們有兩套方案：方案一以平板作答為主同時保留紙本掃描；方案二是採用智能筆配合特製紙張的技術，讓使用者能如常在紙上書寫的同時，此技術能將書寫內容自動同步至系統。', 'The proposed system includes native iOS and Android applications and a web interface for computers. Parents mainly use phones, teachers use tablets or computers, and centre staff and HQ use computers for everyday work. Students can choose between two writing methods: portrait tablets in Solution 1, or familiar binders and specially patterned worksheets with ink smartpens streaming strokes while connected in Solution 2.'))}
+      ${paragraph(copy('我們建議為 MathConcept 建立一套以 AI 深度輔助的綜合系統，涵蓋學生學習、教材管理、中心營運及家長服務，並在各個合適的流程中充分運用 AI，以提升教學質素及營運效率。系統預計包括 iOS 及 Android 原生應用程式(Native Application)，以及供電腦使用的網頁介面。家長以手機為主，老師可使用平板或電腦，中心職員及總部以電腦處理日常工作。學生方面，我們有兩套方案：方案一是採用智能筆配合特製紙張的技術，讓使用者能如常在紙上書寫的同時，此技術能將書寫內容自動同步至系統；方案二以平板作答為主同時保留紙本掃描。', 'The proposed system includes native iOS and Android applications and a web interface for computers. Parents mainly use phones, teachers use tablets or computers, and centre staff and HQ use computers for everyday work. Students can choose between two writing methods: familiar binders and specially patterned worksheets with ink smartpens streaming strokes while connected in Solution 1, or portrait tablets in Solution 2.'))}
       ${paragraph(copy('<strong>學生及老師：</strong>派發習作、作答、批改、改正、學習進度及集印鼓勵。學生的兩套學習體驗方案見第 2 節；教材準備、教材內容保護見第 3 節；派發及老師跟進流程見第 4 節。', '<strong>Students and teachers:</strong> assignments, answers, marking, corrections, learning progress and stamp rewards. Section 2 describes how students write; section 3 covers material preparation, and section 4 covers assignment and teacher follow-up.'))}
       ${paragraph(copy('<strong>中心職員及總部：</strong>報名、排課、請假補堂、家長溝通、收費與銀行對帳，以及跨中心權限及營運管理。', '<strong>Centre staff and HQ:</strong> enrolment, scheduling, leave and make-up arrangements, parent communication, billing and bank reconciliation, plus permissions and operations across centres.'))}
       ${paragraph(copy('<strong>家長：</strong>透過手機查閱子女課堂、已開放的學習紀錄、電子手冊、帳單及收據，提交請假或付款證明，並與中心溝通。', '<strong>Parents:</strong> use a phone to view lessons, released learning records, the digital handbook, invoices and receipts, submit leave requests or payment proof, and communicate with the centre.'))}
@@ -42,12 +42,12 @@ export function buildProposalStructure(language, original, smartpen) {
     id: 'learning',
     title: copy('學生體驗', 'Student experience'),
     heading: copy('學生體驗 — 兩個建議方案', 'Student experience'),
-    intro: copy('', 'Students can write on a tablet with a stylus, or keep paper worksheets and use an ink smartpen to capture their handwriting. Compare the two writing experiences below.'),
+    intro: copy('', 'Students can keep paper worksheets and use an ink smartpen to capture their handwriting, or write on a tablet with a stylus. Compare the two writing experiences below.'),
     body: `<section class="learning-comparison" id="learning-comparison" aria-labelledby="${zh ? 'heading-learning' : 'learning-comparison-title'}">
-      ${zh ? '' : `<header class="learning-comparison-heading"><h3 id="learning-comparison-title">${copy('選擇作答方式', 'Choose how students write')}</h3><p>${copy('切換下方選項，查看平板或智能筆的學生體驗。', 'Switch between the options to explore the tablet or smartpen student experience.')}</p></header>`}
-      <nav class="solution-switch" id="solution-switch" aria-label="${copy('選擇作答方式', 'Choose how students write')}"><a data-solution="1" aria-controls="learning-solution-1" href="?solution=1#learning"><span class="solution-number">${copy('方案一', 'Solution 1')}</span><strong>${copy('平板無紙化', 'Paperless tablets')}</strong><span class="solution-description">${copy('以平板為主配合基本紙本掃描', 'Write and answer directly on a tablet')}</span></a><a data-solution="2" aria-controls="learning-solution-2" href="?solution=2#learning"><span class="solution-number">${copy('方案二', 'Solution 2')}</span><strong>${copy('智能筆＋特製紙張', 'Paper + smartpen')}</strong><span class="solution-description">${copy('在保留紙本書寫體驗的同時自動將書寫內容同步至系統', 'Keep writing on paper, with automatic handwriting sync')}</span></a></nav>
-      <section id="learning-solution-1" class="learning-option" data-learning-solution="1" aria-labelledby="learning-solution-1-title"><h3 id="learning-solution-1-title">${copy('方案一：平板無紙化學習', 'Solution 1: paperless tablet learning')}</h3>${learningBody(original, '')}</section>
-      <section id="learning-solution-2" class="learning-option" data-learning-solution="2" aria-labelledby="learning-solution-2-title"><h3 id="learning-solution-2-title">${copy('方案二：紙本作答，筆跡即時同步', 'Solution 2: write on paper, sync strokes as you write')}</h3>${learningBody(smartpen, 'smartpen-')}</section>
+      ${zh ? '' : `<header class="learning-comparison-heading"><h3 id="learning-comparison-title">${copy('選擇作答方式', 'Choose how students write')}</h3><p>${copy('切換下方選項，查看智能筆或平板的學生體驗。', 'Switch between the options to explore the smartpen or tablet student experience.')}</p></header>`}
+      <nav class="solution-switch" id="solution-switch" aria-label="${copy('選擇作答方式', 'Choose how students write')}"><a data-solution="1" aria-controls="learning-solution-1" href="?solution=1#learning"><span class="solution-number">${copy('方案一', 'Solution 1')}</span><strong>${copy('智能筆＋特製紙張', 'Paper + smartpen')}</strong><span class="solution-description">${copy('在保留紙本書寫體驗的同時自動將書寫內容同步至系統', 'Keep writing on paper, with automatic handwriting sync')}</span></a><a data-solution="2" aria-controls="learning-solution-2" href="?solution=2#learning"><span class="solution-number">${copy('方案二', 'Solution 2')}</span><strong>${copy('平板無紙化', 'Paperless tablets')}</strong><span class="solution-description">${copy('以平板為主配合基本紙本掃描', 'Write and answer directly on a tablet')}</span></a></nav>
+      <section id="learning-solution-1" class="learning-option" data-learning-solution="1" aria-labelledby="learning-solution-1-title"><h3 id="learning-solution-1-title">${copy('方案一：紙本作答，筆跡即時同步', 'Solution 1: write on paper, sync strokes as you write')}</h3>${learningBody(smartpen, 'smartpen-')}</section>
+      <section id="learning-solution-2" class="learning-option" data-learning-solution="2" aria-labelledby="learning-solution-2-title"><h3 id="learning-solution-2-title">${copy('方案二：平板無紙化學習', 'Solution 2: paperless tablet learning')}</h3>${learningBody(original, '')}</section>
       </section>`
   };
 
@@ -97,8 +97,8 @@ export function buildProposalStructure(language, original, smartpen) {
   };
   const references = Object.fromEntries(Object.entries(referenceLabels).map(([key, title]) => {
     let penBody = smartpen.references[key].body
-      .replace('原有方案一另頁保留；', '平板與智能筆的學生體驗見第 2 節，可切換比較；')
-      .replace('Solution 1 remains available separately.', 'Tablet and smartpen student experiences are available to compare in section 2.')
+      .replace('原有方案二另頁保留；', '智能筆與平板的學生體驗見第 2 節，可切換比較；')
+      .replace('Solution 2 remains available separately.', 'Smartpen and tablet student experiences are available to compare in section 2.')
       .replace('本方案第 5 至第 7 章', '本建議書第 5 至第 6 節')
       .replace('chapters 5–7', 'sections 5–6');
     if (key === 'scope') {
@@ -108,7 +108,7 @@ export function buildProposalStructure(language, original, smartpen) {
     }
     return [key, {
       title,
-      body: `<section class="reference-section"><h3>${copy('系統功能範圍', 'System functions')}</h3>${lowerHeadings(original.references[key].body)}</section><section class="reference-section"><h3>${copy('方案二：智能筆補充內容', 'Solution 2: smartpen-specific details')}</h3>${lowerHeadings(penBody)}</section>`
+      body: `<section class="reference-section"><h3>${copy('系統功能範圍', 'System functions')}</h3>${lowerHeadings(original.references[key].body)}</section><section class="reference-section"><h3>${copy('方案一：智能筆補充內容', 'Solution 1: smartpen-specific details')}</h3>${lowerHeadings(penBody)}</section>`
     }];
   }));
 
