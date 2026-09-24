@@ -2,12 +2,11 @@ export function getProposalLanguage(url) {
   return ['eng', 'en'].includes(url.searchParams.get('lang')) ? 'en' : 'zh-HK';
 }
 
-export function proposalLanguageUrl(href, nextLanguage, { chapter, present } = {}) {
+export function proposalLanguageUrl(href, nextLanguage, { chapter } = {}) {
   const url = new URL(href);
   if (nextLanguage === 'en' || nextLanguage === 'eng') url.searchParams.set('lang', 'eng');
   else url.searchParams.delete('lang');
-  if (present === true) url.searchParams.set('view', 'present');
-  else if (present === false) url.searchParams.delete('view');
+  url.searchParams.delete('view');
   if (chapter) url.hash = chapter;
   return url.pathname + url.search + url.hash;
 }
@@ -24,7 +23,7 @@ export const shellText = {
   draftDate: t('24 September 2026', '2026年9月24日'),
   draftNote: t('Draft for discussion', '初稿，供討論用'),
   demoNotice: t('The demos here are for exploring and discussing the proposed ideas, not the final product. Design, features and workflows are not finalised; we will refine them together based on agreed requirements.', '這裏的所有示範供了解及討論之用，並非最終成品。設計、功能及操作流程尚未定稿，我們會按雙方確認的需求調整。'),
-  print: t('Print', '列印'),
+  downloadPdf: t('Download PDF', '下載 PDF'),
   documentType: t('System proposal', '系統功能建議'),
   documentTitle: t("1. MathConcept Paperless Teaching & Centre Management System", "1. MathConcept 無紙化教學及中心管理系統"),
   documentSummary: t("Build a system for MathConcept covering student learning, paperless teaching-material management and centre operations, with dedicated native applications for students, parents and centres. We first introduce the student learning experience after going paperless, supporting a hybrid approach in which students can complete exercises online or print materials for paper use. It then explains the process of digitising existing materials, creating new materials and handling centre administration.", "為 MathConcept 建立涵蓋學生學習、無紙化教材管理及中心營運的系統，並提供學生、家長及中心專用的原生應用程式（Native Application）。以下會先介紹學生無紙化下的學習體驗，支援學生以混合方式學習，既可在線上完成練習，也可列印教材供紙本使用，再說明現有教材的數碼化過程、新教材的編製方式及中心行政功能。"),

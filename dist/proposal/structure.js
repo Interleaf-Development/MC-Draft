@@ -19,15 +19,8 @@ export function buildProposalStructure(language, original, smartpen) {
 
   const overviewHTML = `
     <header class="document-header">
-      <div class="document-type">${copy('系統功能建議', 'System proposal')}</div>
       <h1 id="document-title">${copy('1. MathConcept 教學及中心管理系統', '1. MathConcept Teaching & Centre Management System')}</h1>
       ${zh ? '' : `<p class="document-summary">${copy('我們建議為 MathConcept 建立一套涵蓋學生學習、教材管理、中心營運及家長服務的系統。學生可使用平板或紙本配合智能筆作答，以下先介紹兩種學生體驗，再說明教材、教學流程、跨中心知識庫、中心管理及家長功能。', 'We recommend bringing student learning, teaching materials, centre operations and parent services together in one system for MathConcept. Students can answer on paper with smartpens or on tablets. We first introduce these two student experiences, followed by teaching materials, teaching workflows, the cross-centre knowledge base, centre management and parent functions.')}</p>`}
-      <dl class="document-metadata">
-        <div><dt>${copy('提交對象', 'Prepared for')}</dt><dd>MathConcept</dd></div>
-        <div><dt>${copy('文件類別', 'Document')}</dt><dd>${copy('系統建議書', 'System proposal')}</dd></div>
-        <div><dt>${copy('日期', 'Date')}</dt><dd>${copy('2026年9月24日', '24 September 2026')}</dd></div>
-        <div><dt>${copy('文件狀態', 'Status')}</dt><dd>${copy('初稿，供討論用', 'Draft for discussion')}</dd></div>
-      </dl>
     </header>
     <section class="feature-detail">
       <h2>${copy('系統概覽', 'System overview')}</h2>

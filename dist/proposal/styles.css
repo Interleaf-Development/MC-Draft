@@ -43,9 +43,6 @@ p { color: var(--muted); }
 .sidebar nav > a:hover { background: #f0f0f0; }
 .sidebar nav > a.active { border-left-color: var(--red); color: var(--ink); font-weight: 600; }
 .sidebar nav > a.active span { color: var(--red); }
-.sidebar-bottom { flex-shrink: 0; margin-top: auto; padding: 20px 11px 0; }
-.draft-mark { font-size: 10px; font-weight: 600; letter-spacing: .05em; color: var(--muted); }
-.sidebar-bottom p { margin-top: 4px; font-size: 11px; line-height: 1.55; }
 .page-shell { margin-left: var(--nav); min-width: 0; }
 .topbar { position: sticky; top: 0; z-index: 40; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; min-height: 58px; padding: 10px 32px; background: #fff; border-bottom: 1px solid var(--line); }
 .proposal-demo-notice { flex: 0 0 100%; padding-bottom: 8px; border-bottom: 1px solid var(--line); color: #79323a; font-size: 13px; font-weight: 500; line-height: 1.6; }
@@ -86,12 +83,10 @@ p { color: var(--muted); }
 .smartpen-flow-number { color: var(--muted); font-weight: 400; }
 .smartpen-flow-arrow { position: absolute; top: 38px; right: -22px; color: #969696; font-size: 22px; line-height: 1; }
 #learning-solution-1 .feature-detail > p + p { margin-top: 10px; }
-.breadcrumb { display: flex; align-items: center; min-width: 0; gap: 10px; color: #777; font-size: 12px; }
-.breadcrumb span:last-child { color: var(--ink); }
-#chapter-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.breadcrumb { min-width: 0; color: var(--ink); font-size: 12px; }
 .top-actions { display: flex; flex-shrink: 0; align-items: center; gap: 8px; }
-.language-switch, .mode-switch, .print-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 32px; padding: 5px 10px; border: 1px solid #ccc; border-radius: 3px; background: #fff; color: var(--ink); font-size: 12px; line-height: 1.5; white-space: nowrap; text-decoration: none; }
-.language-switch:hover, .mode-switch:hover, .print-button:hover { background: var(--soft); }
+.download-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 32px; padding: 5px 10px; border: 1px solid #ccc; border-radius: 3px; background: #fff; color: var(--ink); font-size: 12px; line-height: 1.5; white-space: nowrap; text-decoration: none; }
+.download-button:hover { background: var(--soft); }
 .icon-button { display: inline-grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 3px; background: transparent; font-size: 22px; }
 .icon-button:hover { background: var(--soft); }
 .mobile-menu { display: none; }
@@ -99,13 +94,9 @@ p { color: var(--muted); }
 /* Product description and quotation scope. */
 .chapter { max-width: 1150px; margin: 0 auto; padding: 32px; border-bottom: 1px solid var(--line); scroll-margin-top: 0; }
 .chapter > * { min-width: 0; }
-.eyebrow, .document-type { display: block; margin-bottom: 8px; font-size: 11px; line-height: 1.5; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #666; }
+.eyebrow { display: block; margin-bottom: 8px; font-size: 11px; line-height: 1.5; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #666; }
 .document-header { margin-bottom: 24px; }
 .document-summary { max-width: 850px; margin-top: 10px; font-size: 14px; line-height: 1.65; }
-.document-metadata { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; margin: 22px 0 0; padding: 8px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 12px; }
-.document-metadata > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; padding: 5px 0; }
-.document-metadata dt { color: var(--muted); }
-.document-metadata dd { margin: 0; color: var(--ink); }
 .chapter-heading { display: block; margin-bottom: 20px; }
 .section-intro { max-width: 960px; margin-top: 9px; font-size: 14px; line-height: 1.65; }
 .feature-table-wrap { max-width: 100%; margin: 12px 0 22px; overflow-x: auto; }
@@ -297,16 +288,8 @@ p { color: var(--muted); }
 .metadata dt { color: var(--muted); }
 .metadata dd { margin: 0; }
 textarea { width: 100%; resize: vertical; }
-.present-mode .chapter { display: none; }
-.present-mode .chapter.current { display: block; min-height: calc(100dvh - var(--proposal-header-height, 112px) - 54px); }
-.present-mode main { padding-bottom: 54px; }
-.present-mode .document-footer { display: none; }
-.presentation-footer { position: fixed; bottom: 0; left: var(--nav); right: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 54px; padding: 0 32px; border-top: 1px solid var(--line); background: #fff; }
-.presentation-footer button { padding: 7px 0; border: 0; background: transparent; font-size: 12px; }
-.presentation-footer span { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 #toast { position: fixed; bottom: 24px; left: calc(50% + 90px); z-index: 600; max-width: 80vw; padding: 10px 16px; border-radius: 3px; background: #303030; color: #fff; font-size: 13px; opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: opacity .15s, transform .15s; }
 #toast.visible { opacity: 1; transform: translate(-50%, 0); }
-.present-mode #toast { bottom: 70px; }
 
 html[lang=zh-HK] { font-family: -apple-system, BlinkMacSystemFont, "PingFang HK", "Microsoft JhengHei", sans-serif; }
 html[lang=zh-HK] :is(h1, h2, h3) { letter-spacing: 0; }
@@ -317,14 +300,12 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   .sidebar { padding-top: 18px; padding-bottom: 13px; }
   .brand { padding-bottom: 16px; }
   .sidebar nav > a { padding-top: 5px; padding-bottom: 5px; }
-  .sidebar-bottom { padding-top: 14px; }
 }
 @media (max-width: 1050px) {
   :root { --nav: 202px; }
   .sidebar { padding-inline: 10px; }
   .brand img { width: 160px; }
   .topbar { padding-inline: 24px; gap: 14px; }
-  .breadcrumb > span:first-child, .breadcrumb > span:nth-child(2) { display: none; }
   .chapter { padding: 28px 24px; }
 }
 @media (max-width: 850px) {
@@ -335,7 +316,6 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   .topbar { gap: 12px; padding: 10px 20px; }
   .breadcrumb { margin-right: auto; }
   .chapter { padding: 28px 24px; }
-  .presentation-footer { padding-inline: 24px; }
   #toast { left: 50%; }
 }
 @media (max-width: 620px) {
@@ -344,7 +324,7 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   .topbar { flex-wrap: wrap; gap: 5px 10px; padding: 8px 16px; }
   .breadcrumb { flex: 1; }
   .top-actions { gap: 6px; margin-left: auto; }
-  .language-switch, .mode-switch, .print-button { min-height: 30px; padding: 4px 8px; font-size: 11px; }
+  .download-button { min-height: 30px; padding: 4px 8px; font-size: 11px; }
   .top-actions .icon-button { width: 28px; height: 30px; }
   .learning-comparison-heading { padding: 18px 12px 8px; }
   .learning-comparison-heading h3 { font-size: 20px; }
@@ -356,8 +336,6 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   .solution-number, .solution-description { font-size: 12px; }
   .learning-option { padding: 22px 12px; }
   .chapter { padding: 24px 18px; }
-  .document-metadata { grid-template-columns: 1fr; gap: 0; margin-top: 18px; }
-  .document-metadata > div { grid-template-columns: 90px minmax(0, 1fr); }
   .feature-table { min-width: 560px; }
   .feature-table th, .feature-table td { padding: 10px; }
   .feature-table-wrap { margin-bottom: 20px; }
@@ -375,7 +353,6 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   .phase-gate { display: block; }
   .phase-gate span { display: block; margin-bottom: 5px; }
   .document-footer { padding: 20px 18px; align-items: baseline; }
-  .presentation-footer { padding-inline: 18px; }
 }
 @media (max-width: 700px) {
   .smartpen-flow-steps { grid-template-columns: 1fr; gap: 24px; }
@@ -390,25 +367,24 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   @page { margin: 15mm 14mm; }
   :root { color: #000; background: #fff; }
   body { font-size: 10pt; line-height: 1.5; }
-  .sidebar, .topbar, .solution-switch, .presentation-footer, .document-footer, .demo-wrap, .demo-caption, .demo-device-shell, .actual-demo-frame, .demo-loading, .document-links, .button-row, .skip, #toast, .rollout-interactive { display: none !important; }
+  .sidebar, .topbar, .solution-switch, .document-footer, .demo-wrap, .demo-caption, .demo-device-shell, .actual-demo-frame, .demo-loading, .document-links, .button-row, .skip, #toast, .rollout-interactive { display: none !important; }
   .rollout-print { display: block; }
   .demo-wrap:has(#demo-rollout) { display: block !important; }
   .page-shell { margin: 0; }
   .learning-comparison { margin: 0; border: 0; }
   .learning-comparison-heading { display: none; }
   .learning-option { padding: 0; }
-  main, .present-mode main { padding: 0; }
-  .chapter, .present-mode .chapter, .present-mode .chapter.current { display: block !important; min-height: 0 !important; max-width: none; margin: 0; padding: 18pt 0; border-bottom: 1px solid #bbb; break-before: auto; }
+  main { padding: 0; }
+  .chapter { display: block !important; min-height: 0 !important; max-width: none; margin: 0; padding: 18pt 0; border-bottom: 1px solid #bbb; break-before: auto; }
   .chapter:first-child { padding-top: 0; }
   h1 { font-size: 22pt; }
   h2 { font-size: 16pt; }
   h3 { font-size: 11pt; }
-  h1, h2, h3, h4, .eyebrow, .document-type, .chapter-heading { break-after: avoid; }
+  h1, h2, h3, h4, .eyebrow, .chapter-heading { break-after: avoid; }
   .chapter-heading { margin-bottom: 12pt; }
-  .eyebrow, .document-type { margin-bottom: 4pt; font-size: 8pt; }
+  .eyebrow { margin-bottom: 4pt; font-size: 8pt; }
   .document-header { margin-bottom: 16pt; }
   .document-summary, .section-intro { font-size: 10pt; }
-  .document-metadata { margin-top: 14pt; font-size: 9pt; }
   .feature-table-wrap { overflow: visible; margin: 9pt 0 14pt; }
   .feature-table { min-width: 0; font-size: 9pt; }
   .feature-table th, .feature-table thead th { font-size: 9pt; background: #fff; }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { getProposalSolution, proposalSolutionUrl } from '../dist/proposal/solutions.js';
-import { getProposalLanguage, proposalLanguageUrl } from '../dist/proposal/locale.js';
+import { getProposalLanguage } from '../dist/proposal/locale.js';
 
 const source = await readFile(new URL('../dist/proposal/demos.js', import.meta.url), 'utf8');
 const appSource = await readFile(new URL('../dist/proposal/app.js', import.meta.url), 'utf8');
@@ -165,8 +165,8 @@ function harness(hash = '#teacher', query = '') {
       for (const child of [...body.children]) child.remove();
       body.append(new Element('meta', { name: 'description' }));
       body.append(new Element('header', { class: 'topbar' }));
-      for (const id of ['chapters', 'menu', 'prev', 'next', 'language-switch', 'main', 'toast', 'chapter-label', 'slide-counter', 'mode', 'presentation-footer', 'sidebar', 'print-document']) {
-        body.append(new Element(id === 'language-switch' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
+      for (const id of ['chapters', 'menu', 'main', 'toast', 'sidebar', 'download-pdf']) {
+        body.append(new Element(id === 'download-pdf' ? 'a' : id === 'main' ? 'main' : 'button', { id }));
       }
       document.getElementById('main').append(new Element('section', { id: 'vision', class: 'chapter' }));
       const chapterIds = ['vision', 'learning', 'materials', 'teaching', 'system', 'parent'];
@@ -183,7 +183,6 @@ function harness(hash = '#teacher', query = '') {
           : (chapter.id === 'teaching' ? ['teacher', 'game'] : chapter.id === 'system' ? ['operations', 'billing', 'franchise'] : chapter.id === 'parent' ? ['parent'] : []).map(id => `<div id="demo-${id}"></div>`).join('') }))
       });
       scope.language = getProposalLanguage(new URL(address.href)); scope.shellText = {};
-      scope.proposalLanguageUrl = proposalLanguageUrl;
       vm.runInContext('(function(){\n' + appSource.replace(/^import[^\n]+\n/gm, '').replaceAll('export function ', 'function ') + '\n})()', scope);
     },
     click(target) {
@@ -462,21 +461,17 @@ test('a view requested before another frame starts saving stays queued until all
   assert.equal(messages(system, 'mc-proposal:navigate')[0].data.role, 'parent');
 });
 
-test('the proposal shell blocks chapter, solution, language and reading-mode navigation while its payment review saves', () => {
+test('the proposal shell blocks chapter and solution navigation while its payment review saves', () => {
   const h = harness('#billing'); h.loadApp(); h.warm(); h.ready('billing', 'admin', 'billing');
   const billing = h.frame('billing');
   const doc = h.document;
   const chapterLink = doc.querySelector('a[href="#learning"]');
-  const mode = doc.getElementById('mode');
   h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: true });
   assert.equal(h.click(chapterLink).prevented, true);
-  assert.equal(h.click(doc.getElementById('language-switch')).prevented, true);
   const solutionLink = doc.querySelector('[data-solution="2"]');
   assert.equal(h.click(solutionLink).prevented, true);
-  h.click(mode);
-  h.click(doc.getElementById('next'));
   assert.equal(h.address.hash, '#system');
-  assert.equal(doc.getElementById('chapter-label').textContent, 'system');
+  assert.equal(doc.querySelector('a[aria-current="location"]').href, '#system');
   assert.equal(doc.body.classList.contains('present-mode'), false);
   assert.match(doc.getElementById('toast').textContent, /正在儲存付款審核結果/);
   h.address.hash = '#student';
@@ -485,14 +480,11 @@ test('the proposal shell blocks chapter, solution, language and reading-mode nav
   assert.equal(messages(billing, 'mc-proposal:deactivate').length, 0);
 
   h.message(billing.contentWindow, { type: 'mc-proposal:saving', saving: false });
-  assert.equal(h.click(doc.getElementById('language-switch')).prevented, false);
   assert.equal(h.click(solutionLink).prevented, true);
   assert.equal(new URL(h.address.href).searchParams.get('solution'), '2');
-  h.click(mode);
-  assert.equal(doc.body.classList.contains('present-mode'), true);
   h.click(chapterLink);
   assert.equal(h.address.hash, '#learning');
-  assert.equal(doc.getElementById('chapter-label').textContent, 'learning');
+  assert.equal(doc.querySelector('a[aria-current="location"]').href, '#learning');
   assert.equal(h.frame('billing'), billing);
   assert.equal(messages(billing, 'mc-proposal:deactivate').length, 1);
 });
@@ -553,7 +545,7 @@ test('scrolling within the teaching chapter keeps the visible game active rather
   h.intersect('game', true);
   const game = h.frame('game');
   h.emit('scroll');
-  assert.equal(h.document.getElementById('chapter-label').textContent, 'teaching');
+  assert.equal(h.document.querySelector('a[aria-current="location"]').href, '#teaching');
   assert.equal(messages(game, 'mc-proposal:activate').length, 1);
   assert.equal(messages(game, 'mc-proposal:deactivate').length, 0);
   assert.equal(h.frame('game'), game);
@@ -566,13 +558,11 @@ test('materials stays text-only while the new teaching chapter activates its ret
   assert.equal(h.document.querySelectorAll('[data-action="reference"]').length, 0, 'navigation contains no removed reference documents');
   for (const id of scenes) h.ready(id);
   const originals = scenes.map(id => h.frame(id));
-  assert.equal(h.document.getElementById('chapter-label').textContent, 'materials');
-  assert.equal(h.document.getElementById('slide-counter').textContent, '3 / 6');
+  assert.equal(h.document.querySelector('a[aria-current="location"]').href, '#materials');
   for (const frame of originals) assert.equal(messages(frame, 'mc-proposal:activate').length, 0);
   h.click(h.document.querySelector('a[href="#teaching"]'));
   assert.equal(h.address.hash, '#teaching');
-  assert.equal(h.document.getElementById('chapter-label').textContent, 'teaching');
-  assert.equal(h.document.getElementById('slide-counter').textContent, '4 / 6');
+  assert.equal(h.document.querySelector('a[aria-current="location"]').href, '#teaching');
   assert.equal(messages(h.frame('teacher'), 'mc-proposal:activate').length, 1);
   h.click(h.document.querySelector('a[href="#materials"]'));
   assert.equal(messages(h.frame('teacher'), 'mc-proposal:deactivate').length, 1);
@@ -583,7 +573,7 @@ test('legacy chapter links open the appropriate split chapters and reuse their e
   for (const [legacy, chapter, demo] of [['student', 'learning', 'student'], ['smartpen-student', 'learning', 'student'], ['teacher', 'teaching', 'teacher'], ['smartpen-teacher', 'teaching', 'teacher'], ['library', 'materials', null], ['authoring', 'materials', null], ['protection', 'materials', null], ['shared-knowledge', 'materials', null], ['shared-practice', 'teaching', 'teacher'], ['franchise', 'system', 'operations'], ['operations', 'system', 'operations'], ['billing', 'system', 'operations'], ['rollout', 'vision', null], ['proposal', 'vision', null]]) {
     const h = harness('#' + legacy); h.loadApp(); h.warm();
     assert.equal(h.address.hash, '#' + chapter);
-    assert.equal(h.document.getElementById('chapter-label').textContent, chapter);
+    assert.equal(h.document.querySelector('a[aria-current="location"]').href, '#' + chapter);
     const original = demo ? h.frame(demo) : null;
     if (demo) h.ready(demo, 'admin', 'schedule');
     else {
@@ -603,6 +593,9 @@ test('smartpen opens by default and switching to tablet then back preserves shar
   const h = harness('#learning', '?lang=eng&revision=current&view=present'); h.loadApp(); h.warm();
   h.ready('student', 'student', 'work');
   const doc=h.document;
+  assert.equal(doc.body.classList.contains('present-mode'),false,'legacy presentation links show the full document');
+  assert.equal(new URL(h.address.href).searchParams.has('view'),false);
+  assert.equal(doc.querySelectorAll('.chapter').filter(chapter=>chapter.hidden).length,0);
   const originals=scenes.map(id=>h.frame(id));
   const materials=doc.getElementById('materials'), teaching=doc.getElementById('teaching'), centre=doc.getElementById('system'), parent=doc.getElementById('parent');
   const pen=doc.getElementById('learning-solution-1'), tablet=doc.getElementById('learning-solution-2');
@@ -620,12 +613,8 @@ test('smartpen opens by default and switching to tablet then back preserves shar
   assert.equal(h.address.hash,'#learning');
   assert.equal(new URL(h.address.href).searchParams.get('solution'),'2');
   assert.equal(messages(originals[1],'mc-proposal:activate').length,1);
-  const translated=new URL(doc.getElementById('language-switch').href,origin);
-  assert.equal(getProposalLanguage(translated),'zh-HK');
-  assert.equal(getProposalSolution(translated),'2');
-  assert.equal(translated.searchParams.get('revision'),'current');
-  assert.equal(translated.searchParams.get('view'),'present');
-  assert.equal(translated.hash,'#learning');
+  assert.equal(new URL(h.address.href).searchParams.get('revision'),'current');
+  assert.equal(new URL(h.address.href).searchParams.get('lang'),'eng');
   h.click(penTab);
   assert.equal(pen.hidden,false);assert.equal(tablet.hidden,true);
   assert.equal(penTab.getAttribute('aria-current'),'true');
@@ -634,7 +623,7 @@ test('smartpen opens by default and switching to tablet then back preserves shar
   assert.equal(restored.searchParams.has('solution'),false);
   assert.equal(restored.searchParams.get('lang'),'eng');
   assert.equal(restored.searchParams.get('revision'),'current');
-  assert.equal(restored.searchParams.get('view'),'present');
+  assert.equal(restored.searchParams.has('view'),false,'legacy presentation links open the full document');
   assert.equal(messages(originals[1],'mc-proposal:deactivate').length,1);
   h.message(originals[1].contentWindow,{type:'mc-proposal:focused'});
   assert.equal(messages(originals[1],'mc-proposal:activate').length,1,'switching back prevents hidden tablet reactivation');

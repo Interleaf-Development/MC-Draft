@@ -16,26 +16,23 @@ test('the proposal defaults to Hong Kong Traditional Chinese and accepts explici
   }
 });
 
-test('proposal language links preserve the current chapter, presentation mode and other query parameters', () => {
-  const original = base + '/proposal/?lang=eng&campaign=pilot#operations';
-  const translated = new URL(proposalLanguageUrl(original, 'zh-HK', { chapter: 'billing', present: true }), base);
+test('proposal language links retain the chapter and shared parameters while removing legacy presentation mode', () => {
+  const original = base + '/proposal/?lang=eng&campaign=pilot&view=present#operations';
+  const translated = new URL(proposalLanguageUrl(original, 'zh-HK', { chapter: 'billing' }), base);
   assert.equal(getProposalLanguage(translated), 'zh-HK');
   assert.equal(translated.searchParams.has('lang'), false);
   assert.equal(translated.hash, '#billing');
   assert.equal(translated.searchParams.get('campaign'), 'pilot');
-  assert.equal(translated.searchParams.get('view'), 'present');
-  const restored = new URL(proposalLanguageUrl(translated, 'en', { chapter: 'billing', present: true }), base);
+  assert.equal(translated.searchParams.has('view'), false);
+  const restored = new URL(proposalLanguageUrl(translated, 'en', { chapter: 'billing' }), base);
   assert.equal(getProposalLanguage(restored), 'en');
   assert.equal(restored.searchParams.get('lang'), 'eng');
   assert.equal(restored.hash, '#billing');
-  assert.equal(restored.searchParams.get('view'), 'present');
-  const reading = new URL(proposalLanguageUrl(restored, 'zh-HK', { chapter: 'student', present: false }), base);
-  assert.equal(reading.searchParams.has('view'), false);
-  assert.equal(reading.hash, '#student');
-  const unchangedView = new URL(proposalLanguageUrl(restored, 'zh-HK'), base);
-  assert.equal(unchangedView.searchParams.get('campaign'), 'pilot');
-  assert.equal(unchangedView.searchParams.get('view'), 'present');
-  assert.equal(unchangedView.hash, '#billing');
+  assert.equal(restored.searchParams.has('view'), false);
+  const retainedChapter = new URL(proposalLanguageUrl(original, 'zh-HK'), base);
+  assert.equal(retainedChapter.searchParams.get('campaign'), 'pilot');
+  assert.equal(retainedChapter.searchParams.has('view'), false);
+  assert.equal(retainedChapter.hash, '#operations');
 });
 
 test('both proposal languages expose the same chapters with their selected live demos and no reference documents', () => {
@@ -63,7 +60,9 @@ test('all marked cover and navigation text has a locale entry', async () => {
   for (const [, key] of html.matchAll(/data-copy="([^"]+)"/g)) assert.equal(typeof shellText[key], 'string', key);
   assert.doesNotMatch(html, /id="(?:references|detail-dialog|dialog-title|dialog-body|close-dialog)"|data-action="reference"/);
   assert.match(html, /<html lang="zh-HK">/);
-  assert.match(html, /href="\?lang=eng" hreflang="en"/);
+  assert.doesNotMatch(html, /id="(?:language-switch|print-document|mode|presentation-footer|prev|next|chapter-label|slide-counter)"|class="(?:sidebar-bottom|document-metadata|document-type)"/);
+  assert.match(html, /<div class="breadcrumb">MathConcept Proposal V1<\/div>/);
+  assert.match(html, /<a[^>]*id="download-pdf"[^>]*href="\.\/MathConcept-Proposal-V1\.pdf"[^>]*download/);
   for (const [, key, text] of html.matchAll(/data-copy="([^"]+)"[^>]*>([^<]*)</g)) {
     assert.equal(text, shellText[key], key + ' defaults to the approved Chinese copy');
   }

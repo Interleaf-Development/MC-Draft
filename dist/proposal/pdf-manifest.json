@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "pdf": "dist/proposal/MathConcept-Proposal-V1.pdf",
+  "pdfSha256": "067e26a3498ec1f5fa92efafd77e9ae755fb33ceb22cadef0f49a31cff8d3994",
+  "pageCount": 12,
+  "dependencies": {
+    "scripts/build-proposal-pdf.py": "875140df047d2f72871df0bf5ebd06d9b7f131d20ded844b0ce7a91daffa3b40",
+    "dist/proposal/content.zh-HK.js": "6c7633445ac7e6a48b4d5ad629a8efb4f048ebd6ad5e8c59ed1a983b47cd2a3d",
+    "dist/proposal/smartpen-content.js": "a6df7a2c1b37ee6170c2297b9a4b7ee98b34bdbf54da5ca356c8dd85fc0e706d",
+    "dist/proposal/structure.js": "37e605d41a41102de3c3467ea47470d89abb4351d23ebffc01a7b103146be9ce",
+    "dist/proposal/shared-knowledge.js": "6c897520ce65cf8ca507b6dd34aabcabc32f2658a2fa28ff535a6c67f14cbaea",
+    "dist/proposal/smartpen-flow.js": "862a862faa597dceb490087ef8f8c6a4494efc7c7166699b096fd6963625469e",
+    "dist/proposal/smartpen-writing-demo.js": "508e61e3a734e19e662007f1c5c88f94295e383ec2ef0edb25922105a399c6a7",
+    "dist/proposal/locale.js": "9a20311e51b9e78252af87f0776875d3ef65058660cdd7c09c6064d0985f975b",
+    "dist/proposal/assets/mathconcept-logo.png": "637729c1d148c5563aa35e329044fbaff780079e1e57af597c401dc03c884bef",
+    "dist/proposal/assets/pdf/student.png": "3940c503c344270a9601189df422e9d5efc9f1fa447067a897370a46654f253f",
+    "dist/proposal/assets/pdf/teacher.png": "6de55f4377281a2c50a5113948b1eb531400f92bd763ba885314ac7c208298ed",
+    "dist/proposal/assets/pdf/game.png": "e130287e57e98dace512f02e2df50bce225ffd3268f432ca0ef0b85ec4c66667",
+    "dist/proposal/assets/pdf/operations.png": "8e620ecdcd30cf41e47c1f54fd2d0c37a76f525f001698ab13eb109f4afccfe1",
+    "dist/proposal/assets/pdf/billing.png": "d3735a1c10a1787d6977752a215a9c527715eee136ae70bd9346964716d3f484",
+    "dist/proposal/assets/pdf/parent.png": "0475684718b5ebdb27e808bd50103f28bc3511286b60144c1fad1e7560793e65"
+  }
+}

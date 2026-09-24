@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#d92535">
   <meta name="description" content="MathConcept 系統建議書，涵蓋數碼學習、教材管理、中心營運及家長應用程式。">
-  <title>MathConcept — 系統功能建議</title>
+  <title>MathConcept Proposal V1</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23d92535'/%3E%3Cpath d='M7 24V8l9 8 9-8v16' fill='none' stroke='white' stroke-width='4'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
@@ -16,31 +16,21 @@
     <a class="brand" href="#vision"><img src="assets/mathconcept-logo.png" alt="MathConcept"></a>
     <div class="nav-label" data-copy="contents">目錄</div>
     <nav id="chapters" aria-label="建議書章節"><a class="active" href="#vision"><span>1.</span> 建議書概覽</a></nav>
-    <div class="sidebar-bottom"><span class="draft-mark" data-copy="draftMark">系統建議書</span><p><span data-copy="draftDate">2026年9月24日</span><br><span data-copy="draftNote">初稿，供討論用</span></p></div>
   </aside>
   <div class="page-shell">
     <header class="topbar">
       <p class="proposal-demo-notice" data-copy="demoNotice">這裏的所有示範供了解及討論之用，並非最終成品。設計、功能及操作流程尚未定稿，我們會按雙方確認的需求調整。</p>
       <button class="icon-button mobile-menu" id="menu" aria-label="開啟目錄" aria-expanded="false">☰</button>
-      <div class="breadcrumb"><span>MathConcept</span><span>/</span><span id="chapter-label">建議書概覽</span></div>
+      <div class="breadcrumb">MathConcept Proposal V1</div>
       <div class="top-actions">
-        <a class="language-switch" id="language-switch" href="?lang=eng" hreflang="en" lang="en" aria-label="切換至英文版">English</a>
-        <button class="print-button" id="print-document" data-copy="print">列印</button>
-        <button class="mode-switch" id="mode">逐章閱讀</button>
+        <a class="download-button" id="download-pdf" href="./MathConcept-Proposal-V1.pdf" download="MathConcept-Proposal-V1.pdf" data-copy="downloadPdf">下載 PDF</a>
       </div>
     </header>
     <main id="main">
       <section class="chapter document-overview" id="vision" data-chapter="0" aria-labelledby="document-title">
         <header class="document-header">
-          <div class="document-type" data-copy="documentType">系統功能建議</div>
           <h1 id="document-title" data-copy="documentTitle">1. MathConcept 無紙化教學及中心管理系統</h1>
           <p class="document-summary" data-copy="documentSummary">為 MathConcept 建立涵蓋學生學習、無紙化教材管理及中心營運的系統，並提供學生、家長及中心專用的原生應用程式（Native Application）。以下會先介紹學生無紙化下的學習體驗，支援學生以混合方式學習，既可在線上完成練習，也可列印教材供紙本使用，再說明現有教材的數碼化過程、新教材的編製方式及中心行政功能。</p>
-          <dl class="document-metadata">
-            <div><dt data-copy="preparedFor">提交對象</dt><dd>MathConcept</dd></div>
-            <div><dt data-copy="documentLabel">文件類別</dt><dd data-copy="documentValue">系統建議書</dd></div>
-            <div><dt data-copy="dateLabel">日期</dt><dd data-copy="draftDate">2026年9月24日</dd></div>
-            <div><dt data-copy="statusLabel">文件狀態</dt><dd data-copy="statusValue">初稿，供討論用</dd></div>
-          </dl>
         </header>
         <section class="feature-detail">
           <h2 data-copy="systemOverview">系統概覽</h2>
@@ -61,7 +51,6 @@
         <div class="document-links"><a href="#learning" data-copy="learningLink">2. 學生體驗</a><a href="#materials">3. 教材</a><a href="#teaching">4. 老師及課後流程</a><a href="#system">5. 中心及總部管理</a><a href="#parent" data-copy="parentLink">6. 家長應用程式</a></div>
       </section>
     </main>
-    <footer class="presentation-footer" id="presentation-footer" hidden><button id="prev">← 上一章</button><span id="slide-counter">1 / 6</span><button id="next">下一章 →</button></footer>
   </div>
   <div id="toast" role="status" aria-live="polite"></div>
 </body>

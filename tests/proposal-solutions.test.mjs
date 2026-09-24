@@ -18,16 +18,16 @@ test('proposal links default to smartpen solution one unless tablet solution two
   assert.equal(getProposalSolution(new URL('/proposal/?solution=2', base)), '2');
 });
 
-test('switching proposals preserves language, presentation mode and shared link parameters', () => {
+test('switching proposals preserves language and shared link parameters', () => {
   // Existing shared URLs include hashes from before the chapters were combined.
   // Switching an approach focuses the learning section rather than unrelated operations.
   for (const chapter of ['system', 'operations', 'billing', 'protection', 'authoring']) {
-    const original = base + '/proposal/?lang=eng&view=present&revision=a3f6e10#' + chapter;
+    const original = base + '/proposal/?lang=eng&campaign=pilot&revision=a3f6e10#' + chapter;
     const switched = new URL(proposalSolutionUrl(original, '2'), base);
     assert.equal(switched.pathname, '/proposal/');
     assert.equal(getProposalSolution(switched), '2');
     assert.equal(getProposalLanguage(switched), 'en');
-    assert.equal(switched.searchParams.get('view'), 'present');
+    assert.equal(switched.searchParams.get('campaign'), 'pilot');
     assert.equal(switched.searchParams.get('revision'), 'a3f6e10');
     assert.equal(switched.hash, '#learning');
 
@@ -36,7 +36,7 @@ test('switching proposals preserves language, presentation mode and shared link 
     assert.equal(restored.searchParams.has('solution'), false);
     assert.equal(restored.searchParams.get('lang'), 'eng');
     assert.equal(restored.searchParams.get('revision'), 'a3f6e10');
-    assert.equal(restored.searchParams.get('view'), 'present');
+    assert.equal(restored.searchParams.get('campaign'), 'pilot');
     assert.equal(restored.hash, '#learning');
   }
 });

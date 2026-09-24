@@ -7,3 +7,7 @@ work/
 .env
 .env.*
 !.env.example
+
+# Generated artifact previews and local export copies
+/output/
+/tmp/
