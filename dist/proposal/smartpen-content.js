@@ -52,15 +52,18 @@ export function getSmartpenProposal(language, original) {
     { id: 'vision', title: copy('方案二概覽', 'Solution 2 overview') },
     {
       id: 'student', title: copy('學生學習體驗', 'Student learning experience'),
-      heading: copy('像平常一樣在紙上寫，筆跡同時進入系統', 'Write naturally on paper, with handwriting appearing digitally as you write'),
-      intro: copy('學生繼續以真正有墨水的智能筆，在外觀接近一般工作紙的專用紙上作答，保留熟悉的版面及書寫空間。連線時，作答隨寫隨同步，毋須完成後逐份拍照或掃描。老師可即時查看及重播過程，家長則可在老師開放後跟進習作及進展。', 'Students use a real ink smartpen on compatible paper that looks much like an ordinary worksheet, retaining the familiar layout and writing space. While connected, work syncs as they write, without photographing or scanning each completed sheet. Teachers can follow and replay the process, and parents can review work and progress after the teacher releases it.'),
+      heading: copy('在紙上書寫，筆跡同步至系統', 'Write on paper and sync handwriting to the system'),
+      intro: copy('學生以真正有墨水的智能筆，在外觀接近一般工作紙的專用點紋紙上作答，保留熟悉的版面及書寫空間。連線正常時，筆跡隨寫隨同步，毋須完成後逐份拍照或掃描。', 'Students use a real ink smartpen on compatible patterned paper that looks much like an ordinary worksheet, retaining the familiar layout and writing space. While connected, strokes sync as they write, without photographing or scanning each completed sheet.'),
       body:
-        featureGroup('保留紙本習慣，自動留下學習紀錄', 'Keep familiar paper routines and capture learning records automatically', [
-          ['老師照常派發習作，學生沿用「已完成、目前、日後」資料夾。每份作答會整理至對應學生的學習紀錄，原作答、老師批改及後續改正可一併查閱，方便接手跟進；日後習作仍由老師決定何時派發及開放。', 'Teachers hand out work as usual, and students keep their past, current and future binder sections. Each assignment is organised under the correct pupil, with original answers, teacher marking and later corrections available together for follow-up and handover. Teachers continue deciding when future work is distributed and released.'],
-          ['每張紙本工作紙均對應學生、教材版本及派發紀錄，讓筆跡同步至正確的習作。補印時保留與原派發的關係，老師可一併查閱原有及後續作答。', 'Each printed worksheet is associated with its student, material version and assignment so handwriting reaches the correct learning record. Reprints remain linked to the original assignment, letting teachers review original and subsequent answers together.'],
-          ['支援離線儲存的筆型可先記錄、稍後補傳，學生不必因短暫斷線而停下作答。老師會看見哪些紀錄已收到、哪些仍待同步；只有完整同步並由老師開放的內容，才會分享給家長。', 'Pens with offline storage can retain work for later transfer, allowing students to keep writing through a temporary disconnection. Teachers can see which records have arrived and which remain pending. Only successfully synchronised work released by the teacher is shared with parents.']
+        featureGroup('保留紙本學習冊', 'Keep the familiar paper binder', [
+          ['學生沿用「已完成、目前、日後」資料夾，在紙上寫下答案及運算步驟。每張工作紙均對應學生及習作，讓筆跡同步至正確的紀錄；學生毋須全程在平板上作答。', 'Students retain past, current and future binder sections, writing answers and working steps on paper. Each sheet is associated with the student and assignment so strokes reach the correct record, without needing a tablet for the whole lesson.']
         ]) +
-        demo('game', copy('共用練習示範：數學飛車', 'Shared practice demo: Maths Kart'))
+        featureGroup('連線同步與離線續寫', 'Live sync and offline writing', [
+          ['連線正常時，每一筆會傳入系統。支援離線儲存的筆型可先記錄、稍後補傳，學生不必因短暫斷線而停下作答；能否離線儲存及補傳，須按選定筆型驗證。', 'While connected, each stroke is sent to the system. Pens with offline storage can retain work for later transfer, allowing students to keep writing through a temporary disconnection. Offline storage and transfer must be validated for the selected pen.']
+        ]) +
+        featureGroup('紙張與智能筆的配合', 'Compatible paper and pens', [
+          ['試行時以選定的智能筆及點紋工作紙，核對印製清晰度、書寫手感及筆跡位置。紙上的真實墨水保留原有書寫體驗；紙本擦除不代表已同步的筆跡會自動刪除。', 'The pilot checks print clarity, writing feel and stroke alignment using the chosen pen and patterned worksheets. Real ink retains the familiar writing experience; erasing on paper does not automatically delete captured strokes.']
+        ])
     },
     {
       id: 'teacher', title: copy('老師派發及批改流程', 'Teacher assignment and feedback'),

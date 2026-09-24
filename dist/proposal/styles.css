@@ -80,7 +80,7 @@ p { color: var(--muted); }
 .proposal-subsection .feature-detail > h5 { margin-bottom: 8px; }
 .smartpen-flow { margin: 24px 0 28px; padding: 20px 0; border-block: 1px solid var(--line); }
 .smartpen-flow figcaption { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
-.smartpen-flow-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 26px; margin: 0; padding: 0; list-style: none; }
+.smartpen-flow-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; margin: 0; padding: 0; list-style: none; }
 .smartpen-flow-steps > li { position: relative; min-width: 0; }
 .smartpen-flow-art { max-width: 144px; margin: 0 auto 12px; color: #53565a; }
 .smartpen-flow-art svg { display: block; width: 100%; height: auto; }
@@ -439,7 +439,7 @@ html[lang=zh-HK] :is(.section-intro, .document-summary, .plain-list, .feature-ta
   .feature-table tr { break-inside: avoid; }
   .feature-detail { margin-top: 15pt; }
   .smartpen-flow { break-inside: avoid; margin-block: 12pt; padding-block: 10pt; }
-  .smartpen-flow-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16pt; }
+  .smartpen-flow-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16pt; }
   .smartpen-flow-steps > li { display: block; }
   .smartpen-flow-art { width: 72pt; max-width: 100%; margin: 0 auto 6pt; }
   .smartpen-flow-copy strong { font-size: 9pt; }

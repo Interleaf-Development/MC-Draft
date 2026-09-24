@@ -21,7 +21,7 @@ export const shellText = {
   skip: t('Skip to proposal', '跳至建議書內容'),
   contents: t('Contents', '目錄'),
   draftMark: t('SYSTEM PROPOSAL', '系統建議書'),
-  draftDate: t('23 September 2026', '2026年9月23日'),
+  draftDate: t('24 September 2026', '2026年9月24日'),
   draftNote: t('Draft for discussion', '初稿，供討論用'),
   demoNotice: t('The demos here are for exploring and discussing the proposed ideas, not the final product. Design, features and workflows are not finalised; we will refine them together based on agreed requirements.', '這裏的所有示範供了解及討論之用，並非最終成品。設計、功能及操作流程尚未定稿，我們會按雙方確認的需求調整。'),
   print: t('Print', '列印'),
@@ -48,6 +48,6 @@ export const shellText = {
   dateLabel: t('Date', '日期'),
   statusLabel: t('Status', '文件狀態'),
   statusValue: t('Draft for discussion', '初稿，供討論用'),
-  learningLink: t('2. Student learning experience', '2. 學生學習體驗'),
-  parentLink: t("6. Parent app", "6. 家長應用程式")
+  learningLink: t('2. Student experience', '2. 學生體驗'),
+  parentLink: t("5. Parent app", "5. 家長應用程式")
 };

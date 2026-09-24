@@ -158,7 +158,7 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
   const structure = buildProposalStructure(language, original, alternate);
   const byId = id => structure.chapters.find(chapter => chapter.id === id);
 
-  test(`unified ${language} proposal uses four chapters and preserves its content inputs`, () => {
+  test(`unified ${language} proposal uses five chapters and preserves its content inputs`, () => {
     const originalInput = freezeContent(original);
     const alternateInput = Object.freeze({
       ...alternate,
@@ -167,7 +167,8 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
     });
     const before = JSON.stringify([originalInput, alternateInput]);
     const result = buildProposalStructure(language, originalInput, alternateInput);
-    assert.deepEqual(result.chapters.map(chapter => chapter.id), ['vision', 'learning', 'system', 'parent']);
+    assert.deepEqual(result.chapters.map(chapter => chapter.id), ['vision', 'learning', 'materials', 'system', 'parent']);
+    assert.equal(result.chapters[1].title, language === 'zh-HK' ? '學生體驗' : 'Student experience');
     assert.deepEqual(Object.keys(result.references).sort(), Object.keys(original.references).sort());
     assert.ok(result.overviewHTML?.trim());
     assert.ok(result.shellTextOverrides.documentTitle?.trim());
@@ -179,31 +180,35 @@ for (const [language, original] of [['zh-HK', chinese], ['en', english]]) {
       'composition does not overwrite either source proposal');
   });
 
-  test(`unified ${language} proposal keeps both learning approaches mounted with one common practice game`, () => {
+  test(`unified ${language} proposal switches only the student experience and presents teaching materials once`, () => {
     const learning = byId('learning').body;
     const switcher = elementByAttribute(learning, 'id', 'solution-switch');
     const options = [...switcher.html.matchAll(/<a\b[^>]*data-solution=["']([^"']+)["']/gi)].map(match => match[1]);
     assert.deepEqual(options.sort(), ['1', '2']);
     const tablet = elementByAttribute(learning, 'data-learning-solution', '1');
     const smartpen = elementByAttribute(learning, 'data-learning-solution', '2');
-    assert.deepEqual(demos(tablet.html).sort(), ['student', 'teacher']);
+    assert.deepEqual(demos(tablet.html), ['student']);
     assert.deepEqual(demos(smartpen.html), [], 'proposed smartpen capture does not show connected tablet demonstrations');
-    assert.equal(demos(learning).filter(id => id === 'game').length, 1);
-    const gameIndex = learning.indexOf('data-demo="game"');
-    assert.ok(gameIndex > tablet.end && gameIndex > smartpen.end, 'the shared game follows both approach panels');
-    for (const id of ['student', 'teacher']) {
-      assertContentPreserved(original.chapters.find(chapter => chapter.id === id), tablet.html, `Tablet ${id}`);
-      assertContentPreserved(alternate.chapters.find(chapter => chapter.id === id), smartpen.html, `Smartpen ${id}`);
-    }
+    assert.deepEqual(demos(learning), ['student'], 'teacher and practice demos are outside the student device choice');
+    assertContentPreserved(original.chapters.find(chapter => chapter.id === 'student'), tablet.html, 'Tablet student');
+    assertContentPreserved(alternate.chapters.find(chapter => chapter.id === 'student'), smartpen.html, 'Smartpen student');
     const comparison = elementByAttribute(learning, 'id', 'learning-comparison');
-    const materials = elementByAttribute(learning, 'id', 'library');
     assert.ok(tablet.start > comparison.start && tablet.end < comparison.end);
     assert.ok(smartpen.start > comparison.start && smartpen.end < comparison.end);
     assert.ok(switcher.start > comparison.start && switcher.end < comparison.end);
-    assert.ok(materials.start > comparison.end, 'shared materials stay outside the switching area');
-    assertContentPreserved(original.chapters.find(chapter => chapter.id === 'library'), materials.html, 'Shared materials');
-    assert.equal((learning.match(/id="library"/g) || []).length, 1, 'materials are presented once');
-    assert.ok(gameIndex > comparison.end, 'the shared game stays outside the switching area');
+    const materials = byId('materials').body;
+    for (const id of ['library', 'teacher']) {
+      const section = elementByAttribute(materials, 'id', id);
+      assertContentPreserved(original.chapters.find(chapter => chapter.id === id), section.html, `Teaching materials ${id}`);
+      assert.equal((materials.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1, `${id} is presented once`);
+      assert.equal(learning.includes(`id="${id}"`), false, `${id} is outside the device switch`);
+    }
+    const knowledge = elementByAttribute(materials, 'id', 'shared-knowledge');
+    const practice = elementByAttribute(materials, 'id', 'shared-practice');
+    assert.ok(knowledge.html.length > 0);
+    assert.deepEqual(demos(practice.html), ['game']);
+    assert.deepEqual(demos(materials).sort(), ['game', 'teacher']);
+    assert.doesNotMatch(materials, /data-learning-solution=/, 'teaching materials do not switch by device');
   });
 
   test(`unified ${language} proposal has one copy of each demo and unchanged shared management features`, () => {

@@ -214,7 +214,7 @@ export function activateDemo(id) {
     if(visible)sizeFrame(visible);
     return;
   }
-  const scene=id==='system'?'operations':id;
+  const scene=id==='system'?'operations':id==='materials'?'teacher':id;
   const entry=scenes[scene]?mount(scene):null;
   setActive(entry);
   if(entry)sizeFrame(entry);
@@ -274,7 +274,7 @@ export function initDemos(options = {}) {
   });
   // Start the requested scene first, then warm the rest without replacing it.
   const chapter=location.hash.slice(1);
-  const first=chapter==='system'?'operations':scenes[chapter]?chapter:'student';
+  const first=chapter==='system'?'operations':chapter==='materials'?'teacher':scenes[chapter]?chapter:'student';
   mount(first);
   setTimeout(()=>{for(const id of Object.keys(scenes))if(!frames.has(id))mount(id);},0);
 }

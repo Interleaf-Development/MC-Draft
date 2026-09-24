@@ -11,8 +11,8 @@ const proposal = buildProposalStructure(language, original, getSmartpenProposal(
 const { chapters, references } = proposal;
 const { chapterHTML } = original;
 const copy = { ...shellText, ...proposal.shellTextOverrides };
-// Keep shared links working after combining related chapters.
-const chapterAliases = { student: 'learning', teacher: 'learning', library: 'learning', authoring: 'learning', protection: 'learning', franchise: 'system', operations: 'system', billing: 'system', rollout: 'vision', proposal: 'vision' };
+// Keep shared links working after separating student experience and materials.
+const chapterAliases = { student: 'learning', 'smartpen-student': 'learning', teacher: 'materials', 'smartpen-teacher': 'materials', library: 'materials', authoring: 'materials', protection: 'materials', 'shared-knowledge': 'materials', 'shared-practice': 'materials', franchise: 'system', operations: 'system', billing: 'system', rollout: 'vision', proposal: 'vision' };
 const chapterIndex = hash => { const id = hash.replace(/^#/, ''); return chapters.findIndex(chapter => chapter.id === (chapterAliases[id] || id)); };
 import { initDemos, activateDemo, demoIsSaving, demoNavigationBlocked } from './demos.js';
 document.documentElement.lang=language;
@@ -21,7 +21,7 @@ for(const element of document.querySelectorAll('[data-copy]'))element.textConten
 const topbar=document.querySelector('.topbar');
 const measureHeader=()=>document.documentElement.style.setProperty('--proposal-header-height',topbar.getBoundingClientRect().height+'px');
 measureHeader();new ResizeObserver(measureHeader).observe(topbar);
-document.querySelector('meta[name="description"]').content=t('MathConcept proposal: two teaching approaches, with shared centre management and parent services.','MathConcept 系統建議書：兩個教學方案，共用中心管理及家長服務。');
+document.querySelector('meta[name="description"]').content=t('MathConcept proposal: tablet and smartpen student experiences, teaching materials, centre management and parent services.','MathConcept 系統建議書：平板與智能筆的學生體驗、教材、中心管理及家長服務。');
 for(const [id,label] of Object.entries({chapters:t('Proposal chapters','建議書章節'),menu:t('Open contents','開啟目錄'),references:t('Open reference documents','開啟參考文件'),'close-dialog':t('Close dialog','關閉視窗')}))document.getElementById(id).setAttribute('aria-label',label);
 document.getElementById('prev').textContent=t('← Previous','← 上一章');
 document.getElementById('next').textContent=t('Next →','下一章 →');

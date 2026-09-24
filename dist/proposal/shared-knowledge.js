@@ -5,7 +5,7 @@ export function getSharedKnowledge(language) {
     `<section class="feature-detail"><h3>${copy(chineseTitle, englishTitle)}</h3><p>${copy(chineseBody, englishBody)}</p></section>`;
 
   return {
-    heading: copy('共同大腦：跨中心學校資訊庫（兩方案共用）', 'Shared knowledge: school information across centres (shared)'),
+    heading: copy('共同大腦：跨中心學校資訊庫', 'School knowledge base across centres'),
     intro: copy(
       '各中心從學生或家長取得的考試日期、考試範圍及歷屆試卷，往往分散在個別老師手上。我們建議把這些資訊累積成 MathConcept 的「共同大腦」，讓同中心及其他中心的老師都能查找、補充和運用，將各自的經驗變成共同的教學資源。',
       'Exam dates, syllabuses and past papers received from students or parents often remain with individual teachers. We recommend building a shared MathConcept knowledge base where teachers within the same centre and across other centres can find, contribute and use this information, turning local experience into a shared teaching resource.'
